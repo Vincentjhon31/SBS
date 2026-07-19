@@ -9,6 +9,9 @@ import '../features/auth/data/auth_providers.dart';
 import '../features/auth/presentation/citizen_register_screen.dart';
 import '../features/auth/presentation/login_screen.dart';
 import '../features/home/presentation/home_screen.dart';
+import '../features/items/data/items_models.dart';
+import '../features/items/presentation/item_form_screen.dart';
+import '../features/items/presentation/items_screen.dart';
 import '../features/splash/presentation/splash_screen.dart';
 
 abstract final class AppRoutes {
@@ -16,6 +19,9 @@ abstract final class AppRoutes {
   static const login = '/login';
   static const register = '/register';
   static const home = '/home';
+  static const items = '/items';
+  static const itemNew = '/items/new';
+  static const itemEdit = '/items/edit';
 }
 
 /// Re-runs the router redirect whenever the auth state changes.
@@ -67,6 +73,23 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.home,
         builder: (context, state) => const HomeScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.items,
+        builder: (context, state) => const ItemsScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.itemNew,
+        builder: (context, state) => const ItemFormScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.itemEdit,
+        // Item is passed via extra from the list; a cold deep-link without
+        // it just lands back on the registry.
+        redirect: (context, state) =>
+            state.extra is Item ? null : AppRoutes.items,
+        builder: (context, state) =>
+            ItemFormScreen(item: state.extra as Item),
       ),
     ],
   );

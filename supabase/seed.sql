@@ -43,3 +43,23 @@ values (
   now()
 )
 on conflict (provider_id, provider) do nothing;
+
+-- Sample departments and a scoped membership so department behavior is
+-- testable out of the box: Test Staff is an Approver for Motor Pool
+-- (manages Motor Pool + unassigned items, but NOT General Services items).
+insert into public.departments (id, name)
+values
+  ('22222222-2222-2222-2222-222222222222', 'Motor Pool'),
+  ('33333333-3333-3333-3333-333333333333', 'General Services Office')
+on conflict (id) do nothing;
+
+insert into public.department_members (department_id, user_id)
+values ('22222222-2222-2222-2222-222222222222', '11111111-1111-1111-1111-111111111111')
+on conflict (department_id, user_id) do nothing;
+
+-- A few starter items so the registry isn't empty on first run.
+insert into public.items (name, distinguishing_tag, category, owning_department_id, created_by)
+values
+  ('Multicab', 'SKA-1234', 'Vehicle', '22222222-2222-2222-2222-222222222222', '11111111-1111-1111-1111-111111111111'),
+  ('Municipal Gymnasium', null, 'Venue', null, '11111111-1111-1111-1111-111111111111'),
+  ('Sound System', 'Unit A', 'Equipment', null, '11111111-1111-1111-1111-111111111111');

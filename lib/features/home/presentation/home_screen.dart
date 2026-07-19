@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../app/router.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../auth/data/auth_providers.dart';
 
@@ -82,6 +84,17 @@ class HomeScreen extends ConsumerWidget {
                   ),
                 ),
               ],
+              const SizedBox(height: 24),
+              Card(
+                child: ListTile(
+                  leading: const Icon(Icons.inventory_2_outlined),
+                  title: const Text('Items Registry'),
+                  subtitle:
+                      const Text('Browse borrowable items, venues, vehicles'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => context.go(AppRoutes.items),
+                ),
+              ),
               const SizedBox(height: 24),
               Text(
                 'v${AppConstants.appVersion} — borrowing features arrive in '
