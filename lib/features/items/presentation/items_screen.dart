@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/router.dart';
+import '../../../core/widgets/sbs_nav_bar.dart';
 import '../data/items_models.dart';
 import '../data/items_providers.dart';
 
@@ -22,7 +23,11 @@ class _ItemsScreenState extends ConsumerState<ItemsScreen> {
     final isStaff = ref.watch(isStaffProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Items Registry')),
+      appBar: AppBar(
+        title: const Text('Items Registry'),
+        automaticallyImplyLeading: false,
+      ),
+      bottomNavigationBar: const SBSNavBar(current: AppRoutes.items),
       floatingActionButton: isStaff
           ? FloatingActionButton.extended(
               onPressed: () => context.go(AppRoutes.itemNew),

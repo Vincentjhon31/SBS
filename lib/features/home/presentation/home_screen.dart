@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/router.dart';
 import '../../../core/constants/app_constants.dart';
+import '../../../core/widgets/sbs_nav_bar.dart';
 import '../../auth/data/auth_providers.dart';
 
 /// Placeholder shell — replaced by the real dashboard in later phases.
@@ -16,8 +17,10 @@ class HomeScreen extends ConsumerWidget {
     final verified = ref.watch(myCitizenVerifiedProvider);
 
     return Scaffold(
+      bottomNavigationBar: const SBSNavBar(current: AppRoutes.home),
       appBar: AppBar(
         title: const Text(AppConstants.appName),
+        automaticallyImplyLeading: false,
         actions: [
           IconButton(
             tooltip: 'Sign out',

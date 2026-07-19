@@ -11,6 +11,13 @@ values
   ('00000000-0000-0000-0000-000000000000', 'dddddddd-dddd-dddd-dddd-dddddddddddd', 'authenticated', 'authenticated', 'cit-d@test.local', 'x', now(), '{"provider":"email","providers":["email"]}', '{"full_name":"Citizen D","user_type":"citizen"}', now(), now()),
   ('00000000-0000-0000-0000-000000000000', 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee', 'authenticated', 'authenticated', 'cit-e@test.local', 'x', now(), '{"provider":"email","providers":["email"]}', '{"full_name":"Citizen E","user_type":"citizen"}', now(), now());
 
+-- Verified citizen profiles (the Phase 5 gate blocks approving unverified
+-- citizens; this test focuses on the overlap constraint, not the gate).
+insert into public.citizen_profiles (id, contact_number, id_type, id_number, verified)
+values
+  ('dddddddd-dddd-dddd-dddd-dddddddddddd', '0917', 'UMID', 'D-1', true),
+  ('eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee', '0917', 'UMID', 'E-1', true);
+
 -- ===== Citizen D requests the Multicab =====
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"dddddddd-dddd-dddd-dddd-dddddddddddd","role":"authenticated"}';
@@ -60,12 +67,17 @@ end $$;
 -- ===== Staff visibility =====
 set local request.jwt.claims = '{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}';
 
--- Test Staff (Motor Pool approver) sees both Multicab requests.
+-- Test Staff (Motor Pool approver) sees both of this test's Multicab
+-- requests (count scoped to test borrowers so leftover data can't skew it).
 do $$
 begin
-  if (select count(*) from public.borrow_requests) <> 2 then
+  if (select count(*) from public.borrow_requests
+      where borrower_id in ('dddddddd-dddd-dddd-dddd-dddddddddddd',
+                            'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee')) <> 2 then
     raise exception 'FAIL: approver does not see scoped requests, saw %',
-      (select count(*) from public.borrow_requests);
+      (select count(*) from public.borrow_requests
+       where borrower_id in ('dddddddd-dddd-dddd-dddd-dddddddddddd',
+                             'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee'));
   end if;
 end $$;
 

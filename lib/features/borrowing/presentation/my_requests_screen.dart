@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/router.dart';
+import '../../../core/widgets/sbs_nav_bar.dart';
 import '../data/borrow_models.dart';
 import '../data/borrow_providers.dart';
 
@@ -16,8 +17,9 @@ class MyRequestsScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('My Requests'),
-        leading: BackButton(onPressed: () => context.go(AppRoutes.home)),
+        automaticallyImplyLeading: false,
       ),
+      bottomNavigationBar: const SBSNavBar(current: AppRoutes.requests),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => context.go(AppRoutes.requestNew),
         icon: const Icon(Icons.add),
