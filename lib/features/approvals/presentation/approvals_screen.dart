@@ -8,58 +8,104 @@ import '../data/approvals_models.dart';
 import '../data/approvals_providers.dart';
 import '../data/approvals_repository.dart';
 
-class ApprovalsScreen extends ConsumerWidget {
+class ApprovalsScreen extends StatelessWidget {
   const ApprovalsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final pending = ref.watch(pendingApprovalsProvider);
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Pending Approvals'),
-        automaticallyImplyLeading: false,
-      ),
-      bottomNavigationBar: const SBSNavBar(current: AppRoutes.approvals),
-      body: switch (pending) {
-        AsyncData(:final value) when value.isEmpty => const Center(
-            child: Text('No pending requests in your scope. 🎉'),
-          ),
-        AsyncData(:final value) => RefreshIndicator(
-            onRefresh: () async => ref.invalidate(pendingApprovalsProvider),
-            child: ListView.builder(
-              physics: const AlwaysScrollableScrollPhysics(),
-              itemCount: value.length,
-              itemBuilder: (context, index) {
-                final req = value[index];
-                return Card(
-                  margin:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                  child: ListTile(
-                    leading: CircleAvatar(
-                      child: Icon(req.isCitizenBorrower
-                          ? Icons.person_outline
-                          : Icons.badge_outlined),
-                    ),
-                    title: Text(req.itemLabel),
-                    subtitle: Text(
-                      '${req.borrowerName} '
-                      '(${req.isCitizenBorrower ? "Citizen" : "Staff"})\n'
-                      '${_date(req.requestedFrom)} → ${_date(req.requestedTo)}',
-                    ),
-                    isThreeLine: true,
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () =>
-                        context.go(AppRoutes.approvalDetail, extra: req),
-                  ),
-                );
-              },
+  Widget build(BuildContext context) {
+    return DefaultTabController(
+      length: 3,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Approvals'),
+          automaticallyImplyLeading: false,
+          bottom: const TabBar(tabs: [
+            Tab(text: 'Pending'),
+            Tab(text: 'To Release'),
+            Tab(text: 'To Return'),
+          ]),
+        ),
+        bottomNavigationBar: const SBSNavBar(current: AppRoutes.approvals),
+        body: TabBarView(
+          children: [
+            _ApprovalQueue(
+              status: 'pending',
+              emptyText: 'No pending requests in your scope. 🎉',
+              onTap: (context, req) =>
+                  context.go(AppRoutes.approvalDetail, extra: req),
             ),
-          ),
-        AsyncError() => const Center(child: Text('Could not load approvals.')),
-        _ => const Center(child: CircularProgressIndicator()),
-      },
+            _ApprovalQueue(
+              status: 'approved',
+              emptyText: 'Nothing awaiting release.',
+              onTap: (context, req) => context.go(
+                AppRoutes.evidenceCapture,
+                extra: EvidenceCaptureArgs(request: req, stage: 'release'),
+              ),
+            ),
+            _ApprovalQueue(
+              status: 'released',
+              emptyText: 'Nothing currently out on loan.',
+              onTap: (context, req) => context.go(
+                AppRoutes.evidenceCapture,
+                extra: EvidenceCaptureArgs(request: req, stage: 'return'),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
+  }
+}
+
+class _ApprovalQueue extends ConsumerWidget {
+  const _ApprovalQueue({
+    required this.status,
+    required this.emptyText,
+    required this.onTap,
+  });
+
+  final String status;
+  final String emptyText;
+  final void Function(BuildContext, PendingApproval) onTap;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final queue = ref.watch(approvalQueueProvider(status));
+    return switch (queue) {
+      AsyncData(:final value) when value.isEmpty =>
+        Center(child: Text(emptyText)),
+      AsyncData(:final value) => RefreshIndicator(
+          onRefresh: () async => ref.invalidate(approvalQueueProvider(status)),
+          child: ListView.builder(
+            physics: const AlwaysScrollableScrollPhysics(),
+            itemCount: value.length,
+            itemBuilder: (context, index) {
+              final req = value[index];
+              return Card(
+                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                child: ListTile(
+                  leading: CircleAvatar(
+                    child: Icon(req.isCitizenBorrower
+                        ? Icons.person_outline
+                        : Icons.badge_outlined),
+                  ),
+                  title: Text(req.itemLabel),
+                  subtitle: Text(
+                    '${req.borrowerName} '
+                    '(${req.isCitizenBorrower ? "Citizen" : "Staff"})\n'
+                    '${_date(req.requestedFrom)} → ${_date(req.requestedTo)}',
+                  ),
+                  isThreeLine: true,
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => onTap(context, req),
+                ),
+              );
+            },
+          ),
+        ),
+      AsyncError() => const Center(child: Text('Could not load requests.')),
+      _ => const Center(child: CircularProgressIndicator()),
+    };
   }
 
   static String _date(DateTime dt) =>
@@ -89,7 +135,7 @@ class _ApprovalDetailScreenState extends ConsumerState<ApprovalDetailScreen> {
     setState(() => _busy = true);
     try {
       await action();
-      ref.invalidate(pendingApprovalsProvider);
+      ref.invalidate(approvalQueueProvider);
       messenger.showSnackBar(SnackBar(content: Text(successMsg)));
       if (mounted) context.go(AppRoutes.approvals);
     } on ReservationConflictException {

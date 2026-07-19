@@ -7,6 +7,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../features/approvals/data/approvals_models.dart';
 import '../features/approvals/presentation/approvals_screen.dart';
+import '../features/approvals/presentation/evidence_capture_screen.dart';
+import '../features/approvals/presentation/evidence_viewer_screen.dart';
 import '../features/auth/data/auth_providers.dart';
 import '../features/auth/presentation/citizen_register_screen.dart';
 import '../features/borrowing/presentation/my_requests_screen.dart';
@@ -30,6 +32,8 @@ abstract final class AppRoutes {
   static const requestNew = '/requests/new';
   static const approvals = '/approvals';
   static const approvalDetail = '/approvals/detail';
+  static const evidenceCapture = '/approvals/capture';
+  static const evidenceView = '/evidence';
 }
 
 /// Re-runs the router redirect whenever the auth state changes.
@@ -108,6 +112,20 @@ final routerProvider = Provider<GoRouter>((ref) {
             state.extra is PendingApproval ? null : AppRoutes.approvals,
         builder: (context, state) =>
             ApprovalDetailScreen(request: state.extra as PendingApproval),
+      ),
+      GoRoute(
+        path: AppRoutes.evidenceCapture,
+        redirect: (context, state) =>
+            state.extra is EvidenceCaptureArgs ? null : AppRoutes.approvals,
+        builder: (context, state) =>
+            EvidenceCaptureScreen(args: state.extra as EvidenceCaptureArgs),
+      ),
+      GoRoute(
+        path: AppRoutes.evidenceView,
+        redirect: (context, state) =>
+            state.extra is EvidenceViewArgs ? null : AppRoutes.home,
+        builder: (context, state) =>
+            EvidenceViewerScreen(args: state.extra as EvidenceViewArgs),
       ),
       GoRoute(
         path: AppRoutes.itemEdit,

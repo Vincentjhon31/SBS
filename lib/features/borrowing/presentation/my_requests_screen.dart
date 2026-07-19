@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/router.dart';
 import '../../../core/widgets/sbs_nav_bar.dart';
+import '../../approvals/data/approvals_models.dart';
 import '../data/borrow_models.dart';
 import '../data/borrow_providers.dart';
 
@@ -27,18 +28,18 @@ class MyRequestsScreen extends ConsumerWidget {
       ),
       body: switch (requests) {
         AsyncData(:final value) when value.isEmpty => const Center(
-            child: Text('No requests yet — tap "New request" to start.'),
-          ),
+          child: Text('No requests yet — tap "New request" to start.'),
+        ),
         AsyncData(:final value) => RefreshIndicator(
-            onRefresh: () async => ref.invalidate(myRequestsProvider),
-            child: ListView.builder(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.only(bottom: 88),
-              itemCount: value.length,
-              itemBuilder: (context, index) =>
-                  _RequestTile(request: value[index]),
-            ),
+          onRefresh: () async => ref.invalidate(myRequestsProvider),
+          child: ListView.builder(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.only(bottom: 88),
+            itemCount: value.length,
+            itemBuilder: (context, index) =>
+                _RequestTile(request: value[index]),
           ),
+        ),
         AsyncError() => const Center(child: Text('Could not load requests.')),
         _ => const Center(child: CircularProgressIndicator()),
       },
@@ -51,49 +52,69 @@ class _RequestTile extends StatelessWidget {
 
   final BorrowRequest request;
 
+  static const _evidenceStatuses = {
+    'released',
+    'returned',
+    'closed',
+    'overdue',
+  };
+
   @override
   Widget build(BuildContext context) {
+    final hasEvidence = _evidenceStatuses.contains(request.status);
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    request.itemLabel,
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
+      child: InkWell(
+        onTap: hasEvidence
+            ? () => context.go(
+                AppRoutes.evidenceView,
+                extra: EvidenceViewArgs(
+                  requestId: request.id,
+                  itemLabel: request.itemLabel,
+                  backRoute: AppRoutes.requests,
                 ),
-                _StatusChip(status: request.status),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Text(
-              '${_date(request.requestedFrom)} → ${_date(request.requestedTo)}',
-            ),
-            const SizedBox(height: 4),
-            Text(
-              request.purpose,
-              style: Theme.of(context).textTheme.bodySmall,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            if (request.status == 'rejected' &&
-                request.rejectedReason != null) ...[
+              )
+            : null,
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      request.itemLabel,
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                  ),
+                  _StatusChip(status: request.status),
+                ],
+              ),
               const SizedBox(height: 4),
               Text(
-                'Reason: ${request.rejectedReason}',
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.error,
-                  fontSize: 12,
-                ),
+                '${_date(request.requestedFrom)} → ${_date(request.requestedTo)}',
               ),
+              const SizedBox(height: 4),
+              Text(
+                request.purpose,
+                style: Theme.of(context).textTheme.bodySmall,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              if (request.status == 'rejected' &&
+                  request.rejectedReason != null) ...[
+                const SizedBox(height: 4),
+                Text(
+                  'Reason: ${request.rejectedReason}',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.error,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );

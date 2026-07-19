@@ -42,6 +42,45 @@ class PendingApproval {
   }
 }
 
+class EvidenceRecord {
+  const EvidenceRecord({
+    required this.stage,
+    required this.borrowerPhotoUrl,
+    required this.itemPhotoUrl,
+    this.conditionNotes,
+    required this.capturedAt,
+  });
+
+  final String stage;
+  final String borrowerPhotoUrl;
+  final String itemPhotoUrl;
+  final String? conditionNotes;
+  final DateTime capturedAt;
+}
+
+/// Router payload for the capture screen.
+class EvidenceCaptureArgs {
+  const EvidenceCaptureArgs({required this.request, required this.stage});
+
+  final PendingApproval request;
+
+  /// 'release' or 'return'.
+  final String stage;
+}
+
+/// Router payload for the evidence viewer.
+class EvidenceViewArgs {
+  const EvidenceViewArgs({
+    required this.requestId,
+    required this.itemLabel,
+    required this.backRoute,
+  });
+
+  final String requestId;
+  final String itemLabel;
+  final String backRoute;
+}
+
 class CitizenVerification {
   const CitizenVerification({
     required this.contactNumber,
