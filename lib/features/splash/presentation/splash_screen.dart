@@ -1,35 +1,11 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 
-import '../../../app/router.dart';
 import '../../../core/constants/app_constants.dart';
 
-class SplashScreen extends StatefulWidget {
+/// Branded fallback shown only while the router resolves the auth redirect;
+/// the native splash covers actual app startup.
+class SplashScreen extends StatelessWidget {
   const SplashScreen({super.key});
-
-  @override
-  State<SplashScreen> createState() => _SplashScreenState();
-}
-
-class _SplashScreenState extends State<SplashScreen> {
-  Timer? _timer;
-
-  @override
-  void initState() {
-    super.initState();
-    // Phase 2 replaces this timer with an auth-state gate.
-    _timer = Timer(AppConstants.splashDuration, () {
-      if (mounted) context.go(AppRoutes.home);
-    });
-  }
-
-  @override
-  void dispose() {
-    _timer?.cancel();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
