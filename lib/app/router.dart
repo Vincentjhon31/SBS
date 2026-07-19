@@ -7,6 +7,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../features/auth/data/auth_providers.dart';
 import '../features/auth/presentation/citizen_register_screen.dart';
+import '../features/borrowing/presentation/my_requests_screen.dart';
+import '../features/borrowing/presentation/request_form_screen.dart';
 import '../features/auth/presentation/login_screen.dart';
 import '../features/home/presentation/home_screen.dart';
 import '../features/items/data/items_models.dart';
@@ -22,6 +24,8 @@ abstract final class AppRoutes {
   static const items = '/items';
   static const itemNew = '/items/new';
   static const itemEdit = '/items/edit';
+  static const requests = '/requests';
+  static const requestNew = '/requests/new';
 }
 
 /// Re-runs the router redirect whenever the auth state changes.
@@ -81,6 +85,14 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.itemNew,
         builder: (context, state) => const ItemFormScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.requests,
+        builder: (context, state) => const MyRequestsScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.requestNew,
+        builder: (context, state) => const RequestFormScreen(),
       ),
       GoRoute(
         path: AppRoutes.itemEdit,

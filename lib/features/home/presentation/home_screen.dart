@@ -87,6 +87,24 @@ class HomeScreen extends ConsumerWidget {
               const SizedBox(height: 24),
               Card(
                 child: ListTile(
+                  leading: const Icon(Icons.add_circle_outline),
+                  title: const Text('Request an Item'),
+                  subtitle: const Text('Reserve a vehicle, venue, or equipment'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => context.go(AppRoutes.requestNew),
+                ),
+              ),
+              Card(
+                child: ListTile(
+                  leading: const Icon(Icons.receipt_long_outlined),
+                  title: const Text('My Requests'),
+                  subtitle: const Text('Track status and due dates'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => context.go(AppRoutes.requests),
+                ),
+              ),
+              Card(
+                child: ListTile(
                   leading: const Icon(Icons.inventory_2_outlined),
                   title: const Text('Items Registry'),
                   subtitle:
