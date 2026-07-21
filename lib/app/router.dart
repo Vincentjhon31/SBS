@@ -16,6 +16,7 @@ import '../features/borrowing/presentation/request_form_screen.dart';
 import '../features/auth/presentation/login_screen.dart';
 import '../features/home/presentation/home_screen.dart';
 import '../features/items/data/items_models.dart';
+import '../features/notifications/presentation/notifications_screen.dart';
 import '../features/items/presentation/item_form_screen.dart';
 import '../features/items/presentation/items_screen.dart';
 import '../features/splash/presentation/splash_screen.dart';
@@ -34,6 +35,7 @@ abstract final class AppRoutes {
   static const approvalDetail = '/approvals/detail';
   static const evidenceCapture = '/approvals/capture';
   static const evidenceView = '/evidence';
+  static const notifications = '/notifications';
 }
 
 /// Re-runs the router redirect whenever the auth state changes.
@@ -126,6 +128,10 @@ final routerProvider = Provider<GoRouter>((ref) {
             state.extra is EvidenceViewArgs ? null : AppRoutes.home,
         builder: (context, state) =>
             EvidenceViewerScreen(args: state.extra as EvidenceViewArgs),
+      ),
+      GoRoute(
+        path: AppRoutes.notifications,
+        builder: (context, state) => const NotificationsScreen(),
       ),
       GoRoute(
         path: AppRoutes.itemEdit,

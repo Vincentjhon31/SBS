@@ -6,6 +6,7 @@ import '../../../app/router.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/widgets/sbs_nav_bar.dart';
 import '../../auth/data/auth_providers.dart';
+import '../../notifications/data/notifications_providers.dart';
 
 /// Placeholder shell — replaced by the real dashboard in later phases.
 class HomeScreen extends ConsumerWidget {
@@ -22,6 +23,15 @@ class HomeScreen extends ConsumerWidget {
         title: const Text(AppConstants.appName),
         automaticallyImplyLeading: false,
         actions: [
+          IconButton(
+            tooltip: 'Notifications',
+            icon: Badge.count(
+              count: ref.watch(unreadCountProvider),
+              isLabelVisible: ref.watch(unreadCountProvider) > 0,
+              child: const Icon(Icons.notifications_outlined),
+            ),
+            onPressed: () => context.go(AppRoutes.notifications),
+          ),
           IconButton(
             tooltip: 'Sign out',
             icon: const Icon(Icons.logout),
