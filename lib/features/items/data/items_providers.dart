@@ -28,3 +28,7 @@ final isStaffProvider = Provider<bool>((ref) {
 final itemPhotoUrlProvider = FutureProvider.family<String, String>(
   (ref, path) => ref.watch(itemsRepositoryProvider).signedPhotoUrl(path),
 );
+
+final itemStatusesProvider = FutureProvider<Map<String, ItemStatus>>(
+  (ref) => ref.watch(itemsRepositoryProvider).fetchStatuses(),
+);

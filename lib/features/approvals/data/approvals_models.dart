@@ -8,6 +8,7 @@ class PendingApproval {
     required this.borrowerId,
     required this.borrowerName,
     required this.borrowerType,
+    required this.status,
     required this.createdAt,
   });
 
@@ -19,9 +20,11 @@ class PendingApproval {
   final String borrowerId;
   final String borrowerName;
   final String borrowerType;
+  final String status;
   final DateTime createdAt;
 
   bool get isCitizenBorrower => borrowerType == 'citizen';
+  bool get isOverdue => status == 'overdue';
 
   factory PendingApproval.fromJson(Map<String, dynamic> json) {
     final item = json['items'] as Map<String, dynamic>?;
@@ -37,6 +40,7 @@ class PendingApproval {
       borrowerId: json['borrower_id'] as String,
       borrowerName: borrower?['full_name'] as String? ?? 'Unknown borrower',
       borrowerType: json['borrower_type'] as String,
+      status: json['status'] as String,
       createdAt: DateTime.parse(json['created_at'] as String).toLocal(),
     );
   }

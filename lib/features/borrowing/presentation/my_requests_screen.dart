@@ -11,38 +11,91 @@ import '../data/borrow_providers.dart';
 class MyRequestsScreen extends ConsumerWidget {
   const MyRequestsScreen({super.key});
 
+  static const _activeStatuses = {'pending', 'approved', 'released', 'overdue'};
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final requests = ref.watch(myRequestsProvider);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('My Requests'),
-        automaticallyImplyLeading: false,
-      ),
-      bottomNavigationBar: const SBSNavBar(current: AppRoutes.requests),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => context.go(AppRoutes.requestNew),
-        icon: const Icon(Icons.add),
-        label: const Text('New request'),
-      ),
-      body: switch (requests) {
-        AsyncData(:final value) when value.isEmpty => const Center(
-          child: Text('No requests yet — tap "New request" to start.'),
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('My Requests'),
+          automaticallyImplyLeading: false,
+          bottom: const TabBar(tabs: [
+            Tab(text: 'Active'),
+            Tab(text: 'History'),
+          ]),
         ),
-        AsyncData(:final value) => RefreshIndicator(
-          onRefresh: () async => ref.invalidate(myRequestsProvider),
-          child: ListView.builder(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.only(bottom: 88),
-            itemCount: value.length,
-            itemBuilder: (context, index) =>
-                _RequestTile(request: value[index]),
+        bottomNavigationBar: const SBSNavBar(current: AppRoutes.requests),
+        floatingActionButton: FloatingActionButton.extended(
+          onPressed: () => context.go(AppRoutes.requestNew),
+          icon: const Icon(Icons.add),
+          label: const Text('New request'),
+        ),
+        body: switch (requests) {
+          AsyncData(:final value) => TabBarView(
+            children: [
+              _RequestsList(
+                requests: _sortActive([
+                  for (final r in value)
+                    if (_activeStatuses.contains(r.status)) r,
+                ]),
+                emptyText: 'No active requests — tap "New request" to start.',
+                onRefresh: () async => ref.invalidate(myRequestsProvider),
+              ),
+              _RequestsList(
+                requests: [
+                  for (final r in value)
+                    if (!_activeStatuses.contains(r.status)) r,
+                ],
+                emptyText: 'No past requests yet.',
+                onRefresh: () async => ref.invalidate(myRequestsProvider),
+              ),
+            ],
           ),
-        ),
-        AsyncError() => const Center(child: Text('Could not load requests.')),
-        _ => const Center(child: CircularProgressIndicator()),
-      },
+          AsyncError() =>
+            const Center(child: Text('Could not load requests.')),
+          _ => const Center(child: CircularProgressIndicator()),
+        },
+      ),
+    );
+  }
+
+  /// Soonest obligation first: due date when set, otherwise start date.
+  static List<BorrowRequest> _sortActive(List<BorrowRequest> list) {
+    list.sort((a, b) => (a.dueAt ?? a.requestedFrom)
+        .compareTo(b.dueAt ?? b.requestedFrom));
+    return list;
+  }
+}
+
+class _RequestsList extends StatelessWidget {
+  const _RequestsList({
+    required this.requests,
+    required this.emptyText,
+    required this.onRefresh,
+  });
+
+  final List<BorrowRequest> requests;
+  final String emptyText;
+  final Future<void> Function() onRefresh;
+
+  @override
+  Widget build(BuildContext context) {
+    if (requests.isEmpty) {
+      return Center(child: Text(emptyText));
+    }
+    return RefreshIndicator(
+      onRefresh: onRefresh,
+      child: ListView.builder(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.only(bottom: 88),
+        itemCount: requests.length,
+        itemBuilder: (context, index) =>
+            _RequestTile(request: requests[index]),
+      ),
     );
   }
 }
@@ -95,6 +148,21 @@ class _RequestTile extends StatelessWidget {
               Text(
                 '${_date(request.requestedFrom)} → ${_date(request.requestedTo)}',
               ),
+              if (request.dueAt != null &&
+                  const {'approved', 'released', 'overdue'}
+                      .contains(request.status)) ...[
+                const SizedBox(height: 2),
+                Text(
+                  'Due back ${_date(request.dueAt!)}',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12,
+                    color: request.status == 'overdue'
+                        ? Theme.of(context).colorScheme.error
+                        : Theme.of(context).colorScheme.primary,
+                  ),
+                ),
+              ],
               const SizedBox(height: 4),
               Text(
                 request.purpose,

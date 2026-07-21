@@ -16,13 +16,14 @@ class ApprovalsRepository {
 
   final SupabaseClient _client;
 
-  /// Requests in the caller's approval scope with the given status.
-  Future<List<PendingApproval>> fetchQueue(String status) async {
+  /// Requests in the caller's approval scope. [statuses] is a
+  /// comma-separated status list (e.g. 'released,overdue').
+  Future<List<PendingApproval>> fetchQueue(String statuses) async {
     final rows = await _client
         .from('borrow_requests')
         .select('*, items(name, distinguishing_tag), '
             'profiles!borrow_requests_borrower_id_fkey(full_name, user_type)')
-        .eq('status', status)
+        .inFilter('status', statuses.split(','))
         .order('created_at', ascending: true);
     return [for (final row in rows) PendingApproval.fromJson(row)];
   }

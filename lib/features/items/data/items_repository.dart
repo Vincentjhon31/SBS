@@ -95,6 +95,16 @@ class ItemsRepository {
   Future<String> signedPhotoUrl(String path) =>
       _client.storage.from('item-photos').createSignedUrl(path, 3600);
 
+  /// Live status per active item (identity-free, server-derived).
+  Future<Map<String, ItemStatus>> fetchStatuses() async {
+    final rows = await _client.rpc('items_status') as List;
+    return {
+      for (final row in rows)
+        (row as Map<String, dynamic>)['item_id'] as String:
+            ItemStatus.fromJson(row),
+    };
+  }
+
   static String? _nullIfBlank(String? value) {
     final trimmed = value?.trim();
     return (trimmed == null || trimmed.isEmpty) ? null : trimmed;

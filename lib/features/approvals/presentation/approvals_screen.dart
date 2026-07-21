@@ -43,7 +43,7 @@ class ApprovalsScreen extends StatelessWidget {
               ),
             ),
             _ApprovalQueue(
-              status: 'released',
+              status: 'released,overdue',
               emptyText: 'Nothing currently out on loan.',
               onTap: (context, req) => context.go(
                 AppRoutes.evidenceCapture,
@@ -96,7 +96,14 @@ class _ApprovalQueue extends ConsumerWidget {
                     '${_date(req.requestedFrom)} → ${_date(req.requestedTo)}',
                   ),
                   isThreeLine: true,
-                  trailing: const Icon(Icons.chevron_right),
+                  trailing: req.isOverdue
+                      ? Chip(
+                          label: const Text('OVERDUE'),
+                          visualDensity: VisualDensity.compact,
+                          backgroundColor:
+                              Theme.of(context).colorScheme.errorContainer,
+                        )
+                      : const Icon(Icons.chevron_right),
                   onTap: () => onTap(context, req),
                 ),
               );

@@ -20,6 +20,7 @@ class _ItemsScreenState extends ConsumerState<ItemsScreen> {
   @override
   Widget build(BuildContext context) {
     final items = ref.watch(itemsProvider);
+    final statuses = ref.watch(itemStatusesProvider).value ?? {};
     final isStaff = ref.watch(isStaffProvider);
 
     return Scaffold(
@@ -51,8 +52,12 @@ class _ItemsScreenState extends ConsumerState<ItemsScreen> {
             child: switch (items) {
               AsyncData(:final value) => _ItemsList(
                   items: _filtered(value),
+                  statuses: statuses,
                   isStaff: isStaff,
-                  onRefresh: () async => ref.invalidate(itemsProvider),
+                  onRefresh: () async {
+                    ref.invalidate(itemsProvider);
+                    ref.invalidate(itemStatusesProvider);
+                  },
                 ),
               AsyncError(:final error) => Center(
                   child: Padding(
@@ -84,11 +89,13 @@ class _ItemsScreenState extends ConsumerState<ItemsScreen> {
 class _ItemsList extends StatelessWidget {
   const _ItemsList({
     required this.items,
+    required this.statuses,
     required this.isStaff,
     required this.onRefresh,
   });
 
   final List<Item> items;
+  final Map<String, ItemStatus> statuses;
   final bool isStaff;
   final Future<void> Function() onRefresh;
 
@@ -105,29 +112,97 @@ class _ItemsList extends StatelessWidget {
         itemCount: items.length,
         itemBuilder: (context, index) {
           final item = items[index];
+          final status = statuses[item.id];
           return ListTile(
             leading: _ItemThumbnail(path: item.referencePhotoPath),
             title: Text(item.displayName),
-            subtitle: Text(
-              [
-                if (item.category != null) item.category!,
-                item.departmentName ?? 'Shared LGU pool',
-              ].join(' • '),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  [
+                    if (item.category != null) item.category!,
+                    item.departmentName ?? 'Shared LGU pool',
+                  ].join(' • '),
+                ),
+                if (status != null) _statusCaption(context, status),
+              ],
             ),
-            trailing: item.active
-                ? null
-                : Chip(
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (!item.active)
+                  Chip(
                     label: const Text('Inactive'),
                     visualDensity: VisualDensity.compact,
                     backgroundColor:
                         Theme.of(context).colorScheme.errorContainer,
-                  ),
+                  )
+                else if (status != null)
+                  _StatusChip(status: status.status),
+                IconButton(
+                  tooltip: 'Reservation calendar',
+                  icon: const Icon(Icons.calendar_month_outlined),
+                  onPressed: () =>
+                      context.go(AppRoutes.itemCalendar, extra: item),
+                ),
+              ],
+            ),
             onTap: isStaff
                 ? () => context.go(AppRoutes.itemEdit, extra: item)
                 : null,
           );
         },
       ),
+    );
+  }
+
+  Widget _statusCaption(BuildContext context, ItemStatus status) {
+    final String? text;
+    if ((status.status == 'out' || status.status == 'overdue') &&
+        status.currentDue != null) {
+      text = 'Due back ${_date(status.currentDue!)}';
+    } else if (status.status == 'available' &&
+        status.nextReservedFrom != null) {
+      text = 'Next reservation ${_date(status.nextReservedFrom!)}';
+    } else {
+      text = null;
+    }
+    if (text == null) return const SizedBox.shrink();
+    return Text(
+      text,
+      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            color: status.status == 'overdue'
+                ? Theme.of(context).colorScheme.error
+                : null,
+          ),
+    );
+  }
+
+  static String _date(DateTime dt) =>
+      '${dt.year}-${dt.month.toString().padLeft(2, '0')}-'
+      '${dt.day.toString().padLeft(2, '0')}';
+}
+
+class _StatusChip extends StatelessWidget {
+  const _StatusChip({required this.status});
+
+  final String status;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final (color, label) = switch (status) {
+      'available' => (scheme.secondaryContainer, 'Available'),
+      'reserved_now' => (scheme.tertiaryContainer, 'Reserved'),
+      'out' => (scheme.primaryContainer, 'On loan'),
+      'overdue' => (scheme.errorContainer, 'OVERDUE'),
+      _ => (scheme.surfaceContainerHighest, status),
+    };
+    return Chip(
+      label: Text(label),
+      backgroundColor: color,
+      visualDensity: VisualDensity.compact,
     );
   }
 }

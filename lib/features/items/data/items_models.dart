@@ -12,6 +12,35 @@ class Department {
       );
 }
 
+/// Live availability of an item, derived server-side without exposing
+/// borrower identity.
+class ItemStatus {
+  const ItemStatus({
+    required this.itemId,
+    required this.status,
+    this.currentDue,
+    this.nextReservedFrom,
+  });
+
+  final String itemId;
+
+  /// 'available' | 'reserved_now' | 'out' | 'overdue'
+  final String status;
+  final DateTime? currentDue;
+  final DateTime? nextReservedFrom;
+
+  factory ItemStatus.fromJson(Map<String, dynamic> json) => ItemStatus(
+        itemId: json['item_id'] as String,
+        status: json['status'] as String,
+        currentDue: json['current_due'] == null
+            ? null
+            : DateTime.parse(json['current_due'] as String).toLocal(),
+        nextReservedFrom: json['next_reserved_from'] == null
+            ? null
+            : DateTime.parse(json['next_reserved_from'] as String).toLocal(),
+      );
+}
+
 class Item {
   const Item({
     required this.id,
