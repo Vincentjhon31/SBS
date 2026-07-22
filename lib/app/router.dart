@@ -18,6 +18,8 @@ import '../features/home/presentation/home_screen.dart';
 import '../features/items/data/items_models.dart';
 import '../features/items/presentation/item_calendar_screen.dart';
 import '../features/notifications/presentation/notifications_screen.dart';
+import '../features/settings/presentation/data_export_screen.dart';
+import '../features/settings/presentation/settings_screen.dart';
 import '../features/items/presentation/item_form_screen.dart';
 import '../features/items/presentation/items_screen.dart';
 import '../features/splash/presentation/splash_screen.dart';
@@ -38,6 +40,8 @@ abstract final class AppRoutes {
   static const evidenceCapture = '/approvals/capture';
   static const evidenceView = '/evidence';
   static const notifications = '/notifications';
+  static const settings = '/settings';
+  static const dataExport = '/settings/export';
 }
 
 /// Re-runs the router redirect whenever the auth state changes.
@@ -134,6 +138,18 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.notifications,
         builder: (context, state) => const NotificationsScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.settings,
+        builder: (context, state) => const SettingsScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.dataExport,
+        redirect: (context, state) =>
+            state.extra is Map<String, dynamic> ? null : AppRoutes.settings,
+        builder: (context, state) => DataExportScreen(
+          data: state.extra as Map<String, dynamic>,
+        ),
       ),
       GoRoute(
         path: AppRoutes.itemCalendar,

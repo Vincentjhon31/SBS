@@ -18,4 +18,9 @@ abstract final class AppConstants {
       'photos taken at handoff. I agree to return it in the same condition '
       'on or before the stated due date, and I accept responsibility for '
       'loss or damage while it is in my care.';
+
+  static const dataPolicyStatement =
+      'Your photo and ID information are used solely to verify borrowing '
+      'transactions with the LGU. You can request an export or deletion of '
+      'your personal data at any time from Settings.';
 }
