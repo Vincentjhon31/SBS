@@ -1,27 +1,21 @@
-import 'package:flutter/foundation.dart';
-
 /// Supabase connection settings.
 ///
-/// Defaults target the local Supabase stack (`supabase start`):
-///   - Android emulator reaches the host machine via 10.0.2.2
-///   - web/desktop on the same machine use 127.0.0.1
-/// Override at build time for a real device (use your PC's LAN IP) or a
-/// hosted project:
-///   flutter run --dart-define=SUPABASE_URL=... --dart-define=SUPABASE_ANON_KEY=...
+/// Defaults target the HOSTED SBS project — plain `flutter run` /
+/// `flutter build apk` just work against it, no flags needed.
+///
+/// To point at the local Docker Supabase stack (`supabase start`) for
+/// development/testing instead, override both at build time:
+///   flutter run --dart-define=SUPABASE_URL=http://127.0.0.1:54321 --dart-define=SUPABASE_ANON_KEY=`your local anon key`
+/// On the Android emulator, local Docker is reached via 10.0.2.2 instead
+/// of 127.0.0.1; on a physical device, use your PC's LAN IP.
 abstract final class SupabaseConfig {
-  static const _urlOverride = String.fromEnvironment('SUPABASE_URL');
+  static const url = String.fromEnvironment(
+    'SUPABASE_URL',
+    defaultValue: 'https://ppbrkgnikipfhppvdwfp.supabase.co',
+  );
 
-  static String get url {
-    if (_urlOverride.isNotEmpty) return _urlOverride;
-    final onAndroid = !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
-    return onAndroid ? 'http://10.0.2.2:54321' : 'http://127.0.0.1:54321';
-  }
-
-  // The well-known local development anon key used by the Supabase CLI —
-  // not a secret. Hosted projects must supply their own via --dart-define.
   static const anonKey = String.fromEnvironment(
     'SUPABASE_ANON_KEY',
-    defaultValue:
-        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0',
+    defaultValue: 'sb_publishable_jkhW75i_rCCDqBlvmU3BYw_NnJyH43N',
   );
 }
