@@ -9,7 +9,12 @@ import '../../items/data/items_providers.dart';
 import '../data/borrow_providers.dart';
 
 class RequestFormScreen extends ConsumerStatefulWidget {
-  const RequestFormScreen({super.key});
+  const RequestFormScreen({super.key, this.preselectedItem});
+
+  /// Item chosen before landing on this form (e.g. tapped from Home's
+  /// "Available to Borrow" grid). The `requestNew` route works fine
+  /// without it too — the existing "New request" FAB doesn't pass one.
+  final Item? preselectedItem;
 
   @override
   ConsumerState<RequestFormScreen> createState() => _RequestFormScreenState();
@@ -17,9 +22,11 @@ class RequestFormScreen extends ConsumerStatefulWidget {
 
 class _RequestFormScreenState extends ConsumerState<RequestFormScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _itemController = TextEditingController();
+  late final _itemController = TextEditingController(
+    text: widget.preselectedItem?.displayName,
+  );
   final _purposeController = TextEditingController();
-  Item? _selectedItem;
+  late Item? _selectedItem = widget.preselectedItem;
   DateTime? _from;
   DateTime? _to;
   bool _submitting = false;

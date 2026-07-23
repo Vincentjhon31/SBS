@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/router.dart';
 import '../../../core/constants/app_constants.dart';
+import '../../../core/theme/theme_mode_controller.dart';
 import '../../auth/data/auth_providers.dart';
 import '../../items/data/items_providers.dart';
 import '../data/settings_models.dart';
@@ -34,6 +35,22 @@ class SettingsScreen extends ConsumerWidget {
                 subtitle: Text(profile.isStaff ? 'LGU Staff' : 'Citizen Borrower'),
               ),
             ),
+          const SizedBox(height: 16),
+          Text('Appearance', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 8),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: const [
+                  _ThemeModeSelector(),
+                  Divider(height: 32),
+                  _AccentColorSelector(),
+                ],
+              ),
+            ),
+          ),
           const SizedBox(height: 16),
           Text('Data Privacy', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),
@@ -106,6 +123,93 @@ class SettingsScreen extends ConsumerWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _ThemeModeSelector extends ConsumerWidget {
+  const _ThemeModeSelector();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final mode = ref.watch(themeModeProvider);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Theme', style: Theme.of(context).textTheme.labelLarge),
+        const SizedBox(height: 12),
+        SegmentedButton<ThemeMode>(
+          segments: const [
+            ButtonSegment(
+              value: ThemeMode.light,
+              icon: Icon(Icons.light_mode_outlined),
+              label: Text('Light'),
+            ),
+            ButtonSegment(
+              value: ThemeMode.dark,
+              icon: Icon(Icons.dark_mode_outlined),
+              label: Text('Dark'),
+            ),
+            ButtonSegment(
+              value: ThemeMode.system,
+              icon: Icon(Icons.brightness_auto_outlined),
+              label: Text('System'),
+            ),
+          ],
+          selected: {mode},
+          onSelectionChanged: (selection) => ref
+              .read(themeModeProvider.notifier)
+              .setThemeMode(selection.first),
+        ),
+      ],
+    );
+  }
+}
+
+class _AccentColorSelector extends ConsumerWidget {
+  const _AccentColorSelector();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final themeColor = ref.watch(myProfileProvider).value?.themeColor ?? 'blue';
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Accent color', style: Theme.of(context).textTheme.labelLarge),
+        const SizedBox(height: 4),
+        Text(
+          'Synced to your account — follows you across devices',
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+        const SizedBox(height: 12),
+        SegmentedButton<String>(
+          segments: [
+            ButtonSegment(
+              value: 'blue',
+              icon: Icon(Icons.circle, color: AppConstants.seedColor),
+              label: const Text('Blue'),
+            ),
+            ButtonSegment(
+              value: 'purple',
+              icon: Icon(Icons.circle, color: AppConstants.purpleSeedColor),
+              label: const Text('Purple'),
+            ),
+          ],
+          selected: {themeColor},
+          onSelectionChanged: (selection) async {
+            final messenger = ScaffoldMessenger.of(context);
+            try {
+              await ref
+                  .read(settingsRepositoryProvider)
+                  .updateThemeColor(selection.first);
+              ref.invalidate(myProfileProvider);
+            } catch (_) {
+              messenger.showSnackBar(const SnackBar(
+                  content: Text('Could not update accent color.')));
+            }
+          },
+        ),
+      ],
     );
   }
 }

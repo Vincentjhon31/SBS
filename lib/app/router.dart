@@ -108,7 +108,12 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: AppRoutes.requestNew,
-        builder: (context, state) => const RequestFormScreen(),
+        // extra is an OPTIONAL preselected Item — unlike itemEdit/
+        // itemCalendar, this route must keep working with no extra at all
+        // (the "New request" FAB doesn't pass one).
+        builder: (context, state) => RequestFormScreen(
+          preselectedItem: state.extra is Item ? state.extra as Item : null,
+        ),
       ),
       GoRoute(
         path: AppRoutes.approvals,

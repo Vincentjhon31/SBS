@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/router.dart';
+import '../../../core/widgets/item_status_chip.dart';
 import '../../../core/widgets/sbs_nav_bar.dart';
 import '../data/items_models.dart';
 import '../data/items_providers.dart';
@@ -16,6 +17,10 @@ class ItemsScreen extends ConsumerStatefulWidget {
 
 class _ItemsScreenState extends ConsumerState<ItemsScreen> {
   String _query = '';
+
+  /// null = "All" — no forced taxonomy, so options are whatever staff have
+  /// actually typed into the free-text category field.
+  String? _category;
 
   @override
   Widget build(BuildContext context) {
@@ -48,6 +53,14 @@ class _ItemsScreenState extends ConsumerState<ItemsScreen> {
               onChanged: (v) => setState(() => _query = v.trim().toLowerCase()),
             ),
           ),
+          switch (items) {
+            AsyncData(:final value) => _CategoryChips(
+                categories: _categories(value),
+                selected: _category,
+                onSelected: (c) => setState(() => _category = c),
+              ),
+            _ => const SizedBox.shrink(),
+          },
           Expanded(
             child: switch (items) {
               AsyncData(:final value) => _ItemsList(
@@ -74,15 +87,70 @@ class _ItemsScreenState extends ConsumerState<ItemsScreen> {
     );
   }
 
+  List<String> _categories(List<Item> all) {
+    final set = {
+      for (final item in all)
+        if (item.category != null && item.category!.trim().isNotEmpty)
+          item.category!,
+    };
+    final list = set.toList()..sort();
+    return list;
+  }
+
   List<Item> _filtered(List<Item> all) {
-    if (_query.isEmpty) return all;
     return [
       for (final item in all)
-        if (item.name.toLowerCase().contains(_query) ||
-            (item.distinguishingTag?.toLowerCase().contains(_query) ?? false) ||
-            (item.category?.toLowerCase().contains(_query) ?? false))
+        if ((_category == null || item.category == _category) &&
+            (_query.isEmpty ||
+                item.name.toLowerCase().contains(_query) ||
+                (item.distinguishingTag?.toLowerCase().contains(_query) ??
+                    false) ||
+                (item.category?.toLowerCase().contains(_query) ?? false)))
           item,
     ];
+  }
+}
+
+class _CategoryChips extends StatelessWidget {
+  const _CategoryChips({
+    required this.categories,
+    required this.selected,
+    required this.onSelected,
+  });
+
+  final List<String> categories;
+  final String? selected;
+  final ValueChanged<String?> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    if (categories.isEmpty) return const SizedBox.shrink();
+    return SizedBox(
+      height: 44,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: ChoiceChip(
+              label: const Text('All'),
+              selected: selected == null,
+              onSelected: (_) => onSelected(null),
+            ),
+          ),
+          for (final category in categories)
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: ChoiceChip(
+                label: Text(category),
+                selected: selected == category,
+                onSelected: (_) => onSelected(category),
+              ),
+            ),
+        ],
+      ),
+    );
   }
 }
 
@@ -139,7 +207,7 @@ class _ItemsList extends StatelessWidget {
                         Theme.of(context).colorScheme.errorContainer,
                   )
                 else if (status != null)
-                  _StatusChip(status: status.status),
+                  ItemStatusChip(status: status.status),
                 IconButton(
                   tooltip: 'Reservation calendar',
                   icon: const Icon(Icons.calendar_month_outlined),
@@ -182,29 +250,6 @@ class _ItemsList extends StatelessWidget {
   static String _date(DateTime dt) =>
       '${dt.year}-${dt.month.toString().padLeft(2, '0')}-'
       '${dt.day.toString().padLeft(2, '0')}';
-}
-
-class _StatusChip extends StatelessWidget {
-  const _StatusChip({required this.status});
-
-  final String status;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final (color, label) = switch (status) {
-      'available' => (scheme.secondaryContainer, 'Available'),
-      'reserved_now' => (scheme.tertiaryContainer, 'Reserved'),
-      'out' => (scheme.primaryContainer, 'On loan'),
-      'overdue' => (scheme.errorContainer, 'OVERDUE'),
-      _ => (scheme.surfaceContainerHighest, status),
-    };
-    return Chip(
-      label: Text(label),
-      backgroundColor: color,
-      visualDensity: VisualDensity.compact,
-    );
-  }
 }
 
 class _ItemThumbnail extends ConsumerWidget {

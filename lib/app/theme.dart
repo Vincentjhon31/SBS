@@ -1,15 +1,28 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/constants/app_constants.dart';
+import '../features/auth/data/auth_providers.dart';
+
+/// The active accent seed color, derived from the signed-in user's
+/// server-synced preference (defaults to civic blue when signed out,
+/// loading, or unset).
+final seedColorProvider = Provider<Color>((ref) {
+  final profile = ref.watch(myProfileProvider).value;
+  return switch (profile?.themeColor) {
+    'purple' => AppConstants.purpleSeedColor,
+    _ => AppConstants.seedColor,
+  };
+});
 
 abstract final class SBSTheme {
-  static ThemeData get light => _base(Brightness.light);
+  static ThemeData light(Color seed) => _base(seed, Brightness.light);
 
-  static ThemeData get dark => _base(Brightness.dark);
+  static ThemeData dark(Color seed) => _base(seed, Brightness.dark);
 
-  static ThemeData _base(Brightness brightness) {
+  static ThemeData _base(Color seed, Brightness brightness) {
     final colorScheme = ColorScheme.fromSeed(
-      seedColor: AppConstants.seedColor,
+      seedColor: seed,
       brightness: brightness,
     );
     return ThemeData(

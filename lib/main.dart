@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'app/app.dart';
 import 'core/config/supabase_config.dart';
+import 'core/theme/theme_mode_controller.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -11,5 +12,6 @@ Future<void> main() async {
     url: SupabaseConfig.url,
     publishableKey: SupabaseConfig.anonKey,
   );
+  ThemeModeController.initialMode = await loadSavedThemeMode();
   runApp(const ProviderScope(child: SBSApp()));
 }

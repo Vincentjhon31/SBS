@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/router.dart';
+import '../../../core/widgets/request_status_chip.dart';
 import '../../../core/widgets/sbs_nav_bar.dart';
 import '../../approvals/data/approvals_models.dart';
 import '../data/borrow_models.dart';
@@ -11,11 +12,11 @@ import '../data/borrow_providers.dart';
 class MyRequestsScreen extends ConsumerWidget {
   const MyRequestsScreen({super.key});
 
-  static const _activeStatuses = {'pending', 'approved', 'released', 'overdue'};
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final requests = ref.watch(myRequestsProvider);
+    final active = ref.watch(activeRequestsProvider);
+    final history = ref.watch(historyRequestsProvider);
 
     return DefaultTabController(
       length: 2,
@@ -35,21 +36,15 @@ class MyRequestsScreen extends ConsumerWidget {
           label: const Text('New request'),
         ),
         body: switch (requests) {
-          AsyncData(:final value) => TabBarView(
+          AsyncData() => TabBarView(
             children: [
               _RequestsList(
-                requests: _sortActive([
-                  for (final r in value)
-                    if (_activeStatuses.contains(r.status)) r,
-                ]),
+                requests: active,
                 emptyText: 'No active requests — tap "New request" to start.',
                 onRefresh: () async => ref.invalidate(myRequestsProvider),
               ),
               _RequestsList(
-                requests: [
-                  for (final r in value)
-                    if (!_activeStatuses.contains(r.status)) r,
-                ],
+                requests: history,
                 emptyText: 'No past requests yet.',
                 onRefresh: () async => ref.invalidate(myRequestsProvider),
               ),
@@ -61,13 +56,6 @@ class MyRequestsScreen extends ConsumerWidget {
         },
       ),
     );
-  }
-
-  /// Soonest obligation first: due date when set, otherwise start date.
-  static List<BorrowRequest> _sortActive(List<BorrowRequest> list) {
-    list.sort((a, b) => (a.dueAt ?? a.requestedFrom)
-        .compareTo(b.dueAt ?? b.requestedFrom));
-    return list;
   }
 }
 
@@ -141,7 +129,7 @@ class _RequestTile extends StatelessWidget {
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                   ),
-                  _StatusChip(status: request.status),
+                  RequestStatusChip(status: request.status),
                 ],
               ),
               const SizedBox(height: 4),
@@ -193,30 +181,4 @@ class _RequestTile extends StatelessWidget {
       '${dt.day.toString().padLeft(2, '0')} '
       '${dt.hour.toString().padLeft(2, '0')}:'
       '${dt.minute.toString().padLeft(2, '0')}';
-}
-
-class _StatusChip extends StatelessWidget {
-  const _StatusChip({required this.status});
-
-  final String status;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final (color, label) = switch (status) {
-      'pending' => (scheme.tertiaryContainer, 'Pending'),
-      'approved' => (scheme.primaryContainer, 'Approved'),
-      'rejected' => (scheme.errorContainer, 'Rejected'),
-      'released' => (scheme.secondaryContainer, 'Released'),
-      'returned' => (scheme.surfaceContainerHighest, 'Returned'),
-      'closed' => (scheme.surfaceContainerHighest, 'Closed'),
-      'overdue' => (scheme.errorContainer, 'OVERDUE'),
-      _ => (scheme.surfaceContainerHighest, status),
-    };
-    return Chip(
-      label: Text(label),
-      backgroundColor: color,
-      visualDensity: VisualDensity.compact,
-    );
-  }
 }

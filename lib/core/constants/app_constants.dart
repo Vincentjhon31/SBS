@@ -5,8 +5,12 @@ abstract final class AppConstants {
   static const appFullName = 'Schedule Borrowing System';
   static const appVersion = '0.1.0';
 
-  /// Civic blue — placeholder until official LGU branding is provided.
+  /// Civic blue — default accent color, placeholder until official LGU
+  /// branding is provided.
   static const seedColor = Color(0xFF1A4B8C);
+
+  /// Alternate accent color users may switch to in Settings.
+  static const purpleSeedColor = Color(0xFF6750A4);
 
   static const splashDuration = Duration(milliseconds: 1500);
 

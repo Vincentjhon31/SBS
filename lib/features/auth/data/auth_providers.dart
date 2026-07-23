@@ -33,11 +33,15 @@ class Profile {
     required this.id,
     required this.fullName,
     required this.userType,
+    required this.themeColor,
   });
 
   final String id;
   final String fullName;
   final String userType;
+
+  /// 'blue' | 'purple' — server-synced accent color preference.
+  final String themeColor;
 
   bool get isStaff => userType == 'staff';
 
@@ -45,6 +49,7 @@ class Profile {
         id: json['id'] as String,
         fullName: json['full_name'] as String,
         userType: json['user_type'] as String,
+        themeColor: json['theme_color'] as String? ?? 'blue',
       );
 }
 
