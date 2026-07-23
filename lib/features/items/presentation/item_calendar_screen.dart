@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
-import '../../../app/router.dart';
 import '../../borrowing/data/borrow_models.dart';
 import '../../borrowing/data/borrow_providers.dart';
 import '../data/items_models.dart';
@@ -28,7 +26,6 @@ class _ItemCalendarScreenState extends ConsumerState<ItemCalendarScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text('Calendar — ${widget.item.displayName}'),
-        leading: BackButton(onPressed: () => context.go(AppRoutes.items)),
       ),
       body: switch (windows) {
         AsyncData(:final value) => SingleChildScrollView(

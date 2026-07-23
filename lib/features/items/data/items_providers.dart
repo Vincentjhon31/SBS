@@ -25,6 +25,11 @@ final isStaffProvider = Provider<bool>((ref) {
   return profile.value?.isStaff ?? false;
 });
 
+final isSuperadminProvider = Provider<bool>((ref) {
+  final profile = ref.watch(myProfileProvider);
+  return profile.value?.isSuperadmin ?? false;
+});
+
 final itemPhotoUrlProvider = FutureProvider.family<String, String>(
   (ref, path) => ref.watch(itemsRepositoryProvider).signedPhotoUrl(path),
 );

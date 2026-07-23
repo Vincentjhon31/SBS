@@ -6,7 +6,6 @@ import '../../../app/router.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/widgets/item_status_chip.dart';
 import '../../../core/widgets/request_status_chip.dart';
-import '../../../core/widgets/sbs_nav_bar.dart';
 import '../../auth/data/auth_providers.dart';
 import '../../borrowing/data/borrow_models.dart';
 import '../../borrowing/data/borrow_providers.dart';
@@ -14,10 +13,7 @@ import '../../items/data/items_models.dart';
 import '../../items/data/items_providers.dart';
 import '../../notifications/data/notifications_providers.dart';
 
-enum _ProfileMenuAction { settings, signOut }
-
-/// Live dashboard: active borrowed items and items available right now,
-/// plus quick access to notifications, settings, and sign-out.
+/// Live dashboard: active borrowed items and items available right now.
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
@@ -34,7 +30,7 @@ class HomeScreen extends ConsumerWidget {
     ];
 
     return Scaffold(
-      bottomNavigationBar: const SBSNavBar(current: AppRoutes.home),
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         title: const Text(AppConstants.appName),
         automaticallyImplyLeading: false,
@@ -46,37 +42,7 @@ class HomeScreen extends ConsumerWidget {
               isLabelVisible: ref.watch(unreadCountProvider) > 0,
               child: const Icon(Icons.notifications_outlined),
             ),
-            onPressed: () => context.go(AppRoutes.notifications),
-          ),
-          PopupMenuButton<_ProfileMenuAction>(
-            tooltip: 'Profile',
-            icon: const Icon(Icons.account_circle_outlined),
-            onSelected: (action) {
-              switch (action) {
-                case _ProfileMenuAction.settings:
-                  context.go(AppRoutes.settings);
-                case _ProfileMenuAction.signOut:
-                  ref.read(authRepositoryProvider).signOut();
-              }
-            },
-            itemBuilder: (context) => const [
-              PopupMenuItem(
-                value: _ProfileMenuAction.settings,
-                child: ListTile(
-                  leading: Icon(Icons.settings_outlined),
-                  title: Text('Settings'),
-                  contentPadding: EdgeInsets.zero,
-                ),
-              ),
-              PopupMenuItem(
-                value: _ProfileMenuAction.signOut,
-                child: ListTile(
-                  leading: Icon(Icons.logout),
-                  title: Text('Sign out'),
-                  contentPadding: EdgeInsets.zero,
-                ),
-              ),
-            ],
+            onPressed: () => context.push(AppRoutes.notifications),
           ),
         ],
       ),
@@ -277,7 +243,7 @@ class _AvailableItemCard extends ConsumerWidget {
               width: double.infinity,
               child: FilledButton(
                 onPressed: () =>
-                    context.go(AppRoutes.requestNew, extra: item),
+                    context.push(AppRoutes.requestNew, extra: item),
                 child: const Text('Request'),
               ),
             ),

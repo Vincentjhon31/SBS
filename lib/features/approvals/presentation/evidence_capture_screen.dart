@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
-import '../../../app/router.dart';
 import '../../../core/constants/app_constants.dart';
 import '../data/approvals_models.dart';
 import '../data/approvals_providers.dart';
@@ -112,7 +111,7 @@ class _EvidenceCaptureScreenState extends ConsumerState<EvidenceCaptureScreen> {
           content: Text(isRelease
               ? 'Item released — evidence recorded.'
               : 'Item returned — evidence recorded.')));
-      if (mounted) context.go(AppRoutes.approvals);
+      if (mounted) context.pop();
     } catch (e) {
       messenger.showSnackBar(SnackBar(content: Text('Failed: $e')));
     } finally {
@@ -125,7 +124,6 @@ class _EvidenceCaptureScreenState extends ConsumerState<EvidenceCaptureScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(isRelease ? 'Release Item' : 'Confirm Return'),
-        leading: BackButton(onPressed: () => context.go(AppRoutes.approvals)),
       ),
       body: SafeArea(
         child: SingleChildScrollView(

@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../../app/router.dart';
 import '../data/items_models.dart';
 import '../data/items_providers.dart';
 
@@ -85,7 +84,7 @@ class _ItemFormScreenState extends ConsumerState<ItemFormScreen> {
         );
       }
       ref.invalidate(itemsProvider);
-      if (mounted) context.go(AppRoutes.items);
+      if (mounted) context.pop();
     } on PostgrestException catch (e) {
       messenger.showSnackBar(SnackBar(
         content: Text(e.code == '23505'
@@ -125,7 +124,6 @@ class _ItemFormScreenState extends ConsumerState<ItemFormScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(_isEdit ? 'Edit Item' : 'New Item'),
-        leading: BackButton(onPressed: () => context.go(AppRoutes.items)),
       ),
       body: SafeArea(
         child: SingleChildScrollView(

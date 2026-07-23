@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../data/approvals_models.dart';
 import '../data/approvals_providers.dart';
@@ -19,7 +18,6 @@ class EvidenceViewerScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: Text('Evidence — ${args.itemLabel}'),
-        leading: BackButton(onPressed: () => context.go(args.backRoute)),
       ),
       body: switch (evidence) {
         AsyncData(:final value) when value.isEmpty => const Center(

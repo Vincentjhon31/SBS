@@ -77,12 +77,10 @@ class EvidenceViewArgs {
   const EvidenceViewArgs({
     required this.requestId,
     required this.itemLabel,
-    required this.backRoute,
   });
 
   final String requestId;
   final String itemLabel;
-  final String backRoute;
 }
 
 class CitizenVerification {

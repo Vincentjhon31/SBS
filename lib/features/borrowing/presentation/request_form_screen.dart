@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../../app/router.dart';
 import '../../items/data/items_models.dart';
 import '../../items/data/items_providers.dart';
 import '../data/borrow_providers.dart';
@@ -89,7 +88,7 @@ class _RequestFormScreenState extends ConsumerState<RequestFormScreen> {
       ref.invalidate(myRequestsProvider);
       messenger.showSnackBar(const SnackBar(
           content: Text('Request submitted — awaiting approval.')));
-      if (mounted) context.go(AppRoutes.requests);
+      if (mounted) context.pop();
     } on PostgrestException catch (e) {
       messenger.showSnackBar(SnackBar(content: Text('Could not submit: ${e.message}')));
     } catch (_) {
@@ -118,7 +117,6 @@ class _RequestFormScreenState extends ConsumerState<RequestFormScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Request an Item'),
-        leading: BackButton(onPressed: () => context.go(AppRoutes.home)),
       ),
       body: SafeArea(
         child: SingleChildScrollView(

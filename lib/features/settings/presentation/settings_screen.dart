@@ -22,7 +22,6 @@ class SettingsScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Settings & Data'),
-        leading: BackButton(onPressed: () => context.go(AppRoutes.home)),
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
@@ -94,7 +93,7 @@ class SettingsScreen extends ConsumerWidget {
                           .read(settingsRepositoryProvider)
                           .exportMyData();
                       if (context.mounted) {
-                        context.go(AppRoutes.dataExport, extra: data);
+                        context.push(AppRoutes.dataExport, extra: data);
                       }
                     } catch (_) {
                       messenger.showSnackBar(const SnackBar(

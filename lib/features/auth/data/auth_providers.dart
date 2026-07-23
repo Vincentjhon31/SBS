@@ -34,6 +34,7 @@ class Profile {
     required this.fullName,
     required this.userType,
     required this.themeColor,
+    required this.isSuperadmin,
   });
 
   final String id;
@@ -43,6 +44,10 @@ class Profile {
   /// 'blue' | 'purple' — server-synced accent color preference.
   final String themeColor;
 
+  /// Cross-department oversight tier layered on top of staff — see
+  /// supabase/migrations/*_superadmin.sql.
+  final bool isSuperadmin;
+
   bool get isStaff => userType == 'staff';
 
   factory Profile.fromJson(Map<String, dynamic> json) => Profile(
@@ -50,6 +55,7 @@ class Profile {
         fullName: json['full_name'] as String,
         userType: json['user_type'] as String,
         themeColor: json['theme_color'] as String? ?? 'blue',
+        isSuperadmin: json['is_superadmin'] as bool? ?? false,
       );
 }
 

@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -28,10 +29,14 @@ abstract final class SBSTheme {
     return ThemeData(
       useMaterial3: true,
       colorScheme: colorScheme,
+      // Transparent + flat so the GlossyBackground flare shows through on
+      // the 5 main tabs; identical to a plain flat bar anywhere else.
       appBarTheme: AppBarTheme(
         centerTitle: true,
-        backgroundColor: colorScheme.surface,
+        backgroundColor: Colors.transparent,
         foregroundColor: colorScheme.onSurface,
+        elevation: 0,
+        scrolledUnderElevation: 0,
       ),
       inputDecorationTheme: const InputDecorationTheme(
         border: OutlineInputBorder(),
@@ -40,6 +45,18 @@ abstract final class SBSTheme {
         style: FilledButton.styleFrom(
           minimumSize: const Size.fromHeight(48),
         ),
+      ),
+      // Consistent, "iOS-feel" slide transition on every push/pop —
+      // Cupertino's builder also grants the edge-swipe-to-go-back gesture.
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: {
+          TargetPlatform.android: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.windows: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.linux: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.fuchsia: CupertinoPageTransitionsBuilder(),
+        },
       ),
     );
   }

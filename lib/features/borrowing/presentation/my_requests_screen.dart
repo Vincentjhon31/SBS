@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/router.dart';
 import '../../../core/widgets/request_status_chip.dart';
-import '../../../core/widgets/sbs_nav_bar.dart';
 import '../../approvals/data/approvals_models.dart';
 import '../data/borrow_models.dart';
 import '../data/borrow_providers.dart';
@@ -29,9 +28,9 @@ class MyRequestsScreen extends ConsumerWidget {
             Tab(text: 'History'),
           ]),
         ),
-        bottomNavigationBar: const SBSNavBar(current: AppRoutes.requests),
+        backgroundColor: Colors.transparent,
         floatingActionButton: FloatingActionButton.extended(
-          onPressed: () => context.go(AppRoutes.requestNew),
+          onPressed: () => context.push(AppRoutes.requestNew),
           icon: const Icon(Icons.add),
           label: const Text('New request'),
         ),
@@ -107,12 +106,11 @@ class _RequestTile extends StatelessWidget {
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       child: InkWell(
         onTap: hasEvidence
-            ? () => context.go(
+            ? () => context.push(
                 AppRoutes.evidenceView,
                 extra: EvidenceViewArgs(
                   requestId: request.id,
                   itemLabel: request.itemLabel,
-                  backRoute: AppRoutes.requests,
                 ),
               )
             : null,

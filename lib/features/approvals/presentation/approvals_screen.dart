@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/router.dart';
-import '../../../core/widgets/sbs_nav_bar.dart';
 import '../data/approvals_models.dart';
 import '../data/approvals_providers.dart';
 import '../data/approvals_repository.dart';
@@ -25,19 +24,19 @@ class ApprovalsScreen extends StatelessWidget {
             Tab(text: 'To Return'),
           ]),
         ),
-        bottomNavigationBar: const SBSNavBar(current: AppRoutes.approvals),
+        backgroundColor: Colors.transparent,
         body: TabBarView(
           children: [
             _ApprovalQueue(
               status: 'pending',
               emptyText: 'No pending requests in your scope. 🎉',
               onTap: (context, req) =>
-                  context.go(AppRoutes.approvalDetail, extra: req),
+                  context.push(AppRoutes.approvalDetail, extra: req),
             ),
             _ApprovalQueue(
               status: 'approved',
               emptyText: 'Nothing awaiting release.',
-              onTap: (context, req) => context.go(
+              onTap: (context, req) => context.push(
                 AppRoutes.evidenceCapture,
                 extra: EvidenceCaptureArgs(request: req, stage: 'release'),
               ),
@@ -45,7 +44,7 @@ class ApprovalsScreen extends StatelessWidget {
             _ApprovalQueue(
               status: 'released,overdue',
               emptyText: 'Nothing currently out on loan.',
-              onTap: (context, req) => context.go(
+              onTap: (context, req) => context.push(
                 AppRoutes.evidenceCapture,
                 extra: EvidenceCaptureArgs(request: req, stage: 'return'),
               ),
@@ -144,7 +143,7 @@ class _ApprovalDetailScreenState extends ConsumerState<ApprovalDetailScreen> {
       await action();
       ref.invalidate(approvalQueueProvider);
       messenger.showSnackBar(SnackBar(content: Text(successMsg)));
-      if (mounted) context.go(AppRoutes.approvals);
+      if (mounted) context.pop();
     } on ReservationConflictException {
       messenger.showSnackBar(const SnackBar(
         content: Text('Cannot approve: overlaps an existing approved '
@@ -205,7 +204,6 @@ class _ApprovalDetailScreenState extends ConsumerState<ApprovalDetailScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Review Request'),
-        leading: BackButton(onPressed: () => context.go(AppRoutes.approvals)),
       ),
       body: SafeArea(
         child: SingleChildScrollView(

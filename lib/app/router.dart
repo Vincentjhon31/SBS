@@ -5,24 +5,27 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../features/admin/presentation/admin_dashboard_screen.dart';
 import '../features/approvals/data/approvals_models.dart';
 import '../features/approvals/presentation/approvals_screen.dart';
 import '../features/approvals/presentation/evidence_capture_screen.dart';
 import '../features/approvals/presentation/evidence_viewer_screen.dart';
 import '../features/auth/data/auth_providers.dart';
 import '../features/auth/presentation/citizen_register_screen.dart';
+import '../features/auth/presentation/login_screen.dart';
 import '../features/borrowing/presentation/my_requests_screen.dart';
 import '../features/borrowing/presentation/request_form_screen.dart';
-import '../features/auth/presentation/login_screen.dart';
 import '../features/home/presentation/home_screen.dart';
 import '../features/items/data/items_models.dart';
 import '../features/items/presentation/item_calendar_screen.dart';
-import '../features/notifications/presentation/notifications_screen.dart';
-import '../features/settings/presentation/data_export_screen.dart';
-import '../features/settings/presentation/settings_screen.dart';
 import '../features/items/presentation/item_form_screen.dart';
 import '../features/items/presentation/items_screen.dart';
+import '../features/notifications/presentation/notifications_screen.dart';
+import '../features/profile/presentation/profile_screen.dart';
+import '../features/settings/presentation/data_export_screen.dart';
+import '../features/settings/presentation/settings_screen.dart';
 import '../features/splash/presentation/splash_screen.dart';
+import 'app_shell.dart';
 
 abstract final class AppRoutes {
   static const splash = '/splash';
@@ -40,8 +43,10 @@ abstract final class AppRoutes {
   static const evidenceCapture = '/approvals/capture';
   static const evidenceView = '/evidence';
   static const notifications = '/notifications';
+  static const profile = '/profile';
   static const settings = '/settings';
   static const dataExport = '/settings/export';
+  static const admin = '/admin';
 }
 
 /// Re-runs the router redirect whenever the auth state changes.
@@ -90,22 +95,45 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.register,
         builder: (context, state) => const CitizenRegisterScreen(),
       ),
-      GoRoute(
-        path: AppRoutes.home,
-        builder: (context, state) => const HomeScreen(),
+
+      // ── Main tabs — one shared Scaffold/NavigationBar, instant switches ──
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, shell) => AppShell(navigationShell: shell),
+        branches: [
+          StatefulShellBranch(routes: [
+            GoRoute(
+              path: AppRoutes.home,
+              builder: (context, state) => const HomeScreen(),
+            ),
+          ]),
+          StatefulShellBranch(routes: [
+            GoRoute(
+              path: AppRoutes.requests,
+              builder: (context, state) => const MyRequestsScreen(),
+            ),
+          ]),
+          StatefulShellBranch(routes: [
+            GoRoute(
+              path: AppRoutes.items,
+              builder: (context, state) => const ItemsScreen(),
+            ),
+          ]),
+          StatefulShellBranch(routes: [
+            GoRoute(
+              path: AppRoutes.approvals,
+              builder: (context, state) => const ApprovalsScreen(),
+            ),
+          ]),
+          StatefulShellBranch(routes: [
+            GoRoute(
+              path: AppRoutes.profile,
+              builder: (context, state) => const ProfileScreen(),
+            ),
+          ]),
+        ],
       ),
-      GoRoute(
-        path: AppRoutes.items,
-        builder: (context, state) => const ItemsScreen(),
-      ),
-      GoRoute(
-        path: AppRoutes.itemNew,
-        builder: (context, state) => const ItemFormScreen(),
-      ),
-      GoRoute(
-        path: AppRoutes.requests,
-        builder: (context, state) => const MyRequestsScreen(),
-      ),
+
+      // ── Everything below is pushed on top of the active tab ──
       GoRoute(
         path: AppRoutes.requestNew,
         // extra is an OPTIONAL preselected Item — unlike itemEdit/
@@ -116,8 +144,22 @@ final routerProvider = Provider<GoRouter>((ref) {
         ),
       ),
       GoRoute(
-        path: AppRoutes.approvals,
-        builder: (context, state) => const ApprovalsScreen(),
+        path: AppRoutes.itemNew,
+        builder: (context, state) => const ItemFormScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.itemEdit,
+        redirect: (context, state) =>
+            state.extra is Item ? null : AppRoutes.items,
+        builder: (context, state) =>
+            ItemFormScreen(item: state.extra as Item),
+      ),
+      GoRoute(
+        path: AppRoutes.itemCalendar,
+        redirect: (context, state) =>
+            state.extra is Item ? null : AppRoutes.items,
+        builder: (context, state) =>
+            ItemCalendarScreen(item: state.extra as Item),
       ),
       GoRoute(
         path: AppRoutes.approvalDetail,
@@ -157,20 +199,8 @@ final routerProvider = Provider<GoRouter>((ref) {
         ),
       ),
       GoRoute(
-        path: AppRoutes.itemCalendar,
-        redirect: (context, state) =>
-            state.extra is Item ? null : AppRoutes.items,
-        builder: (context, state) =>
-            ItemCalendarScreen(item: state.extra as Item),
-      ),
-      GoRoute(
-        path: AppRoutes.itemEdit,
-        // Item is passed via extra from the list; a cold deep-link without
-        // it just lands back on the registry.
-        redirect: (context, state) =>
-            state.extra is Item ? null : AppRoutes.items,
-        builder: (context, state) =>
-            ItemFormScreen(item: state.extra as Item),
+        path: AppRoutes.admin,
+        builder: (context, state) => const AdminDashboardScreen(),
       ),
     ],
   );

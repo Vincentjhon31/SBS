@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/router.dart';
 import '../../../core/widgets/item_status_chip.dart';
-import '../../../core/widgets/sbs_nav_bar.dart';
 import '../data/items_models.dart';
 import '../data/items_providers.dart';
 
@@ -29,14 +28,14 @@ class _ItemsScreenState extends ConsumerState<ItemsScreen> {
     final isStaff = ref.watch(isStaffProvider);
 
     return Scaffold(
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         title: const Text('Items Registry'),
         automaticallyImplyLeading: false,
       ),
-      bottomNavigationBar: const SBSNavBar(current: AppRoutes.items),
       floatingActionButton: isStaff
           ? FloatingActionButton.extended(
-              onPressed: () => context.go(AppRoutes.itemNew),
+              onPressed: () => context.push(AppRoutes.itemNew),
               icon: const Icon(Icons.add),
               label: const Text('Add item'),
             )
@@ -212,12 +211,12 @@ class _ItemsList extends StatelessWidget {
                   tooltip: 'Reservation calendar',
                   icon: const Icon(Icons.calendar_month_outlined),
                   onPressed: () =>
-                      context.go(AppRoutes.itemCalendar, extra: item),
+                      context.push(AppRoutes.itemCalendar, extra: item),
                 ),
               ],
             ),
             onTap: isStaff
-                ? () => context.go(AppRoutes.itemEdit, extra: item)
+                ? () => context.push(AppRoutes.itemEdit, extra: item)
                 : null,
           );
         },

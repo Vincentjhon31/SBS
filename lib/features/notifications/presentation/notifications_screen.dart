@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
-import '../../../app/router.dart';
 import '../data/notifications_models.dart';
 import '../data/notifications_providers.dart';
 
@@ -17,7 +15,6 @@ class NotificationsScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Notifications'),
-        leading: BackButton(onPressed: () => context.go(AppRoutes.home)),
         actions: [
           if (unread > 0)
             TextButton(

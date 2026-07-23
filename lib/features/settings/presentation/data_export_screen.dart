@@ -2,9 +2,6 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:go_router/go_router.dart';
-
-import '../../../app/router.dart';
 
 class DataExportScreen extends StatelessWidget {
   const DataExportScreen({super.key, required this.data});
@@ -17,7 +14,6 @@ class DataExportScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Your Data'),
-        leading: BackButton(onPressed: () => context.go(AppRoutes.settings)),
         actions: [
           IconButton(
             tooltip: 'Copy to clipboard',
