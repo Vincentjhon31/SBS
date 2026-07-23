@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -113,8 +114,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'LGU staff accounts are provided by your office — '
-                    'sign in with your existing credentials.',
+                    kIsWeb
+                        ? 'LGU staff accounts are provided by your office — '
+                            'sign in with your existing credentials.'
+                        : 'This app is for citizen borrowers. Staff and '
+                            'admin accounts are managed on the SBS website.',
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
