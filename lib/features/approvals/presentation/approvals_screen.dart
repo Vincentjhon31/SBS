@@ -25,11 +25,13 @@ class ApprovalsScreen extends StatelessWidget {
               onPressed: () => context.push(AppRoutes.walkinNew),
             ),
           ],
-          bottom: const TabBar(tabs: [
-            Tab(text: 'Pending'),
-            Tab(text: 'To Release'),
-            Tab(text: 'To Return'),
-          ]),
+          bottom: const TabBar(
+            tabs: [
+              Tab(text: 'Pending'),
+              Tab(text: 'To Release'),
+              Tab(text: 'To Return'),
+            ],
+          ),
         ),
         backgroundColor: Colors.transparent,
         body: TabBarView(
@@ -78,65 +80,213 @@ class _ApprovalQueue extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final queue = ref.watch(approvalQueueProvider(status));
     return switch (queue) {
-      AsyncData(:final value) when value.isEmpty =>
-        Center(child: Text(emptyText)),
-      AsyncData(:final value) => RefreshIndicator(
-          onRefresh: () async => ref.invalidate(approvalQueueProvider(status)),
-          child: ListView.builder(
-            physics: const AlwaysScrollableScrollPhysics(),
-            itemCount: value.length,
-            itemBuilder: (context, index) {
-              final req = value[index];
-              return Card(
-                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                child: ListTile(
-                  leading: CircleAvatar(
-                    child: Icon(req.isGuestBorrower
-                        ? Icons.badge_outlined
-                        : req.isCitizenBorrower
-                            ? Icons.person_outline
-                            : Icons.work_outline),
-                  ),
-                  title: Text(req.itemLabel),
-                  subtitle: Text(
-                    '${req.borrowerName} (${_borrowerTypeLabel(req)})\n'
-                    '${_date(req.requestedFrom)} → ${_dateOrOpenEnded(req.requestedTo)}',
-                  ),
-                  isThreeLine: true,
-                  trailing: req.isOverdue
-                      ? Chip(
-                          label: const Text('OVERDUE'),
-                          visualDensity: VisualDensity.compact,
-                          backgroundColor:
-                              Theme.of(context).colorScheme.errorContainer,
-                        )
-                      : const Icon(Icons.chevron_right),
-                  onTap: () => onTap(context, req),
+      AsyncData(:final value) when value.isEmpty => Center(
+        child: Text(emptyText),
+      ),
+      AsyncData(:final value) => Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1200),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final wide = constraints.maxWidth >= 760;
+              return RefreshIndicator(
+                onRefresh: () async =>
+                    ref.invalidate(approvalQueueProvider(status)),
+                child: Column(
+                  children: [
+                    if (wide) const _ApprovalTableHeader(),
+                    Expanded(
+                      child: ListView.separated(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        itemCount: value.length,
+                        separatorBuilder: (context, index) => wide
+                            ? const Divider(height: 1)
+                            : const SizedBox(height: 6),
+                        itemBuilder: (context, index) {
+                          final req = value[index];
+                          return wide
+                              ? _ApprovalTableRow(
+                                  request: req,
+                                  onTap: () => onTap(context, req),
+                                )
+                              : _ApprovalCard(
+                                  request: req,
+                                  onTap: () => onTap(context, req),
+                                );
+                        },
+                      ),
+                    ),
+                  ],
                 ),
               );
             },
           ),
         ),
+      ),
       AsyncError() => const Center(child: Text('Could not load requests.')),
       _ => const Center(child: CircularProgressIndicator()),
     };
   }
+}
 
-  static String _date(DateTime dt) =>
-      '${dt.year}-${dt.month.toString().padLeft(2, '0')}-'
-      '${dt.day.toString().padLeft(2, '0')} '
-      '${dt.hour.toString().padLeft(2, '0')}:'
-      '${dt.minute.toString().padLeft(2, '0')}';
+String _date(DateTime dt) =>
+    '${dt.year}-${dt.month.toString().padLeft(2, '0')}-'
+    '${dt.day.toString().padLeft(2, '0')} '
+    '${dt.hour.toString().padLeft(2, '0')}:'
+    '${dt.minute.toString().padLeft(2, '0')}';
 
-  static String _dateOrOpenEnded(DateTime? dt) =>
-      dt == null ? 'not yet known' : _date(dt);
+String _dateOrOpenEnded(DateTime? dt) =>
+    dt == null ? 'not yet known' : _date(dt);
 
-  static String _borrowerTypeLabel(PendingApproval req) => switch (req
-      .borrowerType) {
-    'citizen' => 'Citizen',
-    'guest' => 'Walk-in',
-    _ => 'Staff',
-  };
+String _borrowerTypeLabel(PendingApproval req) => switch (req.borrowerType) {
+  'citizen' => 'Citizen',
+  'guest' => 'Walk-in',
+  _ => 'Staff',
+};
+
+IconData _borrowerIcon(PendingApproval req) => req.isGuestBorrower
+    ? Icons.badge_outlined
+    : req.isCitizenBorrower
+    ? Icons.person_outline
+    : Icons.work_outline;
+
+/// Mobile/narrow layout: the original Card+ListTile row.
+class _ApprovalCard extends StatelessWidget {
+  const _ApprovalCard({required this.request, required this.onTap});
+
+  final PendingApproval request;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      child: ListTile(
+        leading: CircleAvatar(child: Icon(_borrowerIcon(request))),
+        title: Text(request.itemLabel),
+        subtitle: Text(
+          '${request.borrowerName} (${_borrowerTypeLabel(request)})\n'
+          '${_date(request.requestedFrom)} → ${_dateOrOpenEnded(request.requestedTo)}',
+        ),
+        isThreeLine: true,
+        trailing: request.isOverdue
+            ? Chip(
+                label: const Text('OVERDUE'),
+                visualDensity: VisualDensity.compact,
+                backgroundColor: Theme.of(context).colorScheme.errorContainer,
+              )
+            : const Icon(Icons.chevron_right),
+        onTap: onTap,
+      ),
+    );
+  }
+}
+
+const _tableFlex = [3, 3, 3, 1];
+
+/// Desktop/wide layout: a column-aligned header + rows, a lot closer to
+/// the queue tables in familiar admin/back-office dashboards than a
+/// stack of mobile cards.
+class _ApprovalTableHeader extends StatelessWidget {
+  const _ApprovalTableHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    final style = Theme.of(context).textTheme.labelMedium?.copyWith(
+      color: Theme.of(context).colorScheme.onSurfaceVariant,
+      fontWeight: FontWeight.w600,
+    );
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+      child: Row(
+        children: [
+          Expanded(
+            flex: _tableFlex[0],
+            child: Text('Item', style: style),
+          ),
+          Expanded(
+            flex: _tableFlex[1],
+            child: Text('Borrower', style: style),
+          ),
+          Expanded(
+            flex: _tableFlex[2],
+            child: Text('Window', style: style),
+          ),
+          Expanded(flex: _tableFlex[3], child: const SizedBox.shrink()),
+        ],
+      ),
+    );
+  }
+}
+
+class _ApprovalTableRow extends StatelessWidget {
+  const _ApprovalTableRow({required this.request, required this.onTap});
+
+  final PendingApproval request;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            Expanded(
+              flex: _tableFlex[0],
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 16,
+                    child: Icon(_borrowerIcon(request), size: 16),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      request.itemLabel,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              flex: _tableFlex[1],
+              child: Text(
+                '${request.borrowerName}\n(${_borrowerTypeLabel(request)})',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ),
+            Expanded(
+              flex: _tableFlex[2],
+              child: Text(
+                '${_date(request.requestedFrom)}\n→ ${_dateOrOpenEnded(request.requestedTo)}',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ),
+            Expanded(
+              flex: _tableFlex[3],
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: request.isOverdue
+                    ? Chip(
+                        label: const Text('OVERDUE'),
+                        visualDensity: VisualDensity.compact,
+                        backgroundColor: Theme.of(
+                          context,
+                        ).colorScheme.errorContainer,
+                      )
+                    : const Icon(Icons.chevron_right),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class ApprovalDetailScreen extends ConsumerStatefulWidget {
@@ -163,14 +313,18 @@ class _ApprovalDetailScreenState extends ConsumerState<ApprovalDetailScreen> {
       messenger.showSnackBar(SnackBar(content: Text(successMsg)));
       if (mounted) context.pop();
     } on ReservationConflictException {
-      messenger.showSnackBar(const SnackBar(
-        content: Text('Cannot approve: overlaps an existing approved '
-            'reservation for this item.'),
-      ));
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Cannot approve: overlaps an existing approved '
+            'reservation for this item.',
+          ),
+        ),
+      );
     } on CitizenNotVerifiedException {
-      messenger.showSnackBar(const SnackBar(
-        content: Text('Verify the citizen\'s identity first.'),
-      ));
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Verify the citizen\'s identity first.')),
+      );
     } catch (e) {
       messenger.showSnackBar(SnackBar(content: Text('Action failed: $e')));
     } finally {
@@ -220,74 +374,90 @@ class _ApprovalDetailScreenState extends ConsumerState<ApprovalDetailScreen> {
     final canApprove = !req.isCitizenBorrower || citizenVerified;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Review Request'),
-      ),
+      appBar: AppBar(title: const Text('Review Request')),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(req.itemLabel,
-                  style: Theme.of(context).textTheme.headlineSmall),
-              const SizedBox(height: 8),
-              Text('${_fmt(req.requestedFrom)}  →  '
-                  '${req.requestedTo == null ? "not yet known" : _fmt(req.requestedTo!)}'),
-              const SizedBox(height: 16),
-              Text('Purpose', style: Theme.of(context).textTheme.labelLarge),
-              Text(req.purpose),
-              const Divider(height: 32),
-              Text('Borrower', style: Theme.of(context).textTheme.labelLarge),
-              Text('${req.borrowerName} (${switch (req.borrowerType) {
-                'citizen' => 'Citizen',
-                'guest' => 'Walk-in guest',
-                _ => 'LGU Staff',
-              }})'),
-              if (req.isCitizenBorrower) ...[
-                const SizedBox(height: 12),
-                switch (verification!) {
-                  AsyncData(:final value) => _VerificationCard(
-                      verification: value,
-                      busy: _busy,
-                      onVerify: () => _run(
-                        () async {
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 640),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    req.itemLabel,
+                    style: Theme.of(context).textTheme.headlineSmall,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '${_fmt(req.requestedFrom)}  →  '
+                    '${req.requestedTo == null ? "not yet known" : _fmt(req.requestedTo!)}',
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Purpose',
+                    style: Theme.of(context).textTheme.labelLarge,
+                  ),
+                  Text(req.purpose),
+                  const Divider(height: 32),
+                  Text(
+                    'Borrower',
+                    style: Theme.of(context).textTheme.labelLarge,
+                  ),
+                  Text(
+                    '${req.borrowerName} (${switch (req.borrowerType) {
+                      'citizen' => 'Citizen',
+                      'guest' => 'Walk-in guest',
+                      _ => 'LGU Staff',
+                    }})',
+                  ),
+                  if (req.isCitizenBorrower) ...[
+                    const SizedBox(height: 12),
+                    switch (verification!) {
+                      AsyncData(:final value) => _VerificationCard(
+                        verification: value,
+                        busy: _busy,
+                        onVerify: () => _run(() async {
                           await ref
                               .read(approvalsRepositoryProvider)
                               .verifyCitizen(req.borrowerId!);
                           ref.invalidate(
-                              citizenVerificationProvider(req.borrowerId!));
-                        },
-                        'Identity verified.',
+                            citizenVerificationProvider(req.borrowerId!),
+                          );
+                        }, 'Identity verified.'),
                       ),
+                      AsyncError() => const Text(
+                        'Could not load verification data.',
+                      ),
+                      _ => const Center(child: CircularProgressIndicator()),
+                    },
+                  ],
+                  const SizedBox(height: 32),
+                  FilledButton.icon(
+                    onPressed: _busy || !canApprove
+                        ? null
+                        : () => _run(
+                            () => ref
+                                .read(approvalsRepositoryProvider)
+                                .approve(req.id),
+                            'Request approved.',
+                          ),
+                    icon: const Icon(Icons.check),
+                    label: Text(
+                      canApprove
+                          ? 'Approve'
+                          : 'Approve (verify identity first)',
                     ),
-                  AsyncError() =>
-                    const Text('Could not load verification data.'),
-                  _ => const Center(child: CircularProgressIndicator()),
-                },
-              ],
-              const SizedBox(height: 32),
-              FilledButton.icon(
-                onPressed: _busy || !canApprove
-                    ? null
-                    : () => _run(
-                          () => ref
-                              .read(approvalsRepositoryProvider)
-                              .approve(req.id),
-                          'Request approved.',
-                        ),
-                icon: const Icon(Icons.check),
-                label: Text(canApprove
-                    ? 'Approve'
-                    : 'Approve (verify identity first)'),
+                  ),
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(
+                    onPressed: _busy ? null : _reject,
+                    icon: const Icon(Icons.close),
+                    label: const Text('Reject…'),
+                  ),
+                ],
               ),
-              const SizedBox(height: 12),
-              OutlinedButton.icon(
-                onPressed: _busy ? null : _reject,
-                icon: const Icon(Icons.close),
-                label: const Text('Reject…'),
-              ),
-            ],
+            ),
           ),
         ),
       ),
@@ -326,9 +496,9 @@ class _VerificationCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(verification.verified
-                    ? Icons.verified_user
-                    : Icons.gpp_maybe),
+                Icon(
+                  verification.verified ? Icons.verified_user : Icons.gpp_maybe,
+                ),
                 const SizedBox(width: 8),
                 Text(
                   verification.verified

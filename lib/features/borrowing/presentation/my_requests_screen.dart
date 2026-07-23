@@ -23,10 +23,12 @@ class MyRequestsScreen extends ConsumerWidget {
         appBar: AppBar(
           title: const Text('My Requests'),
           automaticallyImplyLeading: false,
-          bottom: const TabBar(tabs: [
-            Tab(text: 'Active'),
-            Tab(text: 'History'),
-          ]),
+          bottom: const TabBar(
+            tabs: [
+              Tab(text: 'Active'),
+              Tab(text: 'History'),
+            ],
+          ),
         ),
         backgroundColor: Colors.transparent,
         floatingActionButton: FloatingActionButton.extended(
@@ -49,8 +51,7 @@ class MyRequestsScreen extends ConsumerWidget {
               ),
             ],
           ),
-          AsyncError() =>
-            const Center(child: Text('Could not load requests.')),
+          AsyncError() => const Center(child: Text('Could not load requests.')),
           _ => const Center(child: CircularProgressIndicator()),
         },
       ),
@@ -74,14 +75,42 @@ class _RequestsList extends StatelessWidget {
     if (requests.isEmpty) {
       return Center(child: Text(emptyText));
     }
-    return RefreshIndicator(
-      onRefresh: onRefresh,
-      child: ListView.builder(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.only(bottom: 88),
-        itemCount: requests.length,
-        itemBuilder: (context, index) =>
-            _RequestTile(request: requests[index]),
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 1300),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final columns = (constraints.maxWidth / 380).floor().clamp(1, 3);
+            if (columns == 1) {
+              return RefreshIndicator(
+                onRefresh: onRefresh,
+                child: ListView.builder(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.only(bottom: 88),
+                  itemCount: requests.length,
+                  itemBuilder: (context, index) =>
+                      _RequestTile(request: requests[index]),
+                ),
+              );
+            }
+            return RefreshIndicator(
+              onRefresh: onRefresh,
+              child: GridView.builder(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.only(bottom: 88),
+                // _RequestTile's own Card margin supplies the gutters, so
+                // the grid itself adds no extra spacing (avoids doubling up).
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: columns,
+                  childAspectRatio: 1.5,
+                ),
+                itemCount: requests.length,
+                itemBuilder: (context, index) =>
+                    _RequestTile(request: requests[index]),
+              ),
+            );
+          },
+        ),
       ),
     );
   }
@@ -135,8 +164,11 @@ class _RequestTile extends StatelessWidget {
                 '${_date(request.requestedFrom)} → ${_date(request.requestedTo)}',
               ),
               if (request.dueAt != null &&
-                  const {'approved', 'released', 'overdue'}
-                      .contains(request.status)) ...[
+                  const {
+                    'approved',
+                    'released',
+                    'overdue',
+                  }.contains(request.status)) ...[
                 const SizedBox(height: 2),
                 Text(
                   'Due back ${_date(request.dueAt!)}',

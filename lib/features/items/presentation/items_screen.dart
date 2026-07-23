@@ -54,32 +54,39 @@ class _ItemsScreenState extends ConsumerState<ItemsScreen> {
           ),
           switch (items) {
             AsyncData(:final value) => _CategoryChips(
-                categories: _categories(value),
-                selected: _category,
-                onSelected: (c) => setState(() => _category = c),
-              ),
+              categories: _categories(value),
+              selected: _category,
+              onSelected: (c) => setState(() => _category = c),
+            ),
             _ => const SizedBox.shrink(),
           },
           Expanded(
-            child: switch (items) {
-              AsyncData(:final value) => _ItemsList(
-                  items: _filtered(value),
-                  statuses: statuses,
-                  isStaff: isStaff,
-                  onRefresh: () async {
-                    ref.invalidate(itemsProvider);
-                    ref.invalidate(itemStatusesProvider);
-                  },
-                ),
-              AsyncError(:final error) => Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Text('Could not load items.\n$error',
-                        textAlign: TextAlign.center),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1400),
+                child: switch (items) {
+                  AsyncData(:final value) => _ItemsList(
+                    items: _filtered(value),
+                    statuses: statuses,
+                    isStaff: isStaff,
+                    onRefresh: () async {
+                      ref.invalidate(itemsProvider);
+                      ref.invalidate(itemStatusesProvider);
+                    },
                   ),
-                ),
-              _ => const Center(child: CircularProgressIndicator()),
-            },
+                  AsyncError(:final error) => Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Text(
+                        'Could not load items.\n$error',
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+                  _ => const Center(child: CircularProgressIndicator()),
+                },
+              ),
+            ),
           ),
         ],
       ),
@@ -171,103 +178,227 @@ class _ItemsList extends StatelessWidget {
     if (items.isEmpty) {
       return const Center(child: Text('No items found.'));
     }
-    return RefreshIndicator(
-      onRefresh: onRefresh,
-      child: ListView.builder(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.only(bottom: 88),
-        itemCount: items.length,
-        itemBuilder: (context, index) {
-          final item = items[index];
-          final status = statuses[item.id];
-          return ListTile(
-            leading: _ItemThumbnail(path: item.referencePhotoPath),
-            title: Text(item.displayName),
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  [
-                    if (item.category != null) item.category!,
-                    item.departmentName ?? 'Shared LGU pool',
-                  ].join(' • '),
-                ),
-                if (status != null) _statusCaption(context, status),
-              ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < 760) {
+          return RefreshIndicator(
+            onRefresh: onRefresh,
+            child: ListView.builder(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.only(bottom: 88),
+              itemCount: items.length,
+              itemBuilder: (context, index) => _ItemRow(
+                item: items[index],
+                status: statuses[items[index].id],
+                isStaff: isStaff,
+              ),
             ),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (!item.active)
-                  Chip(
-                    label: const Text('Inactive'),
-                    visualDensity: VisualDensity.compact,
-                    backgroundColor:
-                        Theme.of(context).colorScheme.errorContainer,
-                  )
-                else if (status != null)
-                  ItemStatusChip(status: status.status),
-                IconButton(
-                  tooltip: 'Reservation calendar',
-                  icon: const Icon(Icons.calendar_month_outlined),
-                  onPressed: () =>
-                      context.push(AppRoutes.itemCalendar, extra: item),
-                ),
-              ],
-            ),
-            onTap: isStaff
-                ? () => context.push(AppRoutes.itemEdit, extra: item)
-                : null,
           );
-        },
+        }
+        final columns = (constraints.maxWidth / 280).floor().clamp(3, 5);
+        return RefreshIndicator(
+          onRefresh: onRefresh,
+          child: GridView.builder(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(4, 4, 4, 88),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: columns,
+              mainAxisSpacing: 12,
+              crossAxisSpacing: 12,
+              childAspectRatio: 1.05,
+            ),
+            itemCount: items.length,
+            itemBuilder: (context, index) => _ItemCard(
+              item: items[index],
+              status: statuses[items[index].id],
+              isStaff: isStaff,
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// Mobile/narrow layout: one item per row, matching the original list.
+class _ItemRow extends StatelessWidget {
+  const _ItemRow({
+    required this.item,
+    required this.status,
+    required this.isStaff,
+  });
+
+  final Item item;
+  final ItemStatus? status;
+  final bool isStaff;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      leading: _ItemThumbnail(path: item.referencePhotoPath),
+      title: Text(item.displayName),
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            [
+              if (item.category != null) item.category!,
+              item.departmentName ?? 'Shared LGU pool',
+            ].join(' • '),
+          ),
+          if (status != null) _statusCaption(context, status!),
+        ],
+      ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (!item.active)
+            Chip(
+              label: const Text('Inactive'),
+              visualDensity: VisualDensity.compact,
+              backgroundColor: Theme.of(context).colorScheme.errorContainer,
+            )
+          else if (status != null)
+            ItemStatusChip(status: status!.status),
+          IconButton(
+            tooltip: 'Reservation calendar',
+            icon: const Icon(Icons.calendar_month_outlined),
+            onPressed: () => context.push(AppRoutes.itemCalendar, extra: item),
+          ),
+        ],
+      ),
+      onTap: isStaff
+          ? () => context.push(AppRoutes.itemEdit, extra: item)
+          : null,
+    );
+  }
+}
+
+/// Desktop/wide layout: a card grid, closer to a typical admin registry
+/// than a phone-style list — more items visible at once, still tappable
+/// for staff to edit.
+class _ItemCard extends StatelessWidget {
+  const _ItemCard({
+    required this.item,
+    required this.status,
+    required this.isStaff,
+  });
+
+  final Item item;
+  final ItemStatus? status;
+  final bool isStaff;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: isStaff
+            ? () => context.push(AppRoutes.itemEdit, extra: item)
+            : null,
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  _ItemThumbnail(path: item.referencePhotoPath, radius: 22),
+                  const Spacer(),
+                  IconButton(
+                    tooltip: 'Reservation calendar',
+                    icon: const Icon(Icons.calendar_month_outlined),
+                    visualDensity: VisualDensity.compact,
+                    onPressed: () =>
+                        context.push(AppRoutes.itemCalendar, extra: item),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                item.displayName,
+                style: Theme.of(context).textTheme.titleSmall,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 2),
+              Text(
+                [
+                  if (item.category != null) item.category!,
+                  item.departmentName ?? 'Shared LGU pool',
+                ].join(' • '),
+                style: Theme.of(context).textTheme.bodySmall,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              if (status != null) _statusCaption(context, status!),
+              const Spacer(),
+              if (!item.active)
+                Chip(
+                  label: const Text('Inactive'),
+                  visualDensity: VisualDensity.compact,
+                  backgroundColor: Theme.of(context).colorScheme.errorContainer,
+                )
+              else if (status != null)
+                ItemStatusChip(status: status!.status),
+            ],
+          ),
+        ),
       ),
     );
   }
-
-  Widget _statusCaption(BuildContext context, ItemStatus status) {
-    final String? text;
-    if ((status.status == 'out' || status.status == 'overdue') &&
-        status.currentDue != null) {
-      text = 'Due back ${_date(status.currentDue!)}';
-    } else if (status.status == 'available' &&
-        status.nextReservedFrom != null) {
-      text = 'Next reservation ${_date(status.nextReservedFrom!)}';
-    } else {
-      text = null;
-    }
-    if (text == null) return const SizedBox.shrink();
-    return Text(
-      text,
-      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-            color: status.status == 'overdue'
-                ? Theme.of(context).colorScheme.error
-                : null,
-          ),
-    );
-  }
-
-  static String _date(DateTime dt) =>
-      '${dt.year}-${dt.month.toString().padLeft(2, '0')}-'
-      '${dt.day.toString().padLeft(2, '0')}';
 }
 
+Widget _statusCaption(BuildContext context, ItemStatus status) {
+  final String? text;
+  if ((status.status == 'out' || status.status == 'overdue') &&
+      status.currentDue != null) {
+    text = 'Due back ${_date(status.currentDue!)}';
+  } else if (status.status == 'available' && status.nextReservedFrom != null) {
+    text = 'Next reservation ${_date(status.nextReservedFrom!)}';
+  } else {
+    text = null;
+  }
+  if (text == null) return const SizedBox.shrink();
+  return Text(
+    text,
+    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+      color: status.status == 'overdue'
+          ? Theme.of(context).colorScheme.error
+          : null,
+    ),
+  );
+}
+
+String _date(DateTime dt) =>
+    '${dt.year}-${dt.month.toString().padLeft(2, '0')}-'
+    '${dt.day.toString().padLeft(2, '0')}';
+
 class _ItemThumbnail extends ConsumerWidget {
-  const _ItemThumbnail({this.path});
+  const _ItemThumbnail({this.path, this.radius});
 
   final String? path;
+  final double? radius;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     if (path == null) {
-      return const CircleAvatar(child: Icon(Icons.inventory_2_outlined));
+      return CircleAvatar(
+        radius: radius,
+        child: const Icon(Icons.inventory_2_outlined),
+      );
     }
     final url = ref.watch(itemPhotoUrlProvider(path!));
     return switch (url) {
       AsyncData(:final value) => CircleAvatar(
-          backgroundImage: NetworkImage(value),
-          onBackgroundImageError: (_, s) {},
-        ),
-      _ => const CircleAvatar(child: Icon(Icons.image_outlined)),
+        radius: radius,
+        backgroundImage: NetworkImage(value),
+        onBackgroundImageError: (_, s) {},
+      ),
+      _ => CircleAvatar(
+        radius: radius,
+        child: const Icon(Icons.image_outlined),
+      ),
     };
   }
 }

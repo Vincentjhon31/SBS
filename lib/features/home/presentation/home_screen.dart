@@ -52,92 +52,131 @@ class HomeScreen extends ConsumerWidget {
           ref.invalidate(itemsProvider);
           ref.invalidate(itemStatusesProvider);
         },
-        child: ListView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.all(16),
-          children: [
-            switch (profile) {
-              AsyncData(:final value) when value != null => Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        'Welcome, ${value.fullName}',
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                    Chip(
-                      label: Text(
-                        value.isStaff ? 'LGU Staff' : 'Citizen Borrower',
-                      ),
-                      visualDensity: VisualDensity.compact,
-                    ),
-                  ],
-                ),
-              AsyncError() => const Text('Could not load your profile.'),
-              _ => const SizedBox(
-                  height: 32,
-                  child: Center(child: CircularProgressIndicator()),
-                ),
-            },
-            if (verified case AsyncData(value: false)) ...[
-              const SizedBox(height: 12),
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Row(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 1100),
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.all(16),
+              children: [
+                switch (profile) {
+                  AsyncData(:final value) when value != null => Row(
                     children: [
-                      Icon(
-                        Icons.hourglass_top,
-                        color: Theme.of(context).colorScheme.tertiary,
-                      ),
-                      const SizedBox(width: 8),
-                      const Expanded(
+                      Expanded(
                         child: Text(
-                          'Identity verification pending — an LGU approver '
-                          'will verify your ID on your first request.',
+                          'Welcome, ${value.fullName}',
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
+                      ),
+                      Chip(
+                        label: Text(
+                          value.isStaff ? 'LGU Staff' : 'Citizen Borrower',
+                        ),
+                        visualDensity: VisualDensity.compact,
                       ),
                     ],
                   ),
-                ),
-              ),
-            ],
-            const SizedBox(height: 24),
-            _SectionHeader(
-              title: 'My Borrowed Items',
-              onSeeAll: () => context.go(AppRoutes.requests),
-            ),
-            const SizedBox(height: 8),
-            if (activeRequests.isEmpty)
-              const _EmptyHint(text: 'Nothing borrowed right now.')
-            else
-              for (final request in activeRequests.take(3))
-                _BorrowedItemTile(request: request),
-            const SizedBox(height: 24),
-            _SectionHeader(
-              title: 'Available to Borrow',
-              onSeeAll: () => context.go(AppRoutes.items),
-            ),
-            const SizedBox(height: 8),
-            if (available.isEmpty)
-              const _EmptyHint(text: 'Nothing available right now.')
-            else
-              GridView.count(
-                crossAxisCount: 2,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                mainAxisSpacing: 12,
-                crossAxisSpacing: 12,
-                childAspectRatio: 0.95,
-                children: [
-                  for (final item in available.take(4))
-                    _AvailableItemCard(item: item),
+                  AsyncError() => const Text('Could not load your profile.'),
+                  _ => const SizedBox(
+                    height: 32,
+                    child: Center(child: CircularProgressIndicator()),
+                  ),
+                },
+                if (verified case AsyncData(value: false)) ...[
+                  const SizedBox(height: 12),
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.hourglass_top,
+                            color: Theme.of(context).colorScheme.tertiary,
+                          ),
+                          const SizedBox(width: 8),
+                          const Expanded(
+                            child: Text(
+                              'Identity verification pending — an LGU approver '
+                              'will verify your ID on your first request.',
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ],
-              ),
-          ],
+                const SizedBox(height: 24),
+                _SectionHeader(
+                  title: 'My Borrowed Items',
+                  onSeeAll: () => context.go(AppRoutes.requests),
+                ),
+                const SizedBox(height: 8),
+                if (activeRequests.isEmpty)
+                  const _EmptyHint(text: 'Nothing borrowed right now.')
+                else
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final columns = (constraints.maxWidth / 340)
+                          .floor()
+                          .clamp(1, 3);
+                      if (columns == 1) {
+                        return Column(
+                          children: [
+                            for (final request in activeRequests.take(3))
+                              _BorrowedItemTile(request: request),
+                          ],
+                        );
+                      }
+                      return GridView.count(
+                        crossAxisCount: columns,
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        mainAxisSpacing: 8,
+                        crossAxisSpacing: 12,
+                        childAspectRatio: 3.4,
+                        children: [
+                          for (final request in activeRequests.take(
+                            columns * 2,
+                          ))
+                            _BorrowedItemTile(request: request),
+                        ],
+                      );
+                    },
+                  ),
+                const SizedBox(height: 24),
+                _SectionHeader(
+                  title: 'Available to Borrow',
+                  onSeeAll: () => context.go(AppRoutes.items),
+                ),
+                const SizedBox(height: 8),
+                if (available.isEmpty)
+                  const _EmptyHint(text: 'Nothing available right now.')
+                else
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final columns = (constraints.maxWidth / 240)
+                          .floor()
+                          .clamp(2, 4);
+                      return GridView.count(
+                        crossAxisCount: columns,
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        mainAxisSpacing: 12,
+                        crossAxisSpacing: 12,
+                        childAspectRatio: 0.95,
+                        children: [
+                          for (final item in available.take(columns * 2))
+                            _AvailableItemCard(item: item),
+                        ],
+                      );
+                    },
+                  ),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -270,14 +309,14 @@ class _ItemThumbnail extends ConsumerWidget {
     final url = ref.watch(itemPhotoUrlProvider(path!));
     return switch (url) {
       AsyncData(:final value) => CircleAvatar(
-          radius: 16,
-          backgroundImage: NetworkImage(value),
-          onBackgroundImageError: (_, s) {},
-        ),
+        radius: 16,
+        backgroundImage: NetworkImage(value),
+        onBackgroundImageError: (_, s) {},
+      ),
       _ => const CircleAvatar(
-          radius: 16,
-          child: Icon(Icons.image_outlined, size: 16),
-        ),
+        radius: 16,
+        child: Icon(Icons.image_outlined, size: 16),
+      ),
     };
   }
 }
