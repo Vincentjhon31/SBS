@@ -12,6 +12,11 @@ class AdminRepository {
     return SuperadminStats.fromJson(result as Map<String, dynamic>);
   }
 
+  Future<DashboardTrends> fetchTrends() async {
+    final result = await _client.rpc('superadmin_dashboard_trends');
+    return DashboardTrends.fromJson(result as Map<String, dynamic>);
+  }
+
   Future<List<StaffMember>> fetchAllStaff() async {
     final rows = await _client
         .from('profiles')

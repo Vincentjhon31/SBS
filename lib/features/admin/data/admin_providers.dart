@@ -12,6 +12,10 @@ final superadminStatsProvider = FutureProvider<SuperadminStats>(
   (ref) => ref.watch(adminRepositoryProvider).fetchStats(),
 );
 
+final superadminTrendsProvider = FutureProvider<DashboardTrends>(
+  (ref) => ref.watch(adminRepositoryProvider).fetchTrends(),
+);
+
 final allStaffProvider = FutureProvider<List<StaffMember>>(
   (ref) => ref.watch(adminRepositoryProvider).fetchAllStaff(),
 );

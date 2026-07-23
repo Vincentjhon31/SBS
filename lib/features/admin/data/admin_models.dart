@@ -40,6 +40,96 @@ class SuperadminStats {
   }
 }
 
+class DailyRequestCount {
+  const DailyRequestCount({required this.day, required this.count});
+
+  final DateTime day;
+  final int count;
+
+  factory DailyRequestCount.fromJson(Map<String, dynamic> json) =>
+      DailyRequestCount(
+        day: DateTime.parse(json['day'] as String),
+        count: (json['count'] as num).toInt(),
+      );
+}
+
+class StatusCount {
+  const StatusCount({required this.status, required this.count});
+
+  final String status;
+  final int count;
+
+  factory StatusCount.fromJson(Map<String, dynamic> json) => StatusCount(
+        status: json['status'] as String,
+        count: (json['count'] as num).toInt(),
+      );
+}
+
+class CategoryCount {
+  const CategoryCount({required this.category, required this.count});
+
+  final String category;
+  final int count;
+
+  factory CategoryCount.fromJson(Map<String, dynamic> json) => CategoryCount(
+        category: json['category'] as String,
+        count: (json['count'] as num).toInt(),
+      );
+}
+
+class RecentActivityItem {
+  const RecentActivityItem({
+    required this.id,
+    required this.itemName,
+    required this.status,
+    required this.createdAt,
+    required this.isGuest,
+    required this.borrowerName,
+  });
+
+  final String id;
+  final String itemName;
+  final String status;
+  final DateTime createdAt;
+  final bool isGuest;
+  final String borrowerName;
+
+  factory RecentActivityItem.fromJson(Map<String, dynamic> json) =>
+      RecentActivityItem(
+        id: json['id'] as String,
+        itemName: json['item_name'] as String,
+        status: json['status'] as String,
+        createdAt: DateTime.parse(json['created_at'] as String),
+        isGuest: json['is_guest'] as bool,
+        borrowerName: json['borrower_name'] as String,
+      );
+}
+
+class DashboardTrends {
+  const DashboardTrends({
+    required this.dailyRequests,
+    required this.requestsByStatus,
+    required this.topCategories,
+    required this.recentActivity,
+  });
+
+  final List<DailyRequestCount> dailyRequests;
+  final List<StatusCount> requestsByStatus;
+  final List<CategoryCount> topCategories;
+  final List<RecentActivityItem> recentActivity;
+
+  factory DashboardTrends.fromJson(Map<String, dynamic> json) {
+    List<T> list<T>(String key, T Function(Map<String, dynamic>) parse) =>
+        [for (final row in (json[key] as List)) parse(row as Map<String, dynamic>)];
+    return DashboardTrends(
+      dailyRequests: list('daily_requests', DailyRequestCount.fromJson),
+      requestsByStatus: list('requests_by_status', StatusCount.fromJson),
+      topCategories: list('top_categories', CategoryCount.fromJson),
+      recentActivity: list('recent_activity', RecentActivityItem.fromJson),
+    );
+  }
+}
+
 class StaffMember {
   const StaffMember({required this.id, required this.fullName});
 
