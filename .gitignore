@@ -46,3 +46,6 @@ app.*.map.json
 
 # Supabase Studio SQL editor scratch files
 supabase/snippets/
+
+# Firebase CLI local deploy cache (machine-specific, not project config)
+.firebase/
