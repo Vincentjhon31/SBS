@@ -27,4 +27,12 @@ abstract final class AppConstants {
       'Your photo and ID information are used solely to verify borrowing '
       'transactions with the LGU. You can request an export or deletion of '
       'your personal data at any time from Settings.';
+
+  /// Read aloud by staff at walk-in intake — the guest has no app account
+  /// to tap their own consent, so staff confirms it on their behalf.
+  static const guestConsentStatement =
+      'Your name, address, contact number, and the photos taken at '
+      'handoff/return will be used solely to verify this borrowing '
+      'transaction with the LGU and kept only as long as required for '
+      'that record.';
 }

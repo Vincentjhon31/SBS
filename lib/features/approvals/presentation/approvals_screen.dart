@@ -18,6 +18,13 @@ class ApprovalsScreen extends StatelessWidget {
         appBar: AppBar(
           title: const Text('Approvals'),
           automaticallyImplyLeading: false,
+          actions: [
+            IconButton(
+              tooltip: 'Walk-in request',
+              icon: const Icon(Icons.person_add_alt_outlined),
+              onPressed: () => context.push(AppRoutes.walkinNew),
+            ),
+          ],
           bottom: const TabBar(tabs: [
             Tab(text: 'Pending'),
             Tab(text: 'To Release'),
@@ -84,15 +91,16 @@ class _ApprovalQueue extends ConsumerWidget {
                 margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                 child: ListTile(
                   leading: CircleAvatar(
-                    child: Icon(req.isCitizenBorrower
-                        ? Icons.person_outline
-                        : Icons.badge_outlined),
+                    child: Icon(req.isGuestBorrower
+                        ? Icons.badge_outlined
+                        : req.isCitizenBorrower
+                            ? Icons.person_outline
+                            : Icons.work_outline),
                   ),
                   title: Text(req.itemLabel),
                   subtitle: Text(
-                    '${req.borrowerName} '
-                    '(${req.isCitizenBorrower ? "Citizen" : "Staff"})\n'
-                    '${_date(req.requestedFrom)} → ${_date(req.requestedTo)}',
+                    '${req.borrowerName} (${_borrowerTypeLabel(req)})\n'
+                    '${_date(req.requestedFrom)} → ${_dateOrOpenEnded(req.requestedTo)}',
                   ),
                   isThreeLine: true,
                   trailing: req.isOverdue
@@ -119,6 +127,16 @@ class _ApprovalQueue extends ConsumerWidget {
       '${dt.day.toString().padLeft(2, '0')} '
       '${dt.hour.toString().padLeft(2, '0')}:'
       '${dt.minute.toString().padLeft(2, '0')}';
+
+  static String _dateOrOpenEnded(DateTime? dt) =>
+      dt == null ? 'not yet known' : _date(dt);
+
+  static String _borrowerTypeLabel(PendingApproval req) => switch (req
+      .borrowerType) {
+    'citizen' => 'Citizen',
+    'guest' => 'Walk-in',
+    _ => 'Staff',
+  };
 }
 
 class ApprovalDetailScreen extends ConsumerStatefulWidget {
@@ -196,7 +214,7 @@ class _ApprovalDetailScreenState extends ConsumerState<ApprovalDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final verification = req.isCitizenBorrower
-        ? ref.watch(citizenVerificationProvider(req.borrowerId))
+        ? ref.watch(citizenVerificationProvider(req.borrowerId!))
         : null;
     final citizenVerified = verification?.value?.verified ?? false;
     final canApprove = !req.isCitizenBorrower || citizenVerified;
@@ -214,14 +232,18 @@ class _ApprovalDetailScreenState extends ConsumerState<ApprovalDetailScreen> {
               Text(req.itemLabel,
                   style: Theme.of(context).textTheme.headlineSmall),
               const SizedBox(height: 8),
-              Text('${_fmt(req.requestedFrom)}  →  ${_fmt(req.requestedTo)}'),
+              Text('${_fmt(req.requestedFrom)}  →  '
+                  '${req.requestedTo == null ? "not yet known" : _fmt(req.requestedTo!)}'),
               const SizedBox(height: 16),
               Text('Purpose', style: Theme.of(context).textTheme.labelLarge),
               Text(req.purpose),
               const Divider(height: 32),
               Text('Borrower', style: Theme.of(context).textTheme.labelLarge),
-              Text('${req.borrowerName} '
-                  '(${req.isCitizenBorrower ? "Citizen" : "LGU Staff"})'),
+              Text('${req.borrowerName} (${switch (req.borrowerType) {
+                'citizen' => 'Citizen',
+                'guest' => 'Walk-in guest',
+                _ => 'LGU Staff',
+              }})'),
               if (req.isCitizenBorrower) ...[
                 const SizedBox(height: 12),
                 switch (verification!) {
@@ -232,9 +254,9 @@ class _ApprovalDetailScreenState extends ConsumerState<ApprovalDetailScreen> {
                         () async {
                           await ref
                               .read(approvalsRepositoryProvider)
-                              .verifyCitizen(req.borrowerId);
+                              .verifyCitizen(req.borrowerId!);
                           ref.invalidate(
-                              citizenVerificationProvider(req.borrowerId));
+                              citizenVerificationProvider(req.borrowerId!));
                         },
                         'Identity verified.',
                       ),

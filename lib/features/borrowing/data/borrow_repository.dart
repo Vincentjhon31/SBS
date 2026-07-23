@@ -43,4 +43,33 @@ class BorrowRepository {
         ReservedWindow.fromJson(row as Map<String, dynamic>),
     ];
   }
+
+  /// Walk-in counter flow: staff creates the guest identity and the
+  /// request in one atomic step, pre-approved since staff is physically
+  /// present. Returns the new borrow_requests id, ready for evidence
+  /// capture (release_item) right away.
+  Future<String> createGuestRequest({
+    required String itemId,
+    required String fullName,
+    required String address,
+    required String contactNumber,
+    String? email,
+    required String purpose,
+    required DateTime from,
+    DateTime? to,
+    required bool consented,
+  }) async {
+    final result = await _client.rpc('create_guest_borrow_request', params: {
+      'item': itemId,
+      'full_name': fullName.trim(),
+      'address': address.trim(),
+      'contact_number': contactNumber.trim(),
+      'email': (email == null || email.trim().isEmpty) ? null : email.trim(),
+      'purpose': purpose.trim(),
+      'requested_from': from.toUtc().toIso8601String(),
+      'requested_to': to?.toUtc().toIso8601String(),
+      'consented': consented,
+    });
+    return result as String;
+  }
 }

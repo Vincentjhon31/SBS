@@ -22,7 +22,8 @@ class ApprovalsRepository {
     final rows = await _client
         .from('borrow_requests')
         .select('*, items(name, distinguishing_tag), '
-            'profiles!borrow_requests_borrower_id_fkey(full_name, user_type)')
+            'profiles!borrow_requests_borrower_id_fkey(full_name, user_type), '
+            'guest_borrowers(full_name)')
         .inFilter('status', statuses.split(','))
         .order('created_at', ascending: true);
     return [for (final row in rows) PendingApproval.fromJson(row)];

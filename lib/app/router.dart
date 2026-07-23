@@ -15,6 +15,7 @@ import '../features/auth/presentation/citizen_register_screen.dart';
 import '../features/auth/presentation/login_screen.dart';
 import '../features/borrowing/presentation/my_requests_screen.dart';
 import '../features/borrowing/presentation/request_form_screen.dart';
+import '../features/borrowing/presentation/walkin_request_screen.dart';
 import '../features/home/presentation/home_screen.dart';
 import '../features/items/data/items_models.dart';
 import '../features/items/presentation/item_calendar_screen.dart';
@@ -38,6 +39,7 @@ abstract final class AppRoutes {
   static const itemCalendar = '/items/calendar';
   static const requests = '/requests';
   static const requestNew = '/requests/new';
+  static const walkinNew = '/requests/walkin';
   static const approvals = '/approvals';
   static const approvalDetail = '/approvals/detail';
   static const evidenceCapture = '/approvals/capture';
@@ -142,6 +144,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => RequestFormScreen(
           preselectedItem: state.extra is Item ? state.extra as Item : null,
         ),
+      ),
+      GoRoute(
+        path: AppRoutes.walkinNew,
+        builder: (context, state) => const WalkInRequestScreen(),
       ),
       GoRoute(
         path: AppRoutes.itemNew,

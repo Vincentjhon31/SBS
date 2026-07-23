@@ -16,14 +16,19 @@ class PendingApproval {
   final String itemLabel;
   final String purpose;
   final DateTime requestedFrom;
-  final DateTime requestedTo;
-  final String borrowerId;
+
+  /// Null for an open-ended walk-in loan (borrowerType == 'guest' only).
+  final DateTime? requestedTo;
+
+  /// Null for a walk-in guest — there's no profiles row to reference.
+  final String? borrowerId;
   final String borrowerName;
   final String borrowerType;
   final String status;
   final DateTime createdAt;
 
   bool get isCitizenBorrower => borrowerType == 'citizen';
+  bool get isGuestBorrower => borrowerType == 'guest';
   bool get isOverdue => status == 'overdue';
 
   factory PendingApproval.fromJson(Map<String, dynamic> json) {
@@ -31,14 +36,19 @@ class PendingApproval {
     final name = item?['name'] as String? ?? 'Unknown item';
     final tag = item?['distinguishing_tag'] as String?;
     final borrower = json['profiles'] as Map<String, dynamic>?;
+    final guest = json['guest_borrowers'] as Map<String, dynamic>?;
     return PendingApproval(
       id: json['id'] as String,
       itemLabel: (tag == null || tag.isEmpty) ? name : '$name ($tag)',
       purpose: json['purpose'] as String,
       requestedFrom: DateTime.parse(json['requested_from'] as String).toLocal(),
-      requestedTo: DateTime.parse(json['requested_to'] as String).toLocal(),
-      borrowerId: json['borrower_id'] as String,
-      borrowerName: borrower?['full_name'] as String? ?? 'Unknown borrower',
+      requestedTo: json['requested_to'] == null
+          ? null
+          : DateTime.parse(json['requested_to'] as String).toLocal(),
+      borrowerId: json['borrower_id'] as String?,
+      borrowerName: borrower?['full_name'] as String? ??
+          guest?['full_name'] as String? ??
+          'Unknown borrower',
       borrowerType: json['borrower_type'] as String,
       status: json['status'] as String,
       createdAt: DateTime.parse(json['created_at'] as String).toLocal(),
