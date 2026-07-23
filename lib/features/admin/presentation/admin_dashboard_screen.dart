@@ -11,6 +11,11 @@ import '../data/admin_providers.dart';
 /// assignment, and shortcuts to things that are already staff-wide
 /// (Approvals now shows every department to a superadmin via RLS;
 /// the deletion queue lives in Settings).
+///
+/// Reached only from the web sidebar (staff never see this on mobile —
+/// see app_shell.dart), so the layout leans into desktop width: a
+/// responsive stat grid and a two-column body on wide windows, falling
+/// back to a single column if the browser window is narrow.
 class AdminDashboardScreen extends ConsumerWidget {
   const AdminDashboardScreen({super.key});
 
@@ -34,49 +39,96 @@ class AdminDashboardScreen extends ConsumerWidget {
           ref.invalidate(superadminStatsProvider);
           ref.invalidate(allMembershipsProvider);
         },
-        child: ListView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.all(16),
-          children: [
-            Text('Overview', style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 8),
-            switch (stats) {
-              AsyncData(:final value) => _StatsGrid(stats: value),
-              AsyncError() => const Text('Could not load stats.'),
-              _ => const Center(child: CircularProgressIndicator()),
-            },
-            const SizedBox(height: 24),
-            Text('Departments & Staff',
-                style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 8),
-            const _DepartmentsPanel(),
-            const SizedBox(height: 24),
-            Text('Shortcuts', style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 8),
-            Card(
-              child: Column(
-                children: [
-                  ListTile(
-                    leading: const Icon(Icons.approval_outlined),
-                    title: const Text('All Approvals'),
-                    subtitle: const Text(
-                        'You see every department\'s requests here now'),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () => context.go(AppRoutes.approvals),
-                  ),
-                  const Divider(height: 1),
-                  ListTile(
-                    leading: const Icon(Icons.person_remove_outlined),
-                    title: const Text('Account Deletion Requests'),
-                    subtitle: const Text('In Settings — staff-wide queue'),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () => context.push(AppRoutes.settings),
-                  ),
-                ],
-              ),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 1200),
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.all(24),
+              children: [
+                Text('Overview',
+                    style: Theme.of(context).textTheme.titleMedium),
+                const SizedBox(height: 8),
+                switch (stats) {
+                  AsyncData(:final value) => _StatsGrid(stats: value),
+                  AsyncError() => const Text('Could not load stats.'),
+                  _ => const Center(child: CircularProgressIndicator()),
+                },
+                const SizedBox(height: 24),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final departments = Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Departments & Staff',
+                            style: Theme.of(context).textTheme.titleMedium),
+                        const SizedBox(height: 8),
+                        const _DepartmentsPanel(),
+                      ],
+                    );
+                    final shortcuts = Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Shortcuts',
+                            style: Theme.of(context).textTheme.titleMedium),
+                        const SizedBox(height: 8),
+                        const _ShortcutsCard(),
+                      ],
+                    );
+                    if (constraints.maxWidth < 720) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          departments,
+                          const SizedBox(height: 24),
+                          shortcuts,
+                        ],
+                      );
+                    }
+                    return Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(flex: 2, child: departments),
+                        const SizedBox(width: 24),
+                        Expanded(child: shortcuts),
+                      ],
+                    );
+                  },
+                ),
+              ],
             ),
-          ],
+          ),
         ),
+      ),
+    );
+  }
+}
+
+class _ShortcutsCard extends StatelessWidget {
+  const _ShortcutsCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Column(
+        children: [
+          ListTile(
+            leading: const Icon(Icons.approval_outlined),
+            title: const Text('All Approvals'),
+            subtitle:
+                const Text('You see every department\'s requests here now'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.go(AppRoutes.approvals),
+          ),
+          const Divider(height: 1),
+          ListTile(
+            leading: const Icon(Icons.person_remove_outlined),
+            title: const Text('Account Deletion Requests'),
+            subtitle: const Text('In Settings — staff-wide queue'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.push(AppRoutes.settings),
+          ),
+        ],
       ),
     );
   }
@@ -101,16 +153,22 @@ class _StatsGrid extends StatelessWidget {
       ('Overdue', stats.overdueRequests, Icons.warning_amber),
       ('Deletion requests', stats.pendingDeletionRequests, Icons.person_remove_outlined),
     ];
-    return GridView.count(
-      crossAxisCount: 2,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      mainAxisSpacing: 12,
-      crossAxisSpacing: 12,
-      childAspectRatio: 1.6,
-      children: [
-        for (final (label, value, icon) in tiles) _StatTile(label, value, icon),
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columns = (constraints.maxWidth / 200).floor().clamp(2, 5);
+        return GridView.count(
+          crossAxisCount: columns,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          mainAxisSpacing: 12,
+          crossAxisSpacing: 12,
+          childAspectRatio: 1.6,
+          children: [
+            for (final (label, value, icon) in tiles)
+              _StatTile(label, value, icon),
+          ],
+        );
+      },
     );
   }
 }

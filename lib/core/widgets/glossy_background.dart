@@ -14,6 +14,12 @@ class GlossyBackground extends StatelessWidget {
     return Container(
       color: scheme.surface,
       child: Stack(
+        // Loose fit (the default) gives non-positioned children — i.e.
+        // [child] — their own natural size instead of filling the
+        // screen, which silently breaks any Expanded/Flexible inside it
+        // (as in the sidebar shell's Row). Force it to fill so [child]
+        // always gets real bounded constraints.
+        fit: StackFit.expand,
         children: [
           Positioned(
             top: -140,
