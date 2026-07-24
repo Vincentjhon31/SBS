@@ -9,7 +9,6 @@ import '../features/auth/data/auth_providers.dart';
 import '../features/items/data/items_providers.dart';
 import '../features/notifications/data/notifications_providers.dart';
 import 'router.dart';
-import 'theme.dart';
 
 /// Whether the staff web sidebar is showing full labels (true) or has
 /// been collapsed to an icon-only rail (false) via the hamburger toggle.
@@ -182,9 +181,8 @@ class _SideNav extends ConsumerWidget {
     final expanded = ref.watch(sidebarExpandedProvider);
     final isSuperadmin = ref.watch(isSuperadminProvider);
     final profile = ref.watch(myProfileProvider).value;
-    final seed = ref.watch(seedColorProvider);
     final bg = Color.alphaBlend(
-      seed.withValues(alpha: 0.22),
+      AppConstants.seedColor.withValues(alpha: 0.22),
       const Color(0xFF0C1017),
     );
 

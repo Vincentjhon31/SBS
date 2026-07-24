@@ -3,20 +3,18 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../constants/app_constants.dart';
 import '../theme/background_style_controller.dart';
 
-/// Soft, blurred color glow behind the main screens: a subtle tonal
-/// gradient plus three real-blurred accent orbs (primary/secondary/
-/// tertiary) — the same "liquid glass" depth used elsewhere in the LGU
-/// app family, adapted to draw its palette from the active ColorScheme
-/// (rather than hardcoded hex) so it tracks both light/dark mode and
-/// the blue/purple accent switch in Settings.
+/// The "liquid glass" backdrop shared with the eBongabong Calendar app: a
+/// soft vertical gradient plus three real-blurred glow orbs in a varied
+/// blue/green/orange set (not shades of one accent), so the glow reads as
+/// gentle ambient color behind opaque cards and list tiles.
 ///
-/// Users can turn this off in Settings → Appearance (a device/session
-/// preference) in favor of a flat surface, for lower-end devices/
-/// browsers where the blur is worth skipping. Either way the blur is
-/// applied once to a static orb layer, not as a live BackdropFilter
-/// over scrolling content, so it stays cheap even when left on.
+/// Users can switch to a flat surface in Settings → Appearance (a device/
+/// session preference) for lower-end devices/browsers. Either way the blur
+/// is baked once into a static, cached layer — not a live BackdropFilter
+/// over scrolling content — so it stays cheap even when left on.
 class GlossyBackground extends ConsumerWidget {
   const GlossyBackground({super.key, required this.child});
 
@@ -24,20 +22,21 @@ class GlossyBackground extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final scheme = Theme.of(context).colorScheme;
     final dark = Theme.of(context).brightness == Brightness.dark;
     final style = ref.watch(backgroundStyleProvider);
 
     if (style == BackgroundStyle.solid) {
-      return ColoredBox(color: scheme.surface, child: child);
+      // Cheapest possible: a flat scaffold-matching surface, no blur.
+      return ColoredBox(
+        color: dark ? AppConstants.darkSurface : AppConstants.lightSurface,
+        child: child,
+      );
     }
 
     return Stack(
-      // Loose fit (the default) gives non-positioned children — i.e.
-      // [child] — their own natural size instead of filling the
-      // screen, which silently breaks any Expanded/Flexible inside it
-      // (as in the sidebar shell's Row). Force it to fill so [child]
-      // always gets real bounded constraints.
+      // Loose fit (the default) would give the non-positioned [child] its
+      // own natural size instead of filling the screen, silently breaking
+      // any Expanded/Flexible inside it (e.g. the sidebar shell's Row).
       fit: StackFit.expand,
       children: [
         RepaintBoundary(
@@ -45,50 +44,56 @@ class GlossyBackground extends ConsumerWidget {
             child: Stack(
               fit: StackFit.expand,
               children: [
-                Container(
+                DecoratedBox(
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
-                      colors: [
-                        scheme.surface,
-                        scheme.surfaceContainerLow,
-                        scheme.surface,
-                      ],
+                      colors: dark
+                          ? const [
+                              Color(0xFF05070C),
+                              Color(0xFF0A0D14),
+                              Color(0xFF06080D),
+                            ]
+                          : const [
+                              Color(0xFFF8FCFF),
+                              Color(0xFFF0F6FB),
+                              Color(0xFFF7FBF6),
+                            ],
                     ),
                   ),
                 ),
                 Positioned.fill(
                   child: ImageFiltered(
-                    imageFilter: ImageFilter.blur(sigmaX: 50, sigmaY: 50),
+                    imageFilter: ImageFilter.blur(sigmaX: 40, sigmaY: 40),
                     child: Stack(
                       clipBehavior: Clip.none,
                       children: [
                         Positioned(
-                          top: -120,
-                          right: -90,
+                          top: -60,
+                          right: -30,
                           child: _Orb(
-                            color: scheme.primary,
-                            size: 300,
-                            dark: dark,
+                            color: AppConstants.glowBlue,
+                            size: 220,
+                            alpha: dark ? 0.28 : 0.20,
                           ),
                         ),
                         Positioned(
-                          top: 260,
-                          left: -110,
+                          top: 220,
+                          left: -50,
                           child: _Orb(
-                            color: scheme.tertiary,
-                            size: 260,
-                            dark: dark,
+                            color: AppConstants.glowGreen,
+                            size: 200,
+                            alpha: dark ? 0.22 : 0.18,
                           ),
                         ),
                         Positioned(
-                          bottom: -140,
-                          right: -40,
+                          bottom: 160,
+                          right: 0,
                           child: _Orb(
-                            color: scheme.secondary,
-                            size: 240,
-                            dark: dark,
+                            color: AppConstants.glowOrange,
+                            size: 160,
+                            alpha: 0.14,
                           ),
                         ),
                       ],
@@ -106,20 +111,24 @@ class GlossyBackground extends ConsumerWidget {
 }
 
 class _Orb extends StatelessWidget {
-  const _Orb({required this.color, required this.size, required this.dark});
+  const _Orb({required this.color, required this.size, required this.alpha});
 
   final Color color;
   final double size;
-  final bool dark;
+  final double alpha;
 
   @override
   Widget build(BuildContext context) {
+    final tinted = color.withValues(alpha: alpha);
     return Container(
       width: size,
       height: size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: color.withValues(alpha: dark ? 0.34 : 0.22),
+        color: tinted,
+        boxShadow: [
+          BoxShadow(color: tinted, blurRadius: 60, spreadRadius: 24),
+        ],
       ),
     );
   }

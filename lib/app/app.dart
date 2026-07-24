@@ -13,11 +13,10 @@ class SBSApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(routerProvider);
     final themeMode = ref.watch(themeModeProvider);
-    final seedColor = ref.watch(seedColorProvider);
     return MaterialApp.router(
       title: AppConstants.appName,
-      theme: SBSTheme.light(seedColor),
-      darkTheme: SBSTheme.dark(seedColor),
+      theme: SBSTheme.light(),
+      darkTheme: SBSTheme.dark(),
       themeMode: themeMode,
       routerConfig: router,
       debugShowCheckedModeBanner: false,

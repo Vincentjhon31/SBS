@@ -5,12 +5,22 @@ abstract final class AppConstants {
   static const appFullName = 'Schedule Borrowing System';
   static const appVersion = '0.1.0';
 
-  /// Brand blue — from the official SBS logo set (whose artwork also
-  /// uses teal #0097B2, orange #FFBD59, and yellow #FFE325).
-  static const seedColor = Color(0xFF4A66B9);
+  /// Base seed color for the whole Material color scheme. Bright blue,
+  /// shared with the eBongabong Calendar app so the LGU app family reads
+  /// as one product.
+  static const seedColor = Color(0xFF2B7FFF);
 
-  /// Alternate accent color users may switch to in Settings.
-  static const purpleSeedColor = Color(0xFF6750A4);
+  /// Flat scaffold backgrounds behind the liquid-glass backdrop — a
+  /// barely-off-white in light mode, a near-black navy in dark mode.
+  static const lightSurface = Color(0xFFF8FCFF);
+  static const darkSurface = Color(0xFF05070C);
+
+  /// The three fixed glow-orb hues in the liquid-glass backdrop — a
+  /// deliberately varied (blue/green/orange) set rather than shades of
+  /// one accent, so the glow reads as soft ambient color, not branding.
+  static const glowBlue = Color(0xFF2B7FFF);
+  static const glowGreen = Color(0xFF1F9D65);
+  static const glowOrange = Color(0xFFFFA726);
 
   /// The bundled full-color logo (transparent background) shown on the
   /// login, splash, and staff web sidebar.

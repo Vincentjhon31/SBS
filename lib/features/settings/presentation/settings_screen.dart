@@ -49,8 +49,6 @@ class SettingsScreen extends ConsumerWidget {
                   children: const [
                     _ThemeModeSelector(),
                     Divider(height: 32),
-                    _AccentColorSelector(),
-                    Divider(height: 32),
                     _BackgroundStyleSelector(),
                   ],
                 ),
@@ -175,55 +173,6 @@ class _ThemeModeSelector extends ConsumerWidget {
           onSelectionChanged: (selection) => ref
               .read(themeModeProvider.notifier)
               .setThemeMode(selection.first),
-        ),
-      ],
-    );
-  }
-}
-
-class _AccentColorSelector extends ConsumerWidget {
-  const _AccentColorSelector();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final themeColor = ref.watch(myProfileProvider).value?.themeColor ?? 'blue';
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Accent color', style: Theme.of(context).textTheme.labelLarge),
-        const SizedBox(height: 4),
-        Text(
-          'Synced to your account — follows you across devices',
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
-        const SizedBox(height: 12),
-        SegmentedButton<String>(
-          segments: [
-            ButtonSegment(
-              value: 'blue',
-              icon: Icon(Icons.circle, color: AppConstants.seedColor),
-              label: const Text('Blue'),
-            ),
-            ButtonSegment(
-              value: 'purple',
-              icon: Icon(Icons.circle, color: AppConstants.purpleSeedColor),
-              label: const Text('Purple'),
-            ),
-          ],
-          selected: {themeColor},
-          onSelectionChanged: (selection) async {
-            final messenger = ScaffoldMessenger.of(context);
-            try {
-              await ref
-                  .read(settingsRepositoryProvider)
-                  .updateThemeColor(selection.first);
-              ref.invalidate(myProfileProvider);
-            } catch (_) {
-              messenger.showSnackBar(
-                const SnackBar(content: Text('Could not update accent color.')),
-              );
-            }
-          },
         ),
       ],
     );
