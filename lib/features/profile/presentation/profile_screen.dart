@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -18,12 +19,17 @@ class ProfileScreen extends ConsumerWidget {
     final profile = ref.watch(myProfileProvider).value;
     final isSuperadmin = ref.watch(isSuperadminProvider);
 
+    // The staff website's shell header already shows the page title.
+    final inWebShell = kIsWeb && (profile?.isStaff ?? false);
+
     return Scaffold(
       backgroundColor: Colors.transparent,
-      appBar: AppBar(
-        title: const Text('Profile'),
-        automaticallyImplyLeading: false,
-      ),
+      appBar: inWebShell
+          ? null
+          : AppBar(
+              title: const Text('Profile'),
+              automaticallyImplyLeading: false,
+            ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -41,8 +47,8 @@ class ProfileScreen extends ConsumerWidget {
                 profile == null
                     ? ''
                     : profile.isStaff
-                        ? (isSuperadmin ? 'LGU Staff • Superadmin' : 'LGU Staff')
-                        : 'Citizen Borrower',
+                    ? (isSuperadmin ? 'LGU Staff • Superadmin' : 'LGU Staff')
+                    : 'Citizen Borrower',
               ),
             ),
           ),
@@ -57,7 +63,8 @@ class ProfileScreen extends ConsumerWidget {
                 title: const Text('Superadmin Dashboard'),
                 subtitle: const Text('Cross-department oversight & stats'),
                 trailing: const Icon(Icons.chevron_right),
-                onTap: () => context.push(AppRoutes.admin),
+                // A shell branch now (not a pushed overlay) — see router.
+                onTap: () => context.go(AppRoutes.admin),
               ),
             ),
             const SizedBox(height: 16),
@@ -74,8 +81,10 @@ class ProfileScreen extends ConsumerWidget {
           const SizedBox(height: 16),
           Card(
             child: ListTile(
-              leading: Icon(Icons.logout,
-                  color: Theme.of(context).colorScheme.error),
+              leading: Icon(
+                Icons.logout,
+                color: Theme.of(context).colorScheme.error,
+              ),
               title: Text(
                 'Sign out',
                 style: TextStyle(color: Theme.of(context).colorScheme.error),

@@ -10,8 +10,18 @@ import '../data/admin_models.dart';
 import '../data/admin_providers.dart';
 
 const _monthAbbr = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
 ];
 
 String _shortDate(DateTime d) => '${_monthAbbr[d.month - 1]} ${d.day}';
@@ -41,10 +51,12 @@ class AdminDashboardScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final isSuperadmin = ref.watch(isSuperadminProvider);
 
+    // Lives inside the staff web shell (a sidebar branch), which already
+    // provides the page title in its header bar — no AppBar needed.
     if (!isSuperadmin) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Superadmin Dashboard')),
-        body: const Center(child: Text('Not authorized.')),
+      return const Scaffold(
+        backgroundColor: Colors.transparent,
+        body: Center(child: Text('Not authorized.')),
       );
     }
 
@@ -52,7 +64,7 @@ class AdminDashboardScreen extends ConsumerWidget {
     final trends = ref.watch(superadminTrendsProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Superadmin Dashboard')),
+      backgroundColor: Colors.transparent,
       body: RefreshIndicator(
         onRefresh: () async {
           ref.invalidate(superadminStatsProvider);
@@ -66,42 +78,54 @@ class AdminDashboardScreen extends ConsumerWidget {
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.all(24),
               children: [
-                Text('Overview', style: Theme.of(context).textTheme.titleMedium),
+                Text(
+                  'Overview',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
                 const SizedBox(height: 12),
                 switch (stats) {
                   AsyncData(:final value) => Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _AttentionBand(stats: value),
-                        const SizedBox(height: 20),
-                        _InventoryGrid(stats: value),
-                      ],
-                    ),
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _AttentionBand(stats: value),
+                      const SizedBox(height: 20),
+                      _InventoryGrid(stats: value),
+                    ],
+                  ),
                   AsyncError() => const Text('Could not load stats.'),
                   _ => const Center(child: CircularProgressIndicator()),
                 },
                 const SizedBox(height: 32),
-                Text('Activity', style: Theme.of(context).textTheme.titleMedium),
+                Text(
+                  'Activity',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
                 const SizedBox(height: 12),
                 switch (trends) {
                   AsyncData(:final value) => Column(
-                      children: [
-                        _TwoColumnRow(
-                          left: _TrendChartCard(daily: value.dailyRequests),
-                          right: _StatusBreakdownCard(byStatus: value.requestsByStatus),
+                    children: [
+                      _TwoColumnRow(
+                        left: _TrendChartCard(daily: value.dailyRequests),
+                        right: _StatusBreakdownCard(
+                          byStatus: value.requestsByStatus,
                         ),
-                        const SizedBox(height: 16),
-                        _TwoColumnRow(
-                          left: _TopCategoriesCard(categories: value.topCategories),
-                          right: _RecentActivityCard(activity: value.recentActivity),
+                      ),
+                      const SizedBox(height: 16),
+                      _TwoColumnRow(
+                        left: _TopCategoriesCard(
+                          categories: value.topCategories,
                         ),
-                      ],
-                    ),
+                        right: _RecentActivityCard(
+                          activity: value.recentActivity,
+                        ),
+                      ),
+                    ],
+                  ),
                   AsyncError() => const Text('Could not load activity data.'),
                   _ => const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 24),
-                      child: Center(child: CircularProgressIndicator()),
-                    ),
+                    padding: EdgeInsets.symmetric(vertical: 24),
+                    child: Center(child: CircularProgressIndicator()),
+                  ),
                 },
                 const SizedBox(height: 32),
                 LayoutBuilder(
@@ -109,8 +133,10 @@ class AdminDashboardScreen extends ConsumerWidget {
                     final departments = Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Departments & Staff',
-                            style: Theme.of(context).textTheme.titleMedium),
+                        Text(
+                          'Departments & Staff',
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
                         const SizedBox(height: 8),
                         const _DepartmentsPanel(),
                       ],
@@ -118,8 +144,10 @@ class AdminDashboardScreen extends ConsumerWidget {
                     final shortcuts = Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Shortcuts',
-                            style: Theme.of(context).textTheme.titleMedium),
+                        Text(
+                          'Shortcuts',
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
                         const SizedBox(height: 8),
                         const _ShortcutsCard(),
                       ],
@@ -266,15 +294,18 @@ class _AttentionCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text('$value',
-                    style: Theme.of(context)
-                        .textTheme
-                        .headlineMedium
-                        ?.copyWith(fontWeight: FontWeight.bold)),
-                Text(label,
-                    style: Theme.of(context).textTheme.bodyMedium,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis),
+                Text(
+                  '$value',
+                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  label,
+                  style: Theme.of(context).textTheme.bodyMedium,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ],
             ),
           ),
@@ -298,8 +329,16 @@ class _InventoryGrid extends StatelessWidget {
       ('Departments', stats.totalDepartments, Icons.apartment_outlined),
       ('Staff', stats.totalStaff, Icons.badge_outlined),
       ('Citizens', stats.totalCitizens, Icons.people_outline),
-      ('Verified citizens', stats.verifiedCitizens, Icons.verified_user_outlined),
-      ('Unverified citizens', stats.unverifiedCitizens, Icons.gpp_maybe_outlined),
+      (
+        'Verified citizens',
+        stats.verifiedCitizens,
+        Icons.verified_user_outlined,
+      ),
+      (
+        'Unverified citizens',
+        stats.unverifiedCitizens,
+        Icons.gpp_maybe_outlined,
+      ),
     ];
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -312,7 +351,8 @@ class _InventoryGrid extends StatelessWidget {
           crossAxisSpacing: 12,
           childAspectRatio: 1.6,
           children: [
-            for (final (label, value, icon) in tiles) _StatTile(label, value, icon),
+            for (final (label, value, icon) in tiles)
+              _StatTile(label, value, icon),
           ],
         );
       },
@@ -339,11 +379,12 @@ class _StatTile extends StatelessWidget {
           children: [
             Icon(icon, color: scheme.primary),
             const Spacer(),
-            Text('$value',
-                style: Theme.of(context)
-                    .textTheme
-                    .headlineSmall
-                    ?.copyWith(fontWeight: FontWeight.bold)),
+            Text(
+              '$value',
+              style: Theme.of(
+                context,
+              ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+            ),
             Text(label, style: Theme.of(context).textTheme.bodySmall),
           ],
         ),
@@ -373,11 +414,12 @@ class _ChartCard extends StatelessWidget {
             Text(title, style: Theme.of(context).textTheme.titleSmall),
             if (subtitle != null) ...[
               const SizedBox(height: 2),
-              Text(subtitle!,
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodySmall
-                      ?.copyWith(color: scheme.onSurfaceVariant)),
+              Text(
+                subtitle!,
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+              ),
             ],
             const SizedBox(height: 16),
             child,
@@ -399,12 +441,12 @@ class _TrendChartCard extends StatelessWidget {
     final maxCount = daily.fold<int>(0, (m, d) => d.count > m ? d.count : m);
     final ceiling = maxCount == 0 ? 4.0 : (maxCount * 1.3).ceilToDouble();
     final spots = [
-      for (final (i, d) in daily.indexed) FlSpot(i.toDouble(), d.count.toDouble()),
+      for (final (i, d) in daily.indexed)
+        FlSpot(i.toDouble(), d.count.toDouble()),
     ];
-    final bodySmall = Theme.of(context)
-        .textTheme
-        .bodySmall
-        ?.copyWith(color: scheme.onSurfaceVariant);
+    final bodySmall = Theme.of(
+      context,
+    ).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant);
 
     return _ChartCard(
       title: 'Requests — last 14 days',
@@ -427,8 +469,12 @@ class _TrendChartCard extends StatelessWidget {
             ),
             borderData: FlBorderData(show: false),
             titlesData: FlTitlesData(
-              topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-              rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+              topTitles: const AxisTitles(
+                sideTitles: SideTitles(showTitles: false),
+              ),
+              rightTitles: const AxisTitles(
+                sideTitles: SideTitles(showTitles: false),
+              ),
               leftTitles: AxisTitles(
                 sideTitles: SideTitles(
                   showTitles: true,
@@ -448,7 +494,9 @@ class _TrendChartCard extends StatelessWidget {
                   maxIncluded: false,
                   getTitlesWidget: (value, meta) {
                     final i = value.round();
-                    if (i < 0 || i >= daily.length) return const SizedBox.shrink();
+                    if (i < 0 || i >= daily.length) {
+                      return const SizedBox.shrink();
+                    }
                     return Padding(
                       padding: const EdgeInsets.only(top: 6),
                       child: Text(_shortDate(daily[i].day), style: bodySmall),
@@ -534,8 +582,11 @@ class _RankedBarList extends StatelessWidget {
           Row(
             children: [
               if (e.icon != null) ...[
-                Icon(e.icon,
-                    size: 16, color: e.value == 0 ? scheme.onSurfaceVariant : e.color),
+                Icon(
+                  e.icon,
+                  size: 16,
+                  color: e.value == 0 ? scheme.onSurfaceVariant : e.color,
+                ),
                 const SizedBox(width: 6),
               ],
               SizedBox(
@@ -563,8 +614,9 @@ class _RankedBarList extends StatelessWidget {
                         child: Container(
                           height: 10,
                           decoration: BoxDecoration(
-                            color:
-                                e.value == 0 ? scheme.surfaceContainerHighest : e.color,
+                            color: e.value == 0
+                                ? scheme.surfaceContainerHighest
+                                : e.color,
                             borderRadius: BorderRadius.circular(4),
                           ),
                         ),
@@ -575,9 +627,11 @@ class _RankedBarList extends StatelessWidget {
               ),
               SizedBox(
                 width: 28,
-                child: Text('${e.value}',
-                    textAlign: TextAlign.end,
-                    style: Theme.of(context).textTheme.bodySmall),
+                child: Text(
+                  '${e.value}',
+                  textAlign: TextAlign.end,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
               ),
             ],
           ),
@@ -607,14 +661,14 @@ class _StatusBreakdownCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     Color colorFor(String status) => switch (status) {
-          'pending' => scheme.tertiary,
-          'approved' => scheme.primary,
-          'released' => scheme.secondary,
-          'returned' || 'closed' => scheme.outline,
-          'rejected' => scheme.error.withValues(alpha: 0.7),
-          'overdue' => scheme.error,
-          _ => scheme.outline,
-        };
+      'pending' => scheme.tertiary,
+      'approved' => scheme.primary,
+      'released' => scheme.secondary,
+      'returned' || 'closed' => scheme.outline,
+      'rejected' => scheme.error.withValues(alpha: 0.7),
+      'overdue' => scheme.error,
+      _ => scheme.outline,
+    };
     return _ChartCard(
       title: 'Requests by status',
       child: _RankedBarList(
@@ -643,7 +697,10 @@ class _TopCategoriesCard extends StatelessWidget {
     if (categories.isEmpty) {
       return _ChartCard(
         title: 'Top categories by requests',
-        child: Text('No requests yet.', style: Theme.of(context).textTheme.bodyMedium),
+        child: Text(
+          'No requests yet.',
+          style: Theme.of(context).textTheme.bodyMedium,
+        ),
       );
     }
     return _ChartCard(
@@ -668,7 +725,10 @@ class _RecentActivityCard extends StatelessWidget {
     if (activity.isEmpty) {
       return _ChartCard(
         title: 'Recent activity',
-        child: Text('No requests yet.', style: Theme.of(context).textTheme.bodyMedium),
+        child: Text(
+          'No requests yet.',
+          style: Theme.of(context).textTheme.bodyMedium,
+        ),
       );
     }
     return _ChartCard(
@@ -710,19 +770,19 @@ class _ActivityRow extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(item.itemName,
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodyMedium
-                      ?.copyWith(fontWeight: FontWeight.w600)),
+              Text(
+                item.itemName,
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+              ),
               const SizedBox(height: 2),
               Text(
                 '${item.borrowerName}${item.isGuest ? ' · walk-in' : ''} · '
                 '${_relativeTime(item.createdAt)}',
-                style: Theme.of(context)
-                    .textTheme
-                    .bodySmall
-                    ?.copyWith(color: scheme.onSurfaceVariant),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
               ),
             ],
           ),
@@ -745,8 +805,9 @@ class _ShortcutsCard extends StatelessWidget {
           ListTile(
             leading: const Icon(Icons.approval_outlined),
             title: const Text('All Approvals'),
-            subtitle:
-                const Text('You see every department\'s requests here now'),
+            subtitle: const Text(
+              'You see every department\'s requests here now',
+            ),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => context.go(AppRoutes.approvals),
           ),
@@ -836,8 +897,11 @@ class _DepartmentsPanel extends ConsumerWidget {
         if (!alreadyIn.contains(s.id)) s,
     ];
     if (candidates.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('All staff are already in this department.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('All staff are already in this department.'),
+        ),
+      );
       return;
     }
     final selected = await showDialog<StaffMember>(
@@ -854,7 +918,9 @@ class _DepartmentsPanel extends ConsumerWidget {
       ),
     );
     if (selected == null) return;
-    await ref.read(adminRepositoryProvider).assignStaffToDepartment(
+    await ref
+        .read(adminRepositoryProvider)
+        .assignStaffToDepartment(
           departmentId: departmentId,
           userId: selected.id,
         );

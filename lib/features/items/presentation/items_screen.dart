@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -15,24 +16,40 @@ class ItemsScreen extends ConsumerStatefulWidget {
 }
 
 class _ItemsScreenState extends ConsumerState<ItemsScreen> {
-  String _query = '';
+  /// Mirrors [itemsQueryProvider] — shared state, so the staff web
+  /// header's global search box can prefill it from anywhere.
+  final _searchController = TextEditingController();
 
   /// null = "All" — no forced taxonomy, so options are whatever staff have
   /// actually typed into the free-text category field.
   String? _category;
 
   @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final items = ref.watch(itemsProvider);
     final statuses = ref.watch(itemStatusesProvider).value ?? {};
     final isStaff = ref.watch(isStaffProvider);
+    final query = ref.watch(itemsQueryProvider);
+    if (_searchController.text != query) {
+      _searchController.text = query;
+    }
+    // The staff website's shell header already shows the page title.
+    final inWebShell = kIsWeb && isStaff;
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      appBar: AppBar(
-        title: const Text('Items Registry'),
-        automaticallyImplyLeading: false,
-      ),
+      appBar: inWebShell
+          ? null
+          : AppBar(
+              title: const Text('Items Registry'),
+              automaticallyImplyLeading: false,
+            ),
       floatingActionButton: isStaff
           ? FloatingActionButton.extended(
               onPressed: () => context.push(AppRoutes.itemNew),
@@ -45,11 +62,12 @@ class _ItemsScreenState extends ConsumerState<ItemsScreen> {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
             child: TextField(
+              controller: _searchController,
               decoration: const InputDecoration(
                 prefixIcon: Icon(Icons.search),
                 hintText: 'Search items…',
               ),
-              onChanged: (v) => setState(() => _query = v.trim().toLowerCase()),
+              onChanged: (v) => ref.read(itemsQueryProvider.notifier).set(v),
             ),
           ),
           switch (items) {
@@ -104,14 +122,15 @@ class _ItemsScreenState extends ConsumerState<ItemsScreen> {
   }
 
   List<Item> _filtered(List<Item> all) {
+    final query = ref.read(itemsQueryProvider).trim().toLowerCase();
     return [
       for (final item in all)
         if ((_category == null || item.category == _category) &&
-            (_query.isEmpty ||
-                item.name.toLowerCase().contains(_query) ||
-                (item.distinguishingTag?.toLowerCase().contains(_query) ??
+            (query.isEmpty ||
+                item.name.toLowerCase().contains(query) ||
+                (item.distinguishingTag?.toLowerCase().contains(query) ??
                     false) ||
-                (item.category?.toLowerCase().contains(_query) ?? false)))
+                (item.category?.toLowerCase().contains(query) ?? false)))
           item,
     ];
   }

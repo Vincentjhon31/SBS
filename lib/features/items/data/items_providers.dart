@@ -20,6 +20,18 @@ final myDepartmentIdsProvider = FutureProvider<Set<String>>(
   (ref) => ref.watch(itemsRepositoryProvider).fetchMyDepartmentIds(),
 );
 
+/// Live search text for the Items Registry. Shared state (rather than
+/// screen-local) so the staff web header's global search box can set it
+/// and jump to the Items tab with the query already applied.
+class ItemsQuery extends Notifier<String> {
+  @override
+  String build() => '';
+
+  void set(String value) => state = value;
+}
+
+final itemsQueryProvider = NotifierProvider<ItemsQuery, String>(ItemsQuery.new);
+
 final isStaffProvider = Provider<bool>((ref) {
   final profile = ref.watch(myProfileProvider);
   return profile.value?.isStaff ?? false;

@@ -7,7 +7,9 @@ import '../core/constants/app_constants.dart';
 import '../core/widgets/glossy_background.dart';
 import '../features/auth/data/auth_providers.dart';
 import '../features/items/data/items_providers.dart';
+import '../features/notifications/data/notifications_providers.dart';
 import 'router.dart';
+import 'theme.dart';
 
 /// Whether the staff web sidebar is showing full labels (true) or has
 /// been collapsed to an icon-only rail (false) via the hamburger toggle.
@@ -96,11 +98,16 @@ class _TabBarShell extends StatelessWidget {
   }
 }
 
-/// Desktop admin layout for staff on web: a NavigationRail sidebar
-/// instead of a bottom bar, and the content area gets breathing room
-/// instead of staying phone-width. The rail collapses to an icon-only
-/// strip via the hamburger toggle, like Notion/Linear/Gmail's desktop
-/// nav, so staff can reclaim width on smaller laptop screens.
+/// The Admin Dashboard shell branch (see router.dart) — listed here so
+/// the sidebar and header title map can reference it by name.
+const _adminBranchIndex = 5;
+
+/// Desktop admin layout for staff on web, styled like a classic admin
+/// panel (Laravel Nova / AdminLTE / Filament): a solid dark sidebar with
+/// grouped menu items on the left, a top header bar (page title, item
+/// search, notifications, account menu), and a light-gray content canvas
+/// where cards read as white panels. The sidebar collapses to an
+/// icon-only strip via the hamburger toggle.
 class _SidebarShell extends ConsumerWidget {
   const _SidebarShell({required this.navigationShell});
 
@@ -108,118 +115,50 @@ class _SidebarShell extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final isSuperadmin = ref.watch(isSuperadminProvider);
-    final profile = ref.watch(myProfileProvider).value;
-    final expanded = ref.watch(sidebarExpandedProvider);
-    final destinations = _tabDestinations(true);
-    var selectedIndex = destinations.indexWhere(
-      (d) => d.branchIndex == navigationShell.currentIndex,
-    );
-    if (selectedIndex < 0) selectedIndex = 0;
+    final theme = Theme.of(context);
+    final light = theme.brightness == Brightness.light;
 
     void goBranch(int branchIndex) => navigationShell.goBranch(
       branchIndex,
       initialLocation: branchIndex == navigationShell.currentIndex,
     );
 
+    // Gray canvas + white cards in light mode (the admin-panel classic);
+    // dark mode's default card color already contrasts with the surface.
+    final content = Container(
+      color: light
+          ? theme.colorScheme.surfaceContainer
+          : theme.colorScheme.surface,
+      child: light
+          ? Theme(
+              data: theme.copyWith(
+                cardTheme: theme.cardTheme.copyWith(
+                  color: theme.colorScheme.surface,
+                ),
+              ),
+              child: navigationShell,
+            )
+          : navigationShell,
+    );
+
     return Scaffold(
-      body: GlossyBackground(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            NavigationRail(
-              extended: expanded,
-              minExtendedWidth: 232,
-              backgroundColor: Colors.transparent,
-              selectedIndex: selectedIndex,
-              onDestinationSelected: (i) =>
-                  goBranch(destinations[i].branchIndex),
-              leading: _RailHeader(
-                expanded: expanded,
-                onToggle: () =>
-                    ref.read(sidebarExpandedProvider.notifier).toggle(),
-              ),
-              // NavigationRail's `trailing` slot does not provide a
-              // bounded-height context, so Expanded/Align-to-bottom here
-              // silently breaks layout (confirmed by bisection) — keep
-              // everything in it non-flexible.
-              trailing: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (isSuperadmin) _AdminShortcut(expanded: expanded),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    child: Divider(
-                      height: 17,
-                      color: Theme.of(context).colorScheme.outlineVariant,
-                    ),
-                  ),
-                  _AccountFooter(
-                    expanded: expanded,
-                    fullName: profile?.fullName,
-                    onTap: () => goBranch(4),
-                  ),
-                  const SizedBox(height: 8),
-                ],
-              ),
-              destinations: [
-                for (final d in destinations)
-                  NavigationRailDestination(
-                    icon: Tooltip(
-                      message: expanded ? '' : d.label,
-                      child: Icon(d.icon),
-                    ),
-                    selectedIcon: Tooltip(
-                      message: expanded ? '' : d.label,
-                      child: Icon(d.selectedIcon),
-                    ),
-                    label: Text(d.label),
-                  ),
+      body: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _SideNav(
+            currentBranch: navigationShell.currentIndex,
+            onSelect: goBranch,
+          ),
+          Expanded(
+            child: Column(
+              children: [
+                _TopBar(
+                  currentBranch: navigationShell.currentIndex,
+                  onSelectBranch: goBranch,
+                ),
+                Expanded(child: content),
               ],
             ),
-            const VerticalDivider(width: 1),
-            Expanded(child: navigationShell),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _RailHeader extends StatelessWidget {
-  const _RailHeader({required this.expanded, required this.onToggle});
-
-  final bool expanded;
-  final VoidCallback onToggle;
-
-  @override
-  Widget build(BuildContext context) {
-    final toggle = IconButton(
-      icon: const Icon(Icons.menu),
-      tooltip: expanded ? 'Collapse sidebar' : 'Expand sidebar',
-      onPressed: onToggle,
-    );
-    if (!expanded) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        child: toggle,
-      );
-    }
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(4, 12, 12, 12),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          toggle,
-          const SizedBox(width: 4),
-          Icon(
-            Icons.event_available,
-            color: Theme.of(context).colorScheme.primary,
-          ),
-          const SizedBox(width: 8),
-          Text(
-            AppConstants.appName,
-            style: Theme.of(context).textTheme.titleMedium,
           ),
         ],
       ),
@@ -227,47 +166,193 @@ class _RailHeader extends StatelessWidget {
   }
 }
 
-class _AdminShortcut extends StatelessWidget {
-  const _AdminShortcut({required this.expanded});
+/// Solid, always-dark sidebar (independent of the app's light/dark mode),
+/// tinted toward the user's accent seed. Built by hand rather than with
+/// NavigationRail so the bottom account footer can actually pin to the
+/// bottom (NavigationRail's trailing slot has no bounded height) and so
+/// menu items can be grouped under section labels.
+class _SideNav extends ConsumerWidget {
+  const _SideNav({required this.currentBranch, required this.onSelect});
 
-  final bool expanded;
+  final int currentBranch;
+  final ValueChanged<int> onSelect;
 
   @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: () => context.push(AppRoutes.admin),
-        child: Padding(
-          padding: EdgeInsets.symmetric(
-            horizontal: expanded ? 16 : 0,
-            vertical: 12,
-          ),
-          child: expanded
-              ? Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: const [
-                    Icon(Icons.admin_panel_settings_outlined),
-                    SizedBox(width: 12),
-                    Text('Admin dashboard'),
-                  ],
-                )
-              : const Tooltip(
-                  message: 'Admin dashboard',
-                  child: Center(
-                    child: Icon(Icons.admin_panel_settings_outlined),
+  Widget build(BuildContext context, WidgetRef ref) {
+    final expanded = ref.watch(sidebarExpandedProvider);
+    final isSuperadmin = ref.watch(isSuperadminProvider);
+    final profile = ref.watch(myProfileProvider).value;
+    final seed = ref.watch(seedColorProvider);
+    final bg = Color.alphaBlend(
+      seed.withValues(alpha: 0.22),
+      const Color(0xFF0C1017),
+    );
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 180),
+      curve: Curves.easeOut,
+      width: expanded ? 248 : 76,
+      child: Material(
+        color: bg,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 12, 14, 8),
+              child: Row(
+                mainAxisAlignment: expanded
+                    ? MainAxisAlignment.start
+                    : MainAxisAlignment.center,
+                children: [
+                  IconButton(
+                    onPressed: () =>
+                        ref.read(sidebarExpandedProvider.notifier).toggle(),
+                    tooltip: expanded ? 'Collapse sidebar' : 'Expand sidebar',
+                    icon: const Icon(Icons.menu),
+                    color: Colors.white70,
                   ),
-                ),
+                  if (expanded) ...[
+                    const SizedBox(width: 6),
+                    const Icon(Icons.event_available, color: Colors.white),
+                    const SizedBox(width: 8),
+                    const Text(
+                      AppConstants.appName,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            _SectionLabel('MENU', expanded: expanded),
+            for (final d in _tabDestinations(true))
+              _NavItem(
+                icon: d.icon,
+                selectedIcon: d.selectedIcon,
+                label: d.label,
+                selected: currentBranch == d.branchIndex,
+                expanded: expanded,
+                onTap: () => onSelect(d.branchIndex),
+              ),
+            if (isSuperadmin) ...[
+              const SizedBox(height: 10),
+              _SectionLabel('ADMINISTRATION', expanded: expanded),
+              _NavItem(
+                icon: Icons.admin_panel_settings_outlined,
+                selectedIcon: Icons.admin_panel_settings,
+                label: 'Admin Dashboard',
+                selected: currentBranch == _adminBranchIndex,
+                expanded: expanded,
+                onTap: () => onSelect(_adminBranchIndex),
+              ),
+            ],
+            const Spacer(),
+            const Divider(color: Colors.white12, height: 1),
+            _AccountFooter(
+              expanded: expanded,
+              fullName: profile?.fullName,
+              onTap: () => onSelect(4),
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
+class _SectionLabel extends StatelessWidget {
+  const _SectionLabel(this.text, {required this.expanded});
+
+  final String text;
+  final bool expanded;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!expanded) return const SizedBox(height: 10);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(26, 10, 16, 6),
+      child: Text(
+        text,
+        style: const TextStyle(
+          color: Colors.white38,
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 1.2,
+        ),
+      ),
+    );
+  }
+}
+
+class _NavItem extends StatelessWidget {
+  const _NavItem({
+    required this.icon,
+    required this.selectedIcon,
+    required this.label,
+    required this.selected,
+    required this.expanded,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final IconData selectedIcon;
+  final String label;
+  final bool selected;
+  final bool expanded;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = selected ? Colors.white : Colors.white70;
+    final item = InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        decoration: BoxDecoration(
+          color: selected ? Colors.white.withValues(alpha: 0.14) : null,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        padding: EdgeInsets.symmetric(
+          horizontal: expanded ? 12 : 0,
+          vertical: 11,
+        ),
+        child: Row(
+          mainAxisAlignment: expanded
+              ? MainAxisAlignment.start
+              : MainAxisAlignment.center,
+          children: [
+            Icon(selected ? selectedIcon : icon, size: 22, color: color),
+            if (expanded) ...[
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 14,
+                    fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+      child: expanded ? item : Tooltip(message: label, child: item),
+    );
+  }
+}
+
 /// Shows who's signed in — an avatar (initials) plus name when expanded,
-/// just the avatar when collapsed. Taps open the Profile tab, the same
-/// destination the rail's own Profile icon leads to.
+/// just the avatar when collapsed. Taps open the Profile tab.
 class _AccountFooter extends StatelessWidget {
   const _AccountFooter({
     required this.expanded,
@@ -281,33 +366,33 @@ class _AccountFooter extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     final avatar = CircleAvatar(
-      radius: 18,
-      backgroundColor: scheme.primaryContainer,
+      radius: 17,
+      backgroundColor: Colors.white24,
       child: Text(
         _initials(fullName),
-        style: TextStyle(
-          color: scheme.onPrimaryContainer,
+        style: const TextStyle(
+          color: Colors.white,
           fontWeight: FontWeight.w600,
+          fontSize: 13,
         ),
       ),
     );
     if (!expanded) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(20),
-          onTap: onTap,
-          child: Tooltip(message: fullName ?? '', child: avatar),
+      return InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          child: Center(
+            child: Tooltip(message: fullName ?? '', child: avatar),
+          ),
         ),
       );
     }
     return InkWell(
-      borderRadius: BorderRadius.circular(12),
       onTap: onTap,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Row(
           children: [
             avatar,
@@ -321,17 +406,17 @@ class _AccountFooter extends StatelessWidget {
                     fullName ?? 'Loading…',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 13.5,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                  Text(
+                  const Text(
                     'LGU Staff',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: scheme.onSurfaceVariant,
-                    ),
+                    style: TextStyle(color: Colors.white54, fontSize: 12),
                   ),
                 ],
               ),
@@ -341,16 +426,208 @@ class _AccountFooter extends StatelessWidget {
       ),
     );
   }
+}
 
-  static String _initials(String? name) {
-    final parts = (name ?? '')
-        .trim()
-        .split(RegExp(r'\s+'))
-        .where((p) => p.isNotEmpty)
-        .toList();
-    if (parts.isEmpty) return '?';
-    if (parts.length == 1) return parts.first[0].toUpperCase();
-    return (parts.first[0] + parts.last[0]).toUpperCase();
+String _initials(String? name) {
+  final parts = (name ?? '')
+      .trim()
+      .split(RegExp(r'\s+'))
+      .where((p) => p.isNotEmpty)
+      .toList();
+  if (parts.isEmpty) return '?';
+  if (parts.length == 1) return parts.first[0].toUpperCase();
+  return (parts.first[0] + parts.last[0]).toUpperCase();
+}
+
+enum _AccountAction { profile, settings, signOut }
+
+/// Header bar above the content area: current page title on the left;
+/// item search, notifications, and the account dropdown on the right —
+/// the standard admin-panel top chrome.
+class _TopBar extends ConsumerWidget {
+  const _TopBar({required this.currentBranch, required this.onSelectBranch});
+
+  final int currentBranch;
+  final ValueChanged<int> onSelectBranch;
+
+  static const _titles = {
+    0: 'Home',
+    1: 'My Requests',
+    2: 'Items Registry',
+    3: 'Approvals',
+    4: 'Profile',
+    _adminBranchIndex: 'Admin Dashboard',
+  };
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final scheme = Theme.of(context).colorScheme;
+    final profile = ref.watch(myProfileProvider).value;
+    final unread = ref.watch(unreadCountProvider);
+
+    return Container(
+      height: 62,
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        border: Border(bottom: BorderSide(color: scheme.outlineVariant)),
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final wide = constraints.maxWidth >= 700;
+          return Row(
+            children: [
+              Text(
+                _titles[currentBranch] ?? AppConstants.appName,
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+              ),
+              const Spacer(),
+              if (wide) ...[
+                SizedBox(
+                  width: 280,
+                  child: _HeaderSearch(
+                    onSubmit: (query) {
+                      ref.read(itemsQueryProvider.notifier).set(query);
+                      onSelectBranch(2);
+                    },
+                  ),
+                ),
+                const SizedBox(width: 8),
+              ],
+              IconButton(
+                tooltip: 'Notifications',
+                icon: Badge.count(
+                  count: unread,
+                  isLabelVisible: unread > 0,
+                  child: const Icon(Icons.notifications_outlined),
+                ),
+                onPressed: () => context.push(AppRoutes.notifications),
+              ),
+              const SizedBox(width: 4),
+              PopupMenuButton<_AccountAction>(
+                tooltip: 'Account',
+                offset: const Offset(0, 52),
+                onSelected: (action) => switch (action) {
+                  _AccountAction.profile => onSelectBranch(4),
+                  _AccountAction.settings => context.push(AppRoutes.settings),
+                  _AccountAction.signOut =>
+                    ref.read(authRepositoryProvider).signOut(),
+                },
+                itemBuilder: (context) => [
+                  const PopupMenuItem(
+                    value: _AccountAction.profile,
+                    child: ListTile(
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(Icons.account_circle_outlined),
+                      title: Text('Profile'),
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: _AccountAction.settings,
+                    child: ListTile(
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(Icons.settings_outlined),
+                      title: Text('Settings'),
+                    ),
+                  ),
+                  const PopupMenuDivider(),
+                  PopupMenuItem(
+                    value: _AccountAction.signOut,
+                    child: ListTile(
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(Icons.logout, color: scheme.error),
+                      title: Text(
+                        'Sign out',
+                        style: TextStyle(color: scheme.error),
+                      ),
+                    ),
+                  ),
+                ],
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 8,
+                  ),
+                  child: Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 15,
+                        backgroundColor: scheme.primaryContainer,
+                        child: Text(
+                          _initials(profile?.fullName),
+                          style: TextStyle(
+                            color: scheme.onPrimaryContainer,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                      if (wide) ...[
+                        const SizedBox(width: 8),
+                        Text(
+                          profile?.fullName ?? '…',
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        ),
+                      ],
+                      const Icon(Icons.arrow_drop_down),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _HeaderSearch extends StatefulWidget {
+  const _HeaderSearch({required this.onSubmit});
+
+  final ValueChanged<String> onSubmit;
+
+  @override
+  State<_HeaderSearch> createState() => _HeaderSearchState();
+}
+
+class _HeaderSearchState extends State<_HeaderSearch> {
+  final _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return SizedBox(
+      height: 40,
+      child: TextField(
+        controller: _controller,
+        textInputAction: TextInputAction.search,
+        onSubmitted: widget.onSubmit,
+        decoration: InputDecoration(
+          isDense: true,
+          hintText: 'Search items…',
+          prefixIcon: const Icon(Icons.search, size: 20),
+          filled: true,
+          fillColor: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
+          contentPadding: EdgeInsets.zero,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: BorderSide.none,
+          ),
+        ),
+      ),
+    );
   }
 }
 

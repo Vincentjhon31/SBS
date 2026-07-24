@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -29,23 +30,30 @@ class HomeScreen extends ConsumerWidget {
         if (statuses[item.id]?.status == 'available') item,
     ];
 
+    // On the staff website the shell's header bar already shows the page
+    // title, notifications bell, and account menu — a second bar here
+    // would just duplicate it.
+    final inWebShell = kIsWeb && (profile.value?.isStaff ?? false);
+
     return Scaffold(
       backgroundColor: Colors.transparent,
-      appBar: AppBar(
-        title: const Text(AppConstants.appName),
-        automaticallyImplyLeading: false,
-        actions: [
-          IconButton(
-            tooltip: 'Notifications',
-            icon: Badge.count(
-              count: ref.watch(unreadCountProvider),
-              isLabelVisible: ref.watch(unreadCountProvider) > 0,
-              child: const Icon(Icons.notifications_outlined),
+      appBar: inWebShell
+          ? null
+          : AppBar(
+              title: const Text(AppConstants.appName),
+              automaticallyImplyLeading: false,
+              actions: [
+                IconButton(
+                  tooltip: 'Notifications',
+                  icon: Badge.count(
+                    count: ref.watch(unreadCountProvider),
+                    isLabelVisible: ref.watch(unreadCountProvider) > 0,
+                    child: const Icon(Icons.notifications_outlined),
+                  ),
+                  onPressed: () => context.push(AppRoutes.notifications),
+                ),
+              ],
             ),
-            onPressed: () => context.push(AppRoutes.notifications),
-          ),
-        ],
-      ),
       body: RefreshIndicator(
         onRefresh: () async {
           ref.invalidate(myRequestsProvider);

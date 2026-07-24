@@ -76,7 +76,8 @@ final routerProvider = Provider<GoRouter>((ref) {
     refreshListenable: refresh,
     redirect: (context, state) {
       final signedIn = session() != null;
-      final onAuthRoute = state.matchedLocation == AppRoutes.login ||
+      final onAuthRoute =
+          state.matchedLocation == AppRoutes.login ||
           state.matchedLocation == AppRoutes.register;
       if (!signedIn) return onAuthRoute ? null : AppRoutes.login;
       if (onAuthRoute || state.matchedLocation == AppRoutes.splash) {
@@ -102,36 +103,57 @@ final routerProvider = Provider<GoRouter>((ref) {
       StatefulShellRoute.indexedStack(
         builder: (context, state, shell) => AppShell(navigationShell: shell),
         branches: [
-          StatefulShellBranch(routes: [
-            GoRoute(
-              path: AppRoutes.home,
-              builder: (context, state) => const HomeScreen(),
-            ),
-          ]),
-          StatefulShellBranch(routes: [
-            GoRoute(
-              path: AppRoutes.requests,
-              builder: (context, state) => const MyRequestsScreen(),
-            ),
-          ]),
-          StatefulShellBranch(routes: [
-            GoRoute(
-              path: AppRoutes.items,
-              builder: (context, state) => const ItemsScreen(),
-            ),
-          ]),
-          StatefulShellBranch(routes: [
-            GoRoute(
-              path: AppRoutes.approvals,
-              builder: (context, state) => const ApprovalsScreen(),
-            ),
-          ]),
-          StatefulShellBranch(routes: [
-            GoRoute(
-              path: AppRoutes.profile,
-              builder: (context, state) => const ProfileScreen(),
-            ),
-          ]),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.home,
+                builder: (context, state) => const HomeScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.requests,
+                builder: (context, state) => const MyRequestsScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.items,
+                builder: (context, state) => const ItemsScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.approvals,
+                builder: (context, state) => const ApprovalsScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.profile,
+                builder: (context, state) => const ProfileScreen(),
+              ),
+            ],
+          ),
+          // Superadmin-only page, but still a shell branch (not a pushed
+          // overlay) so the web sidebar/header stay visible on it. Citizens
+          // have no UI entry point; the screen itself gates on the role.
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.admin,
+                builder: (context, state) => const AdminDashboardScreen(),
+              ),
+            ],
+          ),
         ],
       ),
 
@@ -157,8 +179,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.itemEdit,
         redirect: (context, state) =>
             state.extra is Item ? null : AppRoutes.items,
-        builder: (context, state) =>
-            ItemFormScreen(item: state.extra as Item),
+        builder: (context, state) => ItemFormScreen(item: state.extra as Item),
       ),
       GoRoute(
         path: AppRoutes.itemCalendar,
@@ -200,13 +221,8 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.dataExport,
         redirect: (context, state) =>
             state.extra is Map<String, dynamic> ? null : AppRoutes.settings,
-        builder: (context, state) => DataExportScreen(
-          data: state.extra as Map<String, dynamic>,
-        ),
-      ),
-      GoRoute(
-        path: AppRoutes.admin,
-        builder: (context, state) => const AdminDashboardScreen(),
+        builder: (context, state) =>
+            DataExportScreen(data: state.extra as Map<String, dynamic>),
       ),
     ],
   );

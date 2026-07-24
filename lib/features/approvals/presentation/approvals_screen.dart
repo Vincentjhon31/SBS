@@ -1,30 +1,40 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/router.dart';
+import '../../items/data/items_providers.dart';
 import '../data/approvals_models.dart';
 import '../data/approvals_providers.dart';
 import '../data/approvals_repository.dart';
 
-class ApprovalsScreen extends StatelessWidget {
+class ApprovalsScreen extends ConsumerWidget {
   const ApprovalsScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // On the staff website the shell header shows the page title, so the
+    // AppBar collapses to just the tab strip and the walk-in action
+    // becomes a FAB (matching Items' "Add item" / Requests' "New request").
+    final inWebShell = kIsWeb && ref.watch(isStaffProvider);
+
     return DefaultTabController(
       length: 3,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Approvals'),
+          toolbarHeight: inWebShell ? 0 : null,
+          title: inWebShell ? null : const Text('Approvals'),
           automaticallyImplyLeading: false,
-          actions: [
-            IconButton(
-              tooltip: 'Walk-in request',
-              icon: const Icon(Icons.person_add_alt_outlined),
-              onPressed: () => context.push(AppRoutes.walkinNew),
-            ),
-          ],
+          actions: inWebShell
+              ? null
+              : [
+                  IconButton(
+                    tooltip: 'Walk-in request',
+                    icon: const Icon(Icons.person_add_alt_outlined),
+                    onPressed: () => context.push(AppRoutes.walkinNew),
+                  ),
+                ],
           bottom: const TabBar(
             tabs: [
               Tab(text: 'Pending'),
@@ -33,6 +43,13 @@ class ApprovalsScreen extends StatelessWidget {
             ],
           ),
         ),
+        floatingActionButton: inWebShell
+            ? FloatingActionButton.extended(
+                onPressed: () => context.push(AppRoutes.walkinNew),
+                icon: const Icon(Icons.person_add_alt_outlined),
+                label: const Text('Walk-in request'),
+              )
+            : null,
         backgroundColor: Colors.transparent,
         body: TabBarView(
           children: [
