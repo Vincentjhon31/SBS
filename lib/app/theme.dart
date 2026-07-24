@@ -21,15 +21,19 @@ abstract final class SBSTheme {
       // Flat canvas behind the liquid-glass backdrop (matches eBongabong).
       scaffoldBackgroundColor:
           isDark ? AppConstants.darkSurface : AppConstants.lightSurface,
-      // Transparent + flat so the GlossyBackground glow shows through.
-      // iconTheme/actionsIconTheme are set explicitly (not just via
-      // foregroundColor) so the leading back arrow and action icons always
-      // take onSurface — visible in BOTH light and dark mode. Relying on
-      // foregroundColor alone left the back button rendering near-black on
-      // the light glass background.
+      // Opaque surface background — NOT transparent. A transparent AppBar
+      // only reveals whatever is painted behind the route, and the glossy
+      // backdrop lives in each screen's body, not behind the app bar, so a
+      // transparent bar fell through to a black void: fine in dark mode
+      // (light text on black), invisible in light mode (dark text on
+      // black). `surface` matches the top of the glossy gradient, so the
+      // bar still reads as part of the backdrop while staying legible in
+      // both modes. iconTheme/actionsIconTheme are set explicitly (not just
+      // via foregroundColor) so the back arrow and action icons reliably
+      // take onSurface.
       appBarTheme: AppBarTheme(
         centerTitle: true,
-        backgroundColor: Colors.transparent,
+        backgroundColor: colorScheme.surface,
         surfaceTintColor: Colors.transparent,
         foregroundColor: colorScheme.onSurface,
         iconTheme: IconThemeData(color: colorScheme.onSurface),
