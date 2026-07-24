@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../core/constants/app_constants.dart';
 
@@ -38,6 +39,18 @@ abstract final class SBSTheme {
           fontSize: 20,
           fontWeight: FontWeight.w600,
         ),
+        // A transparent AppBar leaves Flutter to guess the status-bar icon
+        // brightness, which on Android can render the top strip's icons the
+        // wrong color (light-on-light) when the app is forced to light mode
+        // while the device is in dark mode. Pin it to the theme's brightness
+        // so the status bar always contrasts with the light/dark surface.
+        systemOverlayStyle: isDark
+            ? SystemUiOverlayStyle.light.copyWith(
+                statusBarColor: Colors.transparent,
+              )
+            : SystemUiOverlayStyle.dark.copyWith(
+                statusBarColor: Colors.transparent,
+              ),
         elevation: 0,
         scrolledUnderElevation: 0,
       ),
