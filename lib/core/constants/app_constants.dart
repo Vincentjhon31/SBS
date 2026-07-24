@@ -5,12 +5,16 @@ abstract final class AppConstants {
   static const appFullName = 'Schedule Borrowing System';
   static const appVersion = '0.1.0';
 
-  /// Civic blue — default accent color, placeholder until official LGU
-  /// branding is provided.
-  static const seedColor = Color(0xFF1A4B8C);
+  /// Brand blue — from the official SBS logo set (whose artwork also
+  /// uses teal #0097B2, orange #FFBD59, and yellow #FFE325).
+  static const seedColor = Color(0xFF4A66B9);
 
   /// Alternate accent color users may switch to in Settings.
   static const purpleSeedColor = Color(0xFF6750A4);
+
+  /// The bundled full-color logo (transparent background) shown on the
+  /// login, splash, and staff web sidebar.
+  static const logoAsset = 'assets/branding/splash_logo.png';
 
   static const splashDuration = Duration(milliseconds: 1500);
 

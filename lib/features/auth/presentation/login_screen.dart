@@ -55,7 +55,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
       body: SafeArea(
         child: Center(
@@ -66,8 +65,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Icon(Icons.event_available,
-                      size: 64, color: colorScheme.primary),
+                  // The logo art has generous transparent margins, so the
+                  // box is larger than the visible mark.
+                  Image.asset(AppConstants.logoAsset, height: 132),
                   const SizedBox(height: 12),
                   Text(
                     AppConstants.appFullName,

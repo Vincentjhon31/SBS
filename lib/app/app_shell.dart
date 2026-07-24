@@ -212,8 +212,17 @@ class _SideNav extends ConsumerWidget {
                     color: Colors.white70,
                   ),
                   if (expanded) ...[
-                    const SizedBox(width: 6),
-                    const Icon(Icons.event_available, color: Colors.white),
+                    const SizedBox(width: 2),
+                    // White chip behind the full-color logo so its dark
+                    // outlines stay readable on the dark sidebar.
+                    Container(
+                      padding: const EdgeInsets.all(2),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Image.asset(AppConstants.logoAsset, height: 30),
+                    ),
                     const SizedBox(width: 8),
                     const Text(
                       AppConstants.appName,
