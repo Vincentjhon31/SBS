@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../app/router.dart';
 import '../../../core/constants/app_constants.dart';
+import '../../../core/widgets/glossy_background.dart';
 import '../data/auth_providers.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -32,20 +33,25 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _submitting = true);
     try {
-      await ref.read(authRepositoryProvider).signIn(
+      await ref
+          .read(authRepositoryProvider)
+          .signIn(
             email: _emailController.text.trim(),
             password: _passwordController.text,
           );
       // Navigation happens via the router's auth redirect.
     } on AuthException catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(e.message)));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
       }
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not sign in. Check your connection.')),
+          const SnackBar(
+            content: Text('Could not sign in. Check your connection.'),
+          ),
         );
       }
     } finally {
@@ -56,73 +62,77 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // The logo art has generous transparent margins, so the
-                  // box is larger than the visible mark.
-                  Image.asset(AppConstants.logoAsset, height: 132),
-                  const SizedBox(height: 12),
-                  Text(
-                    AppConstants.appFullName,
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                  const SizedBox(height: 32),
-                  TextFormField(
-                    controller: _emailController,
-                    decoration: const InputDecoration(labelText: 'Email'),
-                    keyboardType: TextInputType.emailAddress,
-                    autofillHints: const [AutofillHints.email],
-                    validator: (v) => (v == null || !v.contains('@'))
-                        ? 'Enter a valid email'
-                        : null,
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _passwordController,
-                    decoration: const InputDecoration(labelText: 'Password'),
-                    obscureText: true,
-                    autofillHints: const [AutofillHints.password],
-                    validator: (v) =>
-                        (v == null || v.isEmpty) ? 'Enter your password' : null,
-                    onFieldSubmitted: (_) => _signIn(),
-                  ),
-                  const SizedBox(height: 24),
-                  FilledButton(
-                    onPressed: _submitting ? null : _signIn,
-                    child: _submitting
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Text('Sign in'),
-                  ),
-                  const SizedBox(height: 16),
-                  TextButton(
-                    onPressed: _submitting
-                        ? null
-                        : () => context.go(AppRoutes.register),
-                    child: const Text('New citizen borrower? Register here'),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    kIsWeb
-                        ? 'LGU staff accounts are provided by your office — '
-                            'sign in with your existing credentials.'
-                        : 'This app is for citizen borrowers. Staff and '
-                            'admin accounts are managed on the SBS website.',
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                ],
+      backgroundColor: Colors.transparent,
+      body: GlossyBackground(
+        child: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // The logo art has generous transparent margins, so the
+                    // box is larger than the visible mark.
+                    Image.asset(AppConstants.logoAsset, height: 132),
+                    const SizedBox(height: 12),
+                    Text(
+                      AppConstants.appFullName,
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                    const SizedBox(height: 32),
+                    TextFormField(
+                      controller: _emailController,
+                      decoration: const InputDecoration(labelText: 'Email'),
+                      keyboardType: TextInputType.emailAddress,
+                      autofillHints: const [AutofillHints.email],
+                      validator: (v) => (v == null || !v.contains('@'))
+                          ? 'Enter a valid email'
+                          : null,
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _passwordController,
+                      decoration: const InputDecoration(labelText: 'Password'),
+                      obscureText: true,
+                      autofillHints: const [AutofillHints.password],
+                      validator: (v) => (v == null || v.isEmpty)
+                          ? 'Enter your password'
+                          : null,
+                      onFieldSubmitted: (_) => _signIn(),
+                    ),
+                    const SizedBox(height: 24),
+                    FilledButton(
+                      onPressed: _submitting ? null : _signIn,
+                      child: _submitting
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Text('Sign in'),
+                    ),
+                    const SizedBox(height: 16),
+                    TextButton(
+                      onPressed: _submitting
+                          ? null
+                          : () => context.go(AppRoutes.register),
+                      child: const Text('New citizen borrower? Register here'),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      kIsWeb
+                          ? 'LGU staff accounts are provided by your office — '
+                                'sign in with your existing credentials.'
+                          : 'This app is for citizen borrowers. Staff and '
+                                'admin accounts are managed on the SBS website.',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
