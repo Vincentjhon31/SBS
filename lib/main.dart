@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'app/app.dart';
 import 'core/config/supabase_config.dart';
+import 'core/theme/background_style_controller.dart';
 import 'core/theme/theme_mode_controller.dart';
 
 Future<void> main() async {
@@ -13,5 +14,6 @@ Future<void> main() async {
     publishableKey: SupabaseConfig.anonKey,
   );
   ThemeModeController.initialMode = await loadSavedThemeMode();
+  BackgroundStyleController.initialStyle = await loadSavedBackgroundStyle();
   runApp(const ProviderScope(child: SBSApp()));
 }

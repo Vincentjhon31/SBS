@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/router.dart';
+import '../../../core/widgets/glossy_background.dart';
 import '../../items/data/items_providers.dart';
 import '../data/approvals_models.dart';
 import '../data/approvals_providers.dart';
@@ -391,88 +392,91 @@ class _ApprovalDetailScreenState extends ConsumerState<ApprovalDetailScreen> {
     final canApprove = !req.isCitizenBorrower || citizenVerified;
 
     return Scaffold(
+      backgroundColor: Colors.transparent,
       appBar: AppBar(title: const Text('Review Request')),
-      body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 640),
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    req.itemLabel,
-                    style: Theme.of(context).textTheme.headlineSmall,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    '${_fmt(req.requestedFrom)}  →  '
-                    '${req.requestedTo == null ? "not yet known" : _fmt(req.requestedTo!)}',
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Purpose',
-                    style: Theme.of(context).textTheme.labelLarge,
-                  ),
-                  Text(req.purpose),
-                  const Divider(height: 32),
-                  Text(
-                    'Borrower',
-                    style: Theme.of(context).textTheme.labelLarge,
-                  ),
-                  Text(
-                    '${req.borrowerName} (${switch (req.borrowerType) {
-                      'citizen' => 'Citizen',
-                      'guest' => 'Walk-in guest',
-                      _ => 'LGU Staff',
-                    }})',
-                  ),
-                  if (req.isCitizenBorrower) ...[
-                    const SizedBox(height: 12),
-                    switch (verification!) {
-                      AsyncData(:final value) => _VerificationCard(
-                        verification: value,
-                        busy: _busy,
-                        onVerify: () => _run(() async {
-                          await ref
-                              .read(approvalsRepositoryProvider)
-                              .verifyCitizen(req.borrowerId!);
-                          ref.invalidate(
-                            citizenVerificationProvider(req.borrowerId!),
-                          );
-                        }, 'Identity verified.'),
-                      ),
-                      AsyncError() => const Text(
-                        'Could not load verification data.',
-                      ),
-                      _ => const Center(child: CircularProgressIndicator()),
-                    },
-                  ],
-                  const SizedBox(height: 32),
-                  FilledButton.icon(
-                    onPressed: _busy || !canApprove
-                        ? null
-                        : () => _run(
-                            () => ref
-                                .read(approvalsRepositoryProvider)
-                                .approve(req.id),
-                            'Request approved.',
-                          ),
-                    icon: const Icon(Icons.check),
-                    label: Text(
-                      canApprove
-                          ? 'Approve'
-                          : 'Approve (verify identity first)',
+      body: GlossyBackground(
+        child: SafeArea(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 640),
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      req.itemLabel,
+                      style: Theme.of(context).textTheme.headlineSmall,
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  OutlinedButton.icon(
-                    onPressed: _busy ? null : _reject,
-                    icon: const Icon(Icons.close),
-                    label: const Text('Reject…'),
-                  ),
-                ],
+                    const SizedBox(height: 8),
+                    Text(
+                      '${_fmt(req.requestedFrom)}  →  '
+                      '${req.requestedTo == null ? "not yet known" : _fmt(req.requestedTo!)}',
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Purpose',
+                      style: Theme.of(context).textTheme.labelLarge,
+                    ),
+                    Text(req.purpose),
+                    const Divider(height: 32),
+                    Text(
+                      'Borrower',
+                      style: Theme.of(context).textTheme.labelLarge,
+                    ),
+                    Text(
+                      '${req.borrowerName} (${switch (req.borrowerType) {
+                        'citizen' => 'Citizen',
+                        'guest' => 'Walk-in guest',
+                        _ => 'LGU Staff',
+                      }})',
+                    ),
+                    if (req.isCitizenBorrower) ...[
+                      const SizedBox(height: 12),
+                      switch (verification!) {
+                        AsyncData(:final value) => _VerificationCard(
+                          verification: value,
+                          busy: _busy,
+                          onVerify: () => _run(() async {
+                            await ref
+                                .read(approvalsRepositoryProvider)
+                                .verifyCitizen(req.borrowerId!);
+                            ref.invalidate(
+                              citizenVerificationProvider(req.borrowerId!),
+                            );
+                          }, 'Identity verified.'),
+                        ),
+                        AsyncError() => const Text(
+                          'Could not load verification data.',
+                        ),
+                        _ => const Center(child: CircularProgressIndicator()),
+                      },
+                    ],
+                    const SizedBox(height: 32),
+                    FilledButton.icon(
+                      onPressed: _busy || !canApprove
+                          ? null
+                          : () => _run(
+                              () => ref
+                                  .read(approvalsRepositoryProvider)
+                                  .approve(req.id),
+                              'Request approved.',
+                            ),
+                      icon: const Icon(Icons.check),
+                      label: Text(
+                        canApprove
+                            ? 'Approve'
+                            : 'Approve (verify identity first)',
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    OutlinedButton.icon(
+                      onPressed: _busy ? null : _reject,
+                      icon: const Icon(Icons.close),
+                      label: const Text('Reject…'),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

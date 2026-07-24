@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../core/constants/app_constants.dart';
+import '../../../core/widgets/glossy_background.dart';
 import '../data/approvals_models.dart';
 import '../data/approvals_providers.dart';
 
@@ -59,8 +60,11 @@ class _EvidenceCaptureScreenState extends ConsumerState<EvidenceCaptureScreen> {
       ),
     );
     if (source == null) return;
-    final picked = await ImagePicker()
-        .pickImage(source: source, maxWidth: 1600, imageQuality: 85);
+    final picked = await ImagePicker().pickImage(
+      source: source,
+      maxWidth: 1600,
+      imageQuality: 85,
+    );
     if (picked == null) return;
     setState(() {
       if (borrower) {
@@ -74,14 +78,19 @@ class _EvidenceCaptureScreenState extends ConsumerState<EvidenceCaptureScreen> {
   Future<void> _submit() async {
     final messenger = ScaffoldMessenger.of(context);
     if (_borrowerPhoto == null || _itemPhoto == null) {
-      messenger.showSnackBar(const SnackBar(
-          content: Text('Both borrower and item photos are required.')));
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Both borrower and item photos are required.'),
+        ),
+      );
       return;
     }
     if (isRelease && !_acknowledged) {
-      messenger.showSnackBar(const SnackBar(
-          content:
-              Text('The borrower must acknowledge the liability terms.')));
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('The borrower must acknowledge the liability terms.'),
+        ),
+      );
       return;
     }
     setState(() => _busy = true);
@@ -107,10 +116,15 @@ class _EvidenceCaptureScreenState extends ConsumerState<EvidenceCaptureScreen> {
         );
       }
       ref.invalidate(approvalQueueProvider);
-      messenger.showSnackBar(SnackBar(
-          content: Text(isRelease
-              ? 'Item released — evidence recorded.'
-              : 'Item returned — evidence recorded.')));
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            isRelease
+                ? 'Item released — evidence recorded.'
+                : 'Item returned — evidence recorded.',
+          ),
+        ),
+      );
       if (mounted) context.pop();
     } catch (e) {
       messenger.showSnackBar(SnackBar(content: Text('Failed: $e')));
@@ -122,87 +136,103 @@ class _EvidenceCaptureScreenState extends ConsumerState<EvidenceCaptureScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         title: Text(isRelease ? 'Release Item' : 'Confirm Return'),
       ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(req.itemLabel,
-                  style: Theme.of(context).textTheme.titleLarge),
-              Text('Borrower: ${req.borrowerName}'),
-              const SizedBox(height: 24),
-              _PhotoButton(
-                label: 'Borrower photo',
-                subtitle: 'The person receiving/returning the item',
-                file: _borrowerPhoto,
-                onTap: _busy ? null : () => _pick(true),
-              ),
-              const SizedBox(height: 12),
-              _PhotoButton(
-                label: 'Item photo',
-                subtitle: 'Current condition of the item',
-                file: _itemPhoto,
-                onTap: _busy ? null : () => _pick(false),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _notesController,
-                decoration: InputDecoration(
-                  labelText: isRelease
-                      ? 'Condition notes at handoff (optional)'
-                      : 'Condition notes at return',
-                  hintText: isRelease
-                      ? 'e.g. existing scratch on left door'
-                      : 'e.g. returned complete, no new damage',
+      body: GlossyBackground(
+        child: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  req.itemLabel,
+                  style: Theme.of(context).textTheme.titleLarge,
                 ),
-                maxLines: 3,
-              ),
-              if (isRelease) ...[
+                Text('Borrower: ${req.borrowerName}'),
+                const SizedBox(height: 24),
+                _PhotoButton(
+                  label: 'Borrower photo',
+                  subtitle: 'The person receiving/returning the item',
+                  file: _borrowerPhoto,
+                  onTap: _busy ? null : () => _pick(true),
+                ),
+                const SizedBox(height: 12),
+                _PhotoButton(
+                  label: 'Item photo',
+                  subtitle: 'Current condition of the item',
+                  file: _itemPhoto,
+                  onTap: _busy ? null : () => _pick(false),
+                ),
                 const SizedBox(height: 16),
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Liability terms '
+                TextField(
+                  controller: _notesController,
+                  decoration: InputDecoration(
+                    labelText: isRelease
+                        ? 'Condition notes at handoff (optional)'
+                        : 'Condition notes at return',
+                    hintText: isRelease
+                        ? 'e.g. existing scratch on left door'
+                        : 'e.g. returned complete, no new damage',
+                  ),
+                  maxLines: 3,
+                ),
+                if (isRelease) ...[
+                  const SizedBox(height: 16),
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Liability terms '
                             '(${AppConstants.liabilityTermsVersion})',
-                            style: Theme.of(context).textTheme.labelLarge),
-                        const SizedBox(height: 4),
-                        Text(AppConstants.liabilityTerms,
-                            style: Theme.of(context).textTheme.bodySmall),
-                        CheckboxListTile(
-                          value: _acknowledged,
-                          onChanged: _busy
-                              ? null
-                              : (v) =>
-                                  setState(() => _acknowledged = v ?? false),
-                          contentPadding: EdgeInsets.zero,
-                          controlAffinity: ListTileControlAffinity.leading,
-                          title: const Text(
-                              'Borrower acknowledges these terms'),
-                        ),
-                      ],
+                            style: Theme.of(context).textTheme.labelLarge,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            AppConstants.liabilityTerms,
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                          CheckboxListTile(
+                            value: _acknowledged,
+                            onChanged: _busy
+                                ? null
+                                : (v) => setState(
+                                    () => _acknowledged = v ?? false,
+                                  ),
+                            contentPadding: EdgeInsets.zero,
+                            controlAffinity: ListTileControlAffinity.leading,
+                            title: const Text(
+                              'Borrower acknowledges these terms',
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
+                ],
+                const SizedBox(height: 24),
+                FilledButton.icon(
+                  onPressed: _busy ? null : _submit,
+                  icon: _busy
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : Icon(
+                          isRelease
+                              ? Icons.outbound
+                              : Icons.assignment_turned_in,
+                        ),
+                  label: Text(isRelease ? 'Release item' : 'Confirm return'),
                 ),
               ],
-              const SizedBox(height: 24),
-              FilledButton.icon(
-                onPressed: _busy ? null : _submit,
-                icon: _busy
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2))
-                    : Icon(isRelease ? Icons.outbound : Icons.assignment_turned_in),
-                label: Text(isRelease ? 'Release item' : 'Confirm return'),
-              ),
-            ],
+            ),
           ),
         ),
       ),

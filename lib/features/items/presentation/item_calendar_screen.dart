@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/widgets/glossy_background.dart';
 import '../../borrowing/data/borrow_models.dart';
 import '../../borrowing/data/borrow_providers.dart';
 import '../data/items_models.dart';
@@ -24,21 +25,23 @@ class _ItemCalendarScreenState extends ConsumerState<ItemCalendarScreen> {
     final windows = ref.watch(reservedWindowsProvider(widget.item.id));
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Calendar — ${widget.item.displayName}'),
-      ),
-      body: switch (windows) {
-        AsyncData(:final value) => SingleChildScrollView(
+      backgroundColor: Colors.transparent,
+      appBar: AppBar(title: Text('Calendar — ${widget.item.displayName}')),
+      body: GlossyBackground(
+        child: switch (windows) {
+          AsyncData(:final value) => SingleChildScrollView(
             padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 _MonthHeader(
                   month: _month,
-                  onPrev: () => setState(() =>
-                      _month = DateTime(_month.year, _month.month - 1)),
-                  onNext: () => setState(() =>
-                      _month = DateTime(_month.year, _month.month + 1)),
+                  onPrev: () => setState(
+                    () => _month = DateTime(_month.year, _month.month - 1),
+                  ),
+                  onNext: () => setState(
+                    () => _month = DateTime(_month.year, _month.month + 1),
+                  ),
                 ),
                 const SizedBox(height: 8),
                 _MonthGrid(month: _month, windows: value),
@@ -55,13 +58,17 @@ class _ItemCalendarScreenState extends ConsumerState<ItemCalendarScreen> {
                       ),
                     ),
                     const SizedBox(width: 6),
-                    Text('Reserved',
-                        style: Theme.of(context).textTheme.labelSmall),
+                    Text(
+                      'Reserved',
+                      style: Theme.of(context).textTheme.labelSmall,
+                    ),
                   ],
                 ),
                 const Divider(height: 32),
-                Text('Upcoming reservations',
-                    style: Theme.of(context).textTheme.titleSmall),
+                Text(
+                  'Upcoming reservations',
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
                 const SizedBox(height: 8),
                 if (value.isEmpty)
                   const Text('No approved reservations ahead.')
@@ -83,9 +90,10 @@ class _ItemCalendarScreenState extends ConsumerState<ItemCalendarScreen> {
               ],
             ),
           ),
-        AsyncError() => const Center(child: Text('Could not load calendar.')),
-        _ => const Center(child: CircularProgressIndicator()),
-      },
+          AsyncError() => const Center(child: Text('Could not load calendar.')),
+          _ => const Center(child: CircularProgressIndicator()),
+        },
+      ),
     );
   }
 
@@ -108,8 +116,18 @@ class _MonthHeader extends StatelessWidget {
   final VoidCallback onNext;
 
   static const _names = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December',
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
   ];
 
   @override
@@ -137,7 +155,9 @@ class _MonthGrid extends StatelessWidget {
   bool _isReserved(DateTime day) {
     final dayStart = DateTime(day.year, day.month, day.day);
     final dayEnd = dayStart.add(const Duration(days: 1));
-    return windows.any((w) => w.from.isBefore(dayEnd) && w.to.isAfter(dayStart));
+    return windows.any(
+      (w) => w.from.isBefore(dayEnd) && w.to.isAfter(dayStart),
+    );
   }
 
   @override
@@ -172,9 +192,9 @@ class _MonthGrid extends StatelessWidget {
                 padding: const EdgeInsets.all(3),
                 child: _DayCell(
                   day: day,
-                  reserved:
-                      _isReserved(DateTime(month.year, month.month, day)),
-                  isToday: today.year == month.year &&
+                  reserved: _isReserved(DateTime(month.year, month.month, day)),
+                  isToday:
+                      today.year == month.year &&
                       today.month == month.month &&
                       today.day == day,
                   scheme: scheme,

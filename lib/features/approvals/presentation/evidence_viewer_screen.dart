@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/widgets/glossy_background.dart';
 import '../data/approvals_models.dart';
 import '../data/approvals_providers.dart';
 
@@ -16,14 +17,14 @@ class EvidenceViewerScreen extends ConsumerWidget {
     final evidence = ref.watch(evidenceProvider(args.requestId));
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Evidence — ${args.itemLabel}'),
-      ),
-      body: switch (evidence) {
-        AsyncData(:final value) when value.isEmpty => const Center(
+      backgroundColor: Colors.transparent,
+      appBar: AppBar(title: Text('Evidence — ${args.itemLabel}')),
+      body: GlossyBackground(
+        child: switch (evidence) {
+          AsyncData(:final value) when value.isEmpty => const Center(
             child: Text('No evidence captured yet for this request.'),
           ),
-        AsyncData(:final value) => SingleChildScrollView(
+          AsyncData(:final value) => SingleChildScrollView(
             padding: const EdgeInsets.all(16),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -44,9 +45,10 @@ class EvidenceViewerScreen extends ConsumerWidget {
               ],
             ),
           ),
-        AsyncError() => const Center(child: Text('Could not load evidence.')),
-        _ => const Center(child: CircularProgressIndicator()),
-      },
+          AsyncError() => const Center(child: Text('Could not load evidence.')),
+          _ => const Center(child: CircularProgressIndicator()),
+        },
+      ),
     );
   }
 
@@ -70,18 +72,23 @@ class _StageColumn extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(title,
-            textAlign: TextAlign.center,
-            style: theme.textTheme.titleSmall
-                ?.copyWith(fontWeight: FontWeight.bold)),
+        Text(
+          title,
+          textAlign: TextAlign.center,
+          style: theme.textTheme.titleSmall?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         const SizedBox(height: 8),
         if (record == null)
           Card(
             child: Padding(
               padding: const EdgeInsets.all(24),
-              child: Text('Not yet captured',
-                  textAlign: TextAlign.center,
-                  style: theme.textTheme.bodySmall),
+              child: Text(
+                'Not yet captured',
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodySmall,
+              ),
             ),
           )
         else ...[
@@ -99,8 +106,10 @@ class _StageColumn extends StatelessWidget {
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(8),
-                child: Text(record!.conditionNotes!,
-                    style: theme.textTheme.bodySmall),
+                child: Text(
+                  record!.conditionNotes!,
+                  style: theme.textTheme.bodySmall,
+                ),
               ),
             ),
           ],

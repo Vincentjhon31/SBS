@@ -1,6 +1,9 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../theme/background_style_controller.dart';
 
 /// Soft, blurred color glow behind the main screens: a subtle tonal
 /// gradient plus three real-blurred accent orbs (primary/secondary/
@@ -9,18 +12,25 @@ import 'package:flutter/material.dart';
 /// (rather than hardcoded hex) so it tracks both light/dark mode and
 /// the blue/purple accent switch in Settings.
 ///
-/// The blur is applied once to a static orb layer, not as a live
-/// BackdropFilter over scrolling content — cheap enough to leave on for
-/// every screen, including on the web build.
-class GlossyBackground extends StatelessWidget {
+/// Users can turn this off in Settings → Appearance (a device/session
+/// preference) in favor of a flat surface, for lower-end devices/
+/// browsers where the blur is worth skipping. Either way the blur is
+/// applied once to a static orb layer, not as a live BackdropFilter
+/// over scrolling content, so it stays cheap even when left on.
+class GlossyBackground extends ConsumerWidget {
   const GlossyBackground({super.key, required this.child});
 
   final Widget child;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final scheme = Theme.of(context).colorScheme;
     final dark = Theme.of(context).brightness == Brightness.dark;
+    final style = ref.watch(backgroundStyleProvider);
+
+    if (style == BackgroundStyle.solid) {
+      return ColoredBox(color: scheme.surface, child: child);
+    }
 
     return Stack(
       // Loose fit (the default) gives non-positioned children — i.e.

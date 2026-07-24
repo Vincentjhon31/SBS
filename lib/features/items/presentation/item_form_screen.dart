@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/widgets/glossy_background.dart';
 import '../data/items_models.dart';
 import '../data/items_providers.dart';
 
@@ -21,10 +22,12 @@ class ItemFormScreen extends ConsumerStatefulWidget {
 class _ItemFormScreenState extends ConsumerState<ItemFormScreen> {
   final _formKey = GlobalKey<FormState>();
   late final _nameController = TextEditingController(text: widget.item?.name);
-  late final _tagController =
-      TextEditingController(text: widget.item?.distinguishingTag);
-  late final _categoryController =
-      TextEditingController(text: widget.item?.category);
+  late final _tagController = TextEditingController(
+    text: widget.item?.distinguishingTag,
+  );
+  late final _categoryController = TextEditingController(
+    text: widget.item?.category,
+  );
   late String? _departmentId = widget.item?.owningDepartmentId;
   late bool _active = widget.item?.active ?? true;
   XFile? _photo;
@@ -86,11 +89,15 @@ class _ItemFormScreenState extends ConsumerState<ItemFormScreen> {
       ref.invalidate(itemsProvider);
       if (mounted) context.pop();
     } on PostgrestException catch (e) {
-      messenger.showSnackBar(SnackBar(
-        content: Text(e.code == '23505'
-            ? 'An item with this name and tag already exists.'
-            : 'Could not save: ${e.message}'),
-      ));
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            e.code == '23505'
+                ? 'An item with this name and tag already exists.'
+                : 'Could not save: ${e.message}',
+          ),
+        ),
+      );
     } catch (_) {
       messenger.showSnackBar(
         const SnackBar(content: Text('Could not save. Check your connection.')),
@@ -122,119 +129,132 @@ class _ItemFormScreenState extends ConsumerState<ItemFormScreen> {
           ].take(3).toList();
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(_isEdit ? 'Edit Item' : 'New Item'),
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                TextFormField(
-                  controller: _nameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Item name',
-                    hintText: 'e.g. Multicab, Municipal Gymnasium',
+      backgroundColor: Colors.transparent,
+      appBar: AppBar(title: Text(_isEdit ? 'Edit Item' : 'New Item')),
+      body: GlossyBackground(
+        child: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  TextFormField(
+                    controller: _nameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Item name',
+                      hintText: 'e.g. Multicab, Municipal Gymnasium',
+                    ),
+                    textCapitalization: TextCapitalization.words,
+                    onChanged: (v) =>
+                        setState(() => _nameQuery = v.trim().toLowerCase()),
+                    validator: (v) => (v == null || v.trim().isEmpty)
+                        ? 'Item name is required'
+                        : null,
                   ),
-                  textCapitalization: TextCapitalization.words,
-                  onChanged: (v) =>
-                      setState(() => _nameQuery = v.trim().toLowerCase()),
-                  validator: (v) => (v == null || v.trim().isEmpty)
-                      ? 'Item name is required'
-                      : null,
-                ),
-                if (similar.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  Card(
-                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                    child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Similar existing items — avoid duplicates:',
-                              style: Theme.of(context).textTheme.labelMedium),
-                          for (final item in similar)
-                            Text('• ${item.displayName}'),
-                        ],
+                  if (similar.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Card(
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.surfaceContainerHighest,
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Similar existing items — avoid duplicates:',
+                              style: Theme.of(context).textTheme.labelMedium,
+                            ),
+                            for (final item in similar)
+                              Text('• ${item.displayName}'),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                ],
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _tagController,
-                  decoration: const InputDecoration(
-                    labelText: 'Distinguishing tag (optional)',
-                    hintText: 'e.g. plate number, room number, unit letter',
-                  ),
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _categoryController,
-                  decoration: const InputDecoration(
-                    labelText: 'Category (optional, free text)',
-                    hintText: 'e.g. Vehicle, Venue, Equipment',
-                  ),
-                ),
-                const SizedBox(height: 16),
-                DropdownButtonFormField<String?>(
-                  initialValue: _departmentId,
-                  decoration: const InputDecoration(
-                    labelText: 'Owning department',
-                    helperText:
-                        'Unassigned items are managed by any LGU approver',
-                  ),
-                  items: [
-                    const DropdownMenuItem<String?>(
-                      value: null,
-                      child: Text('Unassigned (shared LGU pool)'),
-                    ),
-                    for (final d in assignable)
-                      DropdownMenuItem<String?>(value: d.id, child: Text(d.name)),
                   ],
-                  onChanged: (v) => setState(() => _departmentId = v),
-                ),
-                const SizedBox(height: 16),
-                OutlinedButton.icon(
-                  onPressed: _submitting ? null : _pickPhoto,
-                  icon: Icon(_photo == null
-                      ? Icons.add_photo_alternate_outlined
-                      : Icons.check_circle),
-                  label: Text(_photo == null
-                      ? (widget.item?.referencePhotoPath == null
-                          ? 'Add reference photo (optional)'
-                          : 'Replace reference photo')
-                      : 'Photo selected'),
-                ),
-                if (_isEdit) ...[
-                  const SizedBox(height: 8),
-                  SwitchListTile(
-                    value: _active,
-                    onChanged: _submitting
-                        ? null
-                        : (v) => setState(() => _active = v),
-                    title: const Text('Active'),
-                    subtitle: const Text(
-                        'Inactive items stay in history but cannot be borrowed'),
-                    contentPadding: EdgeInsets.zero,
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _tagController,
+                    decoration: const InputDecoration(
+                      labelText: 'Distinguishing tag (optional)',
+                      hintText: 'e.g. plate number, room number, unit letter',
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _categoryController,
+                    decoration: const InputDecoration(
+                      labelText: 'Category (optional, free text)',
+                      hintText: 'e.g. Vehicle, Venue, Equipment',
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  DropdownButtonFormField<String?>(
+                    initialValue: _departmentId,
+                    decoration: const InputDecoration(
+                      labelText: 'Owning department',
+                      helperText:
+                          'Unassigned items are managed by any LGU approver',
+                    ),
+                    items: [
+                      const DropdownMenuItem<String?>(
+                        value: null,
+                        child: Text('Unassigned (shared LGU pool)'),
+                      ),
+                      for (final d in assignable)
+                        DropdownMenuItem<String?>(
+                          value: d.id,
+                          child: Text(d.name),
+                        ),
+                    ],
+                    onChanged: (v) => setState(() => _departmentId = v),
+                  ),
+                  const SizedBox(height: 16),
+                  OutlinedButton.icon(
+                    onPressed: _submitting ? null : _pickPhoto,
+                    icon: Icon(
+                      _photo == null
+                          ? Icons.add_photo_alternate_outlined
+                          : Icons.check_circle,
+                    ),
+                    label: Text(
+                      _photo == null
+                          ? (widget.item?.referencePhotoPath == null
+                                ? 'Add reference photo (optional)'
+                                : 'Replace reference photo')
+                          : 'Photo selected',
+                    ),
+                  ),
+                  if (_isEdit) ...[
+                    const SizedBox(height: 8),
+                    SwitchListTile(
+                      value: _active,
+                      onChanged: _submitting
+                          ? null
+                          : (v) => setState(() => _active = v),
+                      title: const Text('Active'),
+                      subtitle: const Text(
+                        'Inactive items stay in history but cannot be borrowed',
+                      ),
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                  ],
+                  const SizedBox(height: 24),
+                  FilledButton(
+                    onPressed: _submitting ? null : _save,
+                    child: _submitting
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : Text(_isEdit ? 'Save changes' : 'Create item'),
                   ),
                 ],
-                const SizedBox(height: 24),
-                FilledButton(
-                  onPressed: _submitting ? null : _save,
-                  child: _submitting
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : Text(_isEdit ? 'Save changes' : 'Create item'),
-                ),
-              ],
+              ),
             ),
           ),
         ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/widgets/glossy_background.dart';
 import '../data/notifications_models.dart';
 import '../data/notifications_providers.dart';
 
@@ -13,6 +14,7 @@ class NotificationsScreen extends ConsumerWidget {
     final unread = ref.watch(unreadCountProvider);
 
     return Scaffold(
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         title: const Text('Notifications'),
         actions: [
@@ -24,20 +26,23 @@ class NotificationsScreen extends ConsumerWidget {
             ),
         ],
       ),
-      body: switch (notifications) {
-        AsyncData(:final value) when value.isEmpty => const Center(
+      body: GlossyBackground(
+        child: switch (notifications) {
+          AsyncData(:final value) when value.isEmpty => const Center(
             child: Text('No notifications yet.'),
           ),
-        AsyncData(:final value) => ListView.separated(
+          AsyncData(:final value) => ListView.separated(
             itemCount: value.length,
             separatorBuilder: (context, i) => const Divider(height: 1),
             itemBuilder: (context, index) =>
                 _NotificationTile(notification: value[index]),
           ),
-        AsyncError() =>
-          const Center(child: Text('Could not load notifications.')),
-        _ => const Center(child: CircularProgressIndicator()),
-      },
+          AsyncError() => const Center(
+            child: Text('Could not load notifications.'),
+          ),
+          _ => const Center(child: CircularProgressIndicator()),
+        },
+      ),
     );
   }
 }
@@ -66,8 +71,7 @@ class _NotificationTile extends ConsumerWidget {
       title: Text(
         notification.title,
         style: TextStyle(
-          fontWeight:
-              notification.unread ? FontWeight.bold : FontWeight.normal,
+          fontWeight: notification.unread ? FontWeight.bold : FontWeight.normal,
         ),
       ),
       subtitle: Text(notification.body),
@@ -77,7 +81,7 @@ class _NotificationTile extends ConsumerWidget {
       isThreeLine: true,
       onTap: notification.unread
           ? () =>
-              ref.read(notificationsActionsProvider).markRead(notification.id)
+                ref.read(notificationsActionsProvider).markRead(notification.id)
           : null,
     );
   }

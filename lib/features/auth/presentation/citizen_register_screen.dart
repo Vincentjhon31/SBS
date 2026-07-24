@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../app/router.dart';
+import '../../../core/widgets/glossy_background.dart';
 import '../data/auth_providers.dart';
 
 const _idTypes = [
@@ -101,7 +102,9 @@ class _CitizenRegisterScreenState extends ConsumerState<CitizenRegisterScreen> {
     }
     setState(() => _submitting = true);
     try {
-      await ref.read(authRepositoryProvider).registerCitizen(
+      await ref
+          .read(authRepositoryProvider)
+          .registerCitizen(
             email: _emailController.text.trim(),
             password: _passwordController.text,
             fullName: _fullNameController.text.trim(),
@@ -117,7 +120,9 @@ class _CitizenRegisterScreenState extends ConsumerState<CitizenRegisterScreen> {
     } catch (_) {
       messenger.showSnackBar(
         const SnackBar(
-          content: Text('Registration failed. Check your connection and try again.'),
+          content: Text(
+            'Registration failed. Check your connection and try again.',
+          ),
         ),
       );
     } finally {
@@ -128,112 +133,117 @@ class _CitizenRegisterScreenState extends ConsumerState<CitizenRegisterScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         title: const Text('Citizen Registration'),
         leading: BackButton(onPressed: () => context.go(AppRoutes.login)),
       ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                TextFormField(
-                  controller: _fullNameController,
-                  decoration: const InputDecoration(labelText: 'Full name'),
-                  textCapitalization: TextCapitalization.words,
-                  validator: (v) => (v == null || v.trim().length < 3)
-                      ? 'Enter your full name'
-                      : null,
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _emailController,
-                  decoration: const InputDecoration(labelText: 'Email'),
-                  keyboardType: TextInputType.emailAddress,
-                  validator: (v) => (v == null || !v.contains('@'))
-                      ? 'Enter a valid email'
-                      : null,
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _passwordController,
-                  decoration: const InputDecoration(
-                    labelText: 'Password',
-                    helperText: 'At least 8 characters',
+      body: GlossyBackground(
+        child: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  TextFormField(
+                    controller: _fullNameController,
+                    decoration: const InputDecoration(labelText: 'Full name'),
+                    textCapitalization: TextCapitalization.words,
+                    validator: (v) => (v == null || v.trim().length < 3)
+                        ? 'Enter your full name'
+                        : null,
                   ),
-                  obscureText: true,
-                  validator: (v) => (v == null || v.length < 8)
-                      ? 'Password must be at least 8 characters'
-                      : null,
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _contactController,
-                  decoration: const InputDecoration(
-                    labelText: 'Contact number',
-                    hintText: '09XX XXX XXXX',
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _emailController,
+                    decoration: const InputDecoration(labelText: 'Email'),
+                    keyboardType: TextInputType.emailAddress,
+                    validator: (v) => (v == null || !v.contains('@'))
+                        ? 'Enter a valid email'
+                        : null,
                   ),
-                  keyboardType: TextInputType.phone,
-                  validator: (v) => (v == null || v.trim().length < 7)
-                      ? 'Enter a contact number'
-                      : null,
-                ),
-                const SizedBox(height: 24),
-                DropdownButtonFormField<String>(
-                  initialValue: _idType,
-                  decoration: const InputDecoration(labelText: 'ID type'),
-                  items: [
-                    for (final type in _idTypes)
-                      DropdownMenuItem(value: type, child: Text(type)),
-                  ],
-                  onChanged: (v) => setState(() => _idType = v ?? _idType),
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _idNumberController,
-                  decoration: const InputDecoration(labelText: 'ID number'),
-                  validator: (v) => (v == null || v.trim().isEmpty)
-                      ? 'Enter your ID number'
-                      : null,
-                ),
-                const SizedBox(height: 16),
-                OutlinedButton.icon(
-                  onPressed: _submitting ? null : _pickIdPhoto,
-                  icon: Icon(
-                    _idPhoto == null ? Icons.add_a_photo : Icons.check_circle,
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _passwordController,
+                    decoration: const InputDecoration(
+                      labelText: 'Password',
+                      helperText: 'At least 8 characters',
+                    ),
+                    obscureText: true,
+                    validator: (v) => (v == null || v.length < 8)
+                        ? 'Password must be at least 8 characters'
+                        : null,
                   ),
-                  label: Text(
-                    _idPhoto == null ? 'Add a photo of your ID' : 'ID photo added',
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _contactController,
+                    decoration: const InputDecoration(
+                      labelText: 'Contact number',
+                      hintText: '09XX XXX XXXX',
+                    ),
+                    keyboardType: TextInputType.phone,
+                    validator: (v) => (v == null || v.trim().length < 7)
+                        ? 'Enter a contact number'
+                        : null,
                   ),
-                ),
-                const SizedBox(height: 24),
-                CheckboxListTile(
-                  value: _consented,
-                  onChanged: _submitting
-                      ? null
-                      : (v) => setState(() => _consented = v ?? false),
-                  controlAffinity: ListTileControlAffinity.leading,
-                  contentPadding: EdgeInsets.zero,
-                  title: Text(
-                    _consentText,
-                    style: Theme.of(context).textTheme.bodySmall,
+                  const SizedBox(height: 24),
+                  DropdownButtonFormField<String>(
+                    initialValue: _idType,
+                    decoration: const InputDecoration(labelText: 'ID type'),
+                    items: [
+                      for (final type in _idTypes)
+                        DropdownMenuItem(value: type, child: Text(type)),
+                    ],
+                    onChanged: (v) => setState(() => _idType = v ?? _idType),
                   ),
-                ),
-                const SizedBox(height: 16),
-                FilledButton(
-                  onPressed: _submitting ? null : _register,
-                  child: _submitting
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Text('Register'),
-                ),
-              ],
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _idNumberController,
+                    decoration: const InputDecoration(labelText: 'ID number'),
+                    validator: (v) => (v == null || v.trim().isEmpty)
+                        ? 'Enter your ID number'
+                        : null,
+                  ),
+                  const SizedBox(height: 16),
+                  OutlinedButton.icon(
+                    onPressed: _submitting ? null : _pickIdPhoto,
+                    icon: Icon(
+                      _idPhoto == null ? Icons.add_a_photo : Icons.check_circle,
+                    ),
+                    label: Text(
+                      _idPhoto == null
+                          ? 'Add a photo of your ID'
+                          : 'ID photo added',
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  CheckboxListTile(
+                    value: _consented,
+                    onChanged: _submitting
+                        ? null
+                        : (v) => setState(() => _consented = v ?? false),
+                    controlAffinity: ListTileControlAffinity.leading,
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(
+                      _consentText,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  FilledButton(
+                    onPressed: _submitting ? null : _register,
+                    child: _submitting
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Text('Register'),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
