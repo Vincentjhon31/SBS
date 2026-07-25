@@ -10,15 +10,24 @@ class PendingApproval {
     required this.borrowerType,
     required this.status,
     required this.createdAt,
+    this.useFrom,
+    this.useTo,
   });
 
   final String id;
   final String itemLabel;
   final String purpose;
+
+  /// Availability window: [requestedFrom] = pickup, [requestedTo] = return.
   final DateTime requestedFrom;
 
   /// Null for an open-ended walk-in loan (borrowerType == 'guest' only).
   final DateTime? requestedTo;
+
+  /// The event/use window — when the borrower actually uses the item.
+  /// Null for walk-ins and legacy rows.
+  final DateTime? useFrom;
+  final DateTime? useTo;
 
   /// Null for a walk-in guest — there's no profiles row to reference.
   final String? borrowerId;
@@ -45,6 +54,12 @@ class PendingApproval {
       requestedTo: json['requested_to'] == null
           ? null
           : DateTime.parse(json['requested_to'] as String).toLocal(),
+      useFrom: json['use_from'] == null
+          ? null
+          : DateTime.parse(json['use_from'] as String).toLocal(),
+      useTo: json['use_to'] == null
+          ? null
+          : DateTime.parse(json['use_to'] as String).toLocal(),
       borrowerId: json['borrower_id'] as String?,
       borrowerName: borrower?['full_name'] as String? ??
           guest?['full_name'] as String? ??

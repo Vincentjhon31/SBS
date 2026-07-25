@@ -78,7 +78,10 @@ class ApprovalsScreen extends ConsumerWidget {
                     emptyText: 'Nothing awaiting release.',
                     onTap: (context, req) => context.push(
                       AppRoutes.evidenceCapture,
-                      extra: EvidenceCaptureArgs(request: req, stage: 'release'),
+                      extra: EvidenceCaptureArgs(
+                        request: req,
+                        stage: 'release',
+                      ),
                     ),
                   ),
                   _ApprovalQueue(
@@ -132,7 +135,13 @@ class _ApprovalQueue extends ConsumerWidget {
                     ? Padding(
                         padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
                         child: SbsTable(
-                          columns: const ['Item', 'Borrower', 'Window', ''],
+                          columns: const [
+                            'Item',
+                            'Borrower',
+                            'Use',
+                            'Pickup → Return',
+                            '',
+                          ],
                           rows: [
                             for (final req in value)
                               SbsRow(
@@ -143,7 +152,10 @@ class _ApprovalQueue extends ConsumerWidget {
                                     children: [
                                       CircleAvatar(
                                         radius: 14,
-                                        child: Icon(_borrowerIcon(req), size: 15),
+                                        child: Icon(
+                                          _borrowerIcon(req),
+                                          size: 15,
+                                        ),
                                       ),
                                       const SizedBox(width: 8),
                                       Text(req.itemLabel),
@@ -154,6 +166,12 @@ class _ApprovalQueue extends ConsumerWidget {
                                     '(${_borrowerTypeLabel(req)})',
                                   ),
                                   Text(
+                                    req.useFrom != null && req.useTo != null
+                                        ? '${formatDateTime(req.useFrom!)}\n'
+                                              '→ ${formatDateTime(req.useTo!)}'
+                                        : '—',
+                                  ),
+                                  Text(
                                     '${formatDateTime(req.requestedFrom)}\n'
                                     '→ ${_dateOrOpenEnded(req.requestedTo)}',
                                   ),
@@ -161,9 +179,9 @@ class _ApprovalQueue extends ConsumerWidget {
                                       ? Chip(
                                           label: const Text('OVERDUE'),
                                           visualDensity: VisualDensity.compact,
-                                          backgroundColor: Theme.of(context)
-                                              .colorScheme
-                                              .errorContainer,
+                                          backgroundColor: Theme.of(
+                                            context,
+                                          ).colorScheme.errorContainer,
                                         )
                                       : const Icon(Icons.chevron_right),
                                 ],
@@ -221,9 +239,21 @@ class _ApprovalCard extends StatelessWidget {
       child: ListTile(
         leading: CircleAvatar(child: Icon(_borrowerIcon(request))),
         title: Text(request.itemLabel),
-        subtitle: Text(
-          '${request.borrowerName} (${_borrowerTypeLabel(request)})\n'
-          '${formatDateTime(request.requestedFrom)} → ${_dateOrOpenEnded(request.requestedTo)}',
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('${request.borrowerName} (${_borrowerTypeLabel(request)})'),
+            if (request.useFrom != null && request.useTo != null)
+              Text(
+                'Use: ${formatDateTime(request.useFrom!)} → '
+                '${formatDateTime(request.useTo!)}',
+              )
+            else
+              Text(
+                '${formatDateTime(request.requestedFrom)} → '
+                '${_dateOrOpenEnded(request.requestedTo)}',
+              ),
+          ],
         ),
         isThreeLine: true,
         trailing: request.isOverdue
@@ -238,7 +268,6 @@ class _ApprovalCard extends StatelessWidget {
     );
   }
 }
-
 
 class ApprovalDetailScreen extends ConsumerStatefulWidget {
   const ApprovalDetailScreen({super.key, required this.request});
@@ -341,10 +370,21 @@ class _ApprovalDetailScreenState extends ConsumerState<ApprovalDetailScreen> {
                       req.itemLabel,
                       style: Theme.of(context).textTheme.headlineSmall,
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      '${_fmt(req.requestedFrom)}  →  '
-                      '${req.requestedTo == null ? "not yet known" : _fmt(req.requestedTo!)}',
+                    const SizedBox(height: 12),
+                    if (req.useFrom != null && req.useTo != null) ...[
+                      _WindowRow(
+                        icon: Icons.event,
+                        label: 'Use',
+                        value: '${_fmt(req.useFrom!)}  →  ${_fmt(req.useTo!)}',
+                      ),
+                      const SizedBox(height: 4),
+                    ],
+                    _WindowRow(
+                      icon: Icons.local_shipping_outlined,
+                      label: 'Pickup → Return',
+                      value:
+                          '${_fmt(req.requestedFrom)}  →  '
+                          '${req.requestedTo == null ? "not yet known" : _fmt(req.requestedTo!)}',
                     ),
                     const SizedBox(height: 16),
                     Text(
@@ -419,6 +459,45 @@ class _ApprovalDetailScreenState extends ConsumerState<ApprovalDetailScreen> {
   }
 
   static String _fmt(DateTime dt) => formatDateTime(dt);
+}
+
+/// A labelled date-window row on the review screen (Use, Pickup → Return).
+class _WindowRow extends StatelessWidget {
+  const _WindowRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 18, color: scheme.onSurfaceVariant),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                ),
+              ),
+              Text(value, style: Theme.of(context).textTheme.bodyMedium),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 class _VerificationCard extends StatelessWidget {

@@ -21,6 +21,10 @@ class RequestFormScreen extends ConsumerStatefulWidget {
   ConsumerState<RequestFormScreen> createState() => _RequestFormScreenState();
 }
 
+/// Whether the borrower collects the item on the event's first day, or a
+/// day earlier (the DB caps advance pickup at exactly one day).
+enum _PickupWhen { sameDay, dayBefore }
+
 class _RequestFormScreenState extends ConsumerState<RequestFormScreen> {
   final _formKey = GlobalKey<FormState>();
   late final _itemController = TextEditingController(
@@ -28,9 +32,23 @@ class _RequestFormScreenState extends ConsumerState<RequestFormScreen> {
   );
   final _purposeController = TextEditingController();
   late Item? _selectedItem = widget.preselectedItem;
-  DateTime? _from;
-  DateTime? _to;
+
+  // The event/use window the borrower actually needs the item for.
+  DateTime? _useFrom;
+  DateTime? _useTo;
+  // Pickup choice (relative to _useFrom) and the return date/time.
+  _PickupWhen _pickupWhen = _PickupWhen.sameDay;
+  DateTime? _return;
   bool _submitting = false;
+
+  /// Derived availability start: pickup is the use-start, or the calendar
+  /// day before it (keeping the same time-of-day).
+  DateTime? get _pickup {
+    if (_useFrom == null) return null;
+    return _pickupWhen == _PickupWhen.dayBefore
+        ? _useFrom!.subtract(const Duration(days: 1))
+        : _useFrom!;
+  }
 
   @override
   void dispose() {
@@ -39,36 +57,55 @@ class _RequestFormScreenState extends ConsumerState<RequestFormScreen> {
     super.dispose();
   }
 
-  Future<void> _pickDateTime({required bool isFrom}) async {
-    final now = DateTime.now();
-    final initial = isFrom ? (_from ?? now) : (_to ?? _from ?? now);
+  Future<DateTime?> _pickDateTime(DateTime initial, DateTime first) async {
     final date = await showDatePicker(
       context: context,
-      initialDate: initial,
-      firstDate: now,
-      lastDate: now.add(const Duration(days: 365)),
+      initialDate: initial.isBefore(first) ? first : initial,
+      firstDate: first,
+      lastDate: first.add(const Duration(days: 365)),
     );
-    if (date == null || !mounted) return;
+    if (date == null || !mounted) return null;
     final time = await showTimePicker(
       context: context,
       initialTime: TimeOfDay.fromDateTime(initial),
     );
-    if (time == null) return;
-    final picked = DateTime(
-      date.year,
-      date.month,
-      date.day,
-      time.hour,
-      time.minute,
-    );
+    if (time == null) return null;
+    return DateTime(date.year, date.month, date.day, time.hour, time.minute);
+  }
+
+  /// Booking must be at least one day ahead so staff can review before
+  /// pickup — so the earliest selectable use-start is tomorrow.
+  DateTime get _earliestUse {
+    final t = DateTime.now().add(const Duration(days: 1));
+    return DateTime(t.year, t.month, t.day);
+  }
+
+  Future<void> _pickUseFrom() async {
+    final picked = await _pickDateTime(_useFrom ?? _earliestUse, _earliestUse);
+    if (picked == null) return;
     setState(() {
-      if (isFrom) {
-        _from = picked;
-        if (_to != null && !_to!.isAfter(picked)) _to = null;
-      } else {
-        _to = picked;
-      }
+      _useFrom = picked;
+      // Keep use-end and return consistent with the new start.
+      if (_useTo == null || _useTo!.isBefore(picked)) _useTo = picked;
+      if (_return == null || _return!.isBefore(_useTo!)) _return = _useTo;
     });
+  }
+
+  Future<void> _pickUseTo() async {
+    if (_useFrom == null) return;
+    final picked = await _pickDateTime(_useTo ?? _useFrom!, _useFrom!);
+    if (picked == null) return;
+    setState(() {
+      _useTo = picked;
+      if (_return == null || _return!.isBefore(picked)) _return = picked;
+    });
+  }
+
+  Future<void> _pickReturn() async {
+    if (_useTo == null) return;
+    final picked = await _pickDateTime(_return ?? _useTo!, _useTo!);
+    if (picked == null) return;
+    setState(() => _return = picked);
   }
 
   Future<void> _submit() async {
@@ -80,9 +117,11 @@ class _RequestFormScreenState extends ConsumerState<RequestFormScreen> {
       );
       return;
     }
-    if (_from == null || _to == null) {
+    if (_useFrom == null || _useTo == null || _return == null) {
       messenger.showSnackBar(
-        const SnackBar(content: Text('Pick the borrow and return dates.')),
+        const SnackBar(
+          content: Text('Pick when you will use it and return it.'),
+        ),
       );
       return;
     }
@@ -92,8 +131,10 @@ class _RequestFormScreenState extends ConsumerState<RequestFormScreen> {
           .read(borrowRepositoryProvider)
           .createRequest(
             itemId: _selectedItem!.id,
-            from: _from!,
-            to: _to!,
+            from: _pickup!,
+            to: _return!,
+            useFrom: _useFrom,
+            useTo: _useTo,
             purpose: _purposeController.text,
           );
       ref.invalidate(myRequestsProvider);
@@ -127,10 +168,12 @@ class _RequestFormScreenState extends ConsumerState<RequestFormScreen> {
     final windows = _selectedItem == null
         ? null
         : ref.watch(reservedWindowsProvider(_selectedItem!.id)).value;
+    // Conflict is checked against the availability window (pickup → return),
+    // since that's what actually reserves the item.
     final hasConflict =
-        _from != null &&
-        _to != null &&
-        (windows?.any((w) => w.overlaps(_from!, _to!)) ?? false);
+        _pickup != null &&
+        _return != null &&
+        (windows?.any((w) => w.overlaps(_pickup!, _return!)) ?? false);
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -202,27 +245,79 @@ class _RequestFormScreenState extends ConsumerState<RequestFormScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
+                  Text(
+                    'When will you use it?',
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
                   ListTile(
                     contentPadding: EdgeInsets.zero,
                     leading: const Icon(Icons.event),
                     title: Text(
-                      _from == null
-                          ? 'Borrow from…'
-                          : 'From: ${_format(_from!)}',
+                      _useFrom == null
+                          ? 'Use from…'
+                          : 'Use from: ${_format(_useFrom!)}',
                     ),
-                    onTap: _submitting
-                        ? null
-                        : () => _pickDateTime(isFrom: true),
+                    subtitle: const Text(
+                      'Bookings must be at least a day ahead',
+                    ),
+                    onTap: _submitting ? null : _pickUseFrom,
                   ),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.event_repeat),
+                    title: Text(
+                      _useTo == null
+                          ? 'Use until…'
+                          : 'Use until: ${_format(_useTo!)}',
+                    ),
+                    subtitle: const Text('Same day for a one-day event'),
+                    enabled: !_submitting && _useFrom != null,
+                    onTap: _submitting || _useFrom == null ? null : _pickUseTo,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Pick up',
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                  const SizedBox(height: 8),
+                  SegmentedButton<_PickupWhen>(
+                    segments: const [
+                      ButtonSegment(
+                        value: _PickupWhen.sameDay,
+                        icon: Icon(Icons.today),
+                        label: Text('On the day'),
+                      ),
+                      ButtonSegment(
+                        value: _PickupWhen.dayBefore,
+                        icon: Icon(Icons.history),
+                        label: Text('1 day before'),
+                      ),
+                    ],
+                    selected: {_pickupWhen},
+                    onSelectionChanged: _submitting || _useFrom == null
+                        ? null
+                        : (s) => setState(() => _pickupWhen = s.first),
+                  ),
+                  if (_pickup != null) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      'Pick up on ${_format(_pickup!)}',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                  const SizedBox(height: 16),
+                  Text('Return', style: Theme.of(context).textTheme.titleSmall),
                   ListTile(
                     contentPadding: EdgeInsets.zero,
                     leading: const Icon(Icons.event_available),
                     title: Text(
-                      _to == null ? 'Return by…' : 'Until: ${_format(_to!)}',
+                      _return == null
+                          ? 'Return by…'
+                          : 'Return by: ${_format(_return!)}',
                     ),
-                    onTap: _submitting || _from == null
-                        ? null
-                        : () => _pickDateTime(isFrom: false),
+                    subtitle: const Text('Defaults to your last use day'),
+                    enabled: !_submitting && _useTo != null,
+                    onTap: _submitting || _useTo == null ? null : _pickReturn,
                   ),
                   if (hasConflict) ...[
                     const SizedBox(height: 8),

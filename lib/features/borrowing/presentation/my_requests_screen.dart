@@ -64,14 +64,12 @@ class MyRequestsScreen extends ConsumerWidget {
                       requests: active,
                       emptyText:
                           'No active requests — tap "New request" to start.',
-                      onRefresh: () async =>
-                          ref.invalidate(myRequestsProvider),
+                      onRefresh: () async => ref.invalidate(myRequestsProvider),
                     ),
                     _RequestsList(
                       requests: history,
                       emptyText: 'No past requests yet.',
-                      onRefresh: () async =>
-                          ref.invalidate(myRequestsProvider),
+                      onRefresh: () async => ref.invalidate(myRequestsProvider),
                     ),
                   ],
                 ),
@@ -97,8 +95,12 @@ class _RequestsList extends ConsumerWidget {
   final String emptyText;
   final Future<void> Function() onRefresh;
 
-  static const _evidenceStatuses = {'released', 'returned', 'closed', 'overdue'};
-  static const _dueStatuses = {'approved', 'released', 'overdue'};
+  static const _evidenceStatuses = {
+    'released',
+    'returned',
+    'closed',
+    'overdue',
+  };
 
   void _openEvidence(BuildContext context, BorrowRequest r) {
     if (!_evidenceStatuses.contains(r.status)) return;
@@ -127,7 +129,7 @@ class _RequestsList extends ConsumerWidget {
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 88),
                   child: SbsTable(
-                    columns: const ['Item', 'Window', 'Due back', 'Status'],
+                    columns: const ['Item', 'Use', 'Pickup → Return', 'Status'],
                     rows: [
                       for (final r in requests)
                         SbsRow(
@@ -137,13 +139,14 @@ class _RequestsList extends ConsumerWidget {
                           cells: [
                             Text(r.itemLabel),
                             Text(
-                              '${formatDateTime(r.requestedFrom)}\n'
-                              '→ ${formatDateTime(r.requestedTo)}',
+                              r.useFrom != null && r.useTo != null
+                                  ? '${formatDateTime(r.useFrom!)}\n'
+                                        '→ ${formatDateTime(r.useTo!)}'
+                                  : '—',
                             ),
                             Text(
-                              r.dueAt != null && _dueStatuses.contains(r.status)
-                                  ? formatDate(r.dueAt!)
-                                  : '—',
+                              '${formatDateTime(r.requestedFrom)}\n'
+                              '→ ${formatDateTime(r.requestedTo)}',
                             ),
                             RequestStatusChip(status: r.status),
                           ],
@@ -233,9 +236,23 @@ class _RequestTile extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 4),
-              Text(
-                '${_date(request.requestedFrom)} → ${_date(request.requestedTo)}',
-              ),
+              if (request.useFrom != null && request.useTo != null) ...[
+                Text(
+                  'Use: ${_date(request.useFrom!)} → ${_date(request.useTo!)}',
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Pickup ${_date(request.requestedFrom)} · '
+                  'Return ${_date(request.requestedTo)}',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ] else
+                Text(
+                  '${_date(request.requestedFrom)} → '
+                  '${_date(request.requestedTo)}',
+                ),
               if (request.dueAt != null &&
                   const {
                     'approved',

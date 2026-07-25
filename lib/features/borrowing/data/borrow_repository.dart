@@ -17,11 +17,17 @@ class BorrowRepository {
     return [for (final row in rows) BorrowRequest.fromJson(row)];
   }
 
+  /// Creates a self-service request. [from]/[to] are the availability
+  /// window (pickup → return); [useFrom]/[useTo] are the event window the
+  /// borrower actually uses the item for. The DB CHECKs enforce
+  /// pickup ≤ useFrom ≤ useTo ≤ return and a ≤1-day advance pickup.
   Future<void> createRequest({
     required String itemId,
     required DateTime from,
     required DateTime to,
     required String purpose,
+    DateTime? useFrom,
+    DateTime? useTo,
   }) async {
     await _client.from('borrow_requests').insert({
       'item_id': itemId,
@@ -31,6 +37,8 @@ class BorrowRepository {
       'purpose': purpose.trim(),
       'requested_from': from.toUtc().toIso8601String(),
       'requested_to': to.toUtc().toIso8601String(),
+      if (useFrom != null) 'use_from': useFrom.toUtc().toIso8601String(),
+      if (useTo != null) 'use_to': useTo.toUtc().toIso8601String(),
     });
   }
 
