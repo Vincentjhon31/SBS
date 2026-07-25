@@ -4,7 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/router.dart';
+import '../../../core/theme/view_mode_controller.dart';
+import '../../../core/utils/date_format.dart';
 import '../../../core/widgets/request_status_chip.dart';
+import '../../../core/widgets/sbs_table.dart';
 import '../../approvals/data/approvals_models.dart';
 import '../../items/data/items_providers.dart';
 import '../data/borrow_models.dart';
@@ -43,17 +46,35 @@ class MyRequestsScreen extends ConsumerWidget {
           label: const Text('New request'),
         ),
         body: switch (requests) {
-          AsyncData() => TabBarView(
+          AsyncData() => Column(
             children: [
-              _RequestsList(
-                requests: active,
-                emptyText: 'No active requests — tap "New request" to start.',
-                onRefresh: () async => ref.invalidate(myRequestsProvider),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: ViewModeToggle(
+                    width: MediaQuery.sizeOf(context).width,
+                  ),
+                ),
               ),
-              _RequestsList(
-                requests: history,
-                emptyText: 'No past requests yet.',
-                onRefresh: () async => ref.invalidate(myRequestsProvider),
+              Expanded(
+                child: TabBarView(
+                  children: [
+                    _RequestsList(
+                      requests: active,
+                      emptyText:
+                          'No active requests — tap "New request" to start.',
+                      onRefresh: () async =>
+                          ref.invalidate(myRequestsProvider),
+                    ),
+                    _RequestsList(
+                      requests: history,
+                      emptyText: 'No past requests yet.',
+                      onRefresh: () async =>
+                          ref.invalidate(myRequestsProvider),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
@@ -65,7 +86,7 @@ class MyRequestsScreen extends ConsumerWidget {
   }
 }
 
-class _RequestsList extends StatelessWidget {
+class _RequestsList extends ConsumerWidget {
   const _RequestsList({
     required this.requests,
     required this.emptyText,
@@ -76,16 +97,62 @@ class _RequestsList extends StatelessWidget {
   final String emptyText;
   final Future<void> Function() onRefresh;
 
+  static const _evidenceStatuses = {'released', 'returned', 'closed', 'overdue'};
+  static const _dueStatuses = {'approved', 'released', 'overdue'};
+
+  void _openEvidence(BuildContext context, BorrowRequest r) {
+    if (!_evidenceStatuses.contains(r.status)) return;
+    context.push(
+      AppRoutes.evidenceView,
+      extra: EvidenceViewArgs(requestId: r.id, itemLabel: r.itemLabel),
+    );
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     if (requests.isEmpty) {
       return Center(child: Text(emptyText));
     }
-    return Center(
+    final pref = ref.watch(viewModeProvider);
+    return Align(
+      alignment: Alignment.topCenter,
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 1300),
         child: LayoutBuilder(
           builder: (context, constraints) {
+            final mode = effectiveViewMode(pref, constraints.maxWidth);
+            if (mode == ViewMode.table) {
+              return RefreshIndicator(
+                onRefresh: onRefresh,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 88),
+                  child: SbsTable(
+                    columns: const ['Item', 'Window', 'Due back', 'Status'],
+                    rows: [
+                      for (final r in requests)
+                        SbsRow(
+                          onTap: _evidenceStatuses.contains(r.status)
+                              ? () => _openEvidence(context, r)
+                              : null,
+                          cells: [
+                            Text(r.itemLabel),
+                            Text(
+                              '${formatDateTime(r.requestedFrom)}\n'
+                              '→ ${formatDateTime(r.requestedTo)}',
+                            ),
+                            Text(
+                              r.dueAt != null && _dueStatuses.contains(r.status)
+                                  ? formatDate(r.dueAt!)
+                                  : '—',
+                            ),
+                            RequestStatusChip(status: r.status),
+                          ],
+                        ),
+                    ],
+                  ),
+                ),
+              );
+            }
             final columns = (constraints.maxWidth / 380).floor().clamp(1, 3);
             if (columns == 1) {
               return RefreshIndicator(
@@ -212,9 +279,5 @@ class _RequestTile extends StatelessWidget {
     );
   }
 
-  static String _date(DateTime dt) =>
-      '${dt.year}-${dt.month.toString().padLeft(2, '0')}-'
-      '${dt.day.toString().padLeft(2, '0')} '
-      '${dt.hour.toString().padLeft(2, '0')}:'
-      '${dt.minute.toString().padLeft(2, '0')}';
+  static String _date(DateTime dt) => formatDateTime(dt);
 }

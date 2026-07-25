@@ -27,9 +27,19 @@ class GlossyBackground extends ConsumerWidget {
 
     if (style == BackgroundStyle.solid) {
       // Cheapest possible: a flat scaffold-matching surface, no blur.
-      return ColoredBox(
-        color: dark ? AppConstants.darkSurface : AppConstants.lightSurface,
-        child: child,
+      // Must fill the whole area, not shrink to [child] — screens push with
+      // a transparent Scaffold, so a shrink-wrapped solid layer let the
+      // uncovered region fall through to black (only on pages without a
+      // bottom nav, where nothing else painted behind it). A full-bleed
+      // stack guarantees the surface always covers the viewport.
+      return Stack(
+        fit: StackFit.expand,
+        children: [
+          ColoredBox(
+            color: dark ? AppConstants.darkSurface : AppConstants.lightSurface,
+          ),
+          child,
+        ],
       );
     }
 

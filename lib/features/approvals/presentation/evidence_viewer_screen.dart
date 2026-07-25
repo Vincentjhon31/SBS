@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/utils/date_format.dart';
 import '../../../core/widgets/glossy_background.dart';
 import '../data/approvals_models.dart';
 import '../data/approvals_providers.dart';
@@ -118,11 +119,7 @@ class _StageColumn extends StatelessWidget {
     );
   }
 
-  static String _fmt(DateTime dt) =>
-      '${dt.year}-${dt.month.toString().padLeft(2, '0')}-'
-      '${dt.day.toString().padLeft(2, '0')} '
-      '${dt.hour.toString().padLeft(2, '0')}:'
-      '${dt.minute.toString().padLeft(2, '0')}';
+  static String _fmt(DateTime dt) => formatDateTime(dt);
 }
 
 class _EvidencePhoto extends StatelessWidget {

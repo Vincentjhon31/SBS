@@ -4,7 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/router.dart';
+import '../../../core/theme/view_mode_controller.dart';
+import '../../../core/utils/date_format.dart';
 import '../../../core/widgets/item_status_chip.dart';
+import '../../../core/widgets/sbs_table.dart';
 import '../data/items_models.dart';
 import '../data/items_providers.dart';
 
@@ -61,13 +64,22 @@ class _ItemsScreenState extends ConsumerState<ItemsScreen> {
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-            child: TextField(
-              controller: _searchController,
-              decoration: const InputDecoration(
-                prefixIcon: Icon(Icons.search),
-                hintText: 'Search items…',
-              ),
-              onChanged: (v) => ref.read(itemsQueryProvider.notifier).set(v),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _searchController,
+                    decoration: const InputDecoration(
+                      prefixIcon: Icon(Icons.search),
+                      hintText: 'Search items…',
+                    ),
+                    onChanged: (v) =>
+                        ref.read(itemsQueryProvider.notifier).set(v),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                ViewModeToggle(width: MediaQuery.sizeOf(context).width),
+              ],
             ),
           ),
           switch (items) {
@@ -79,7 +91,8 @@ class _ItemsScreenState extends ConsumerState<ItemsScreen> {
             _ => const SizedBox.shrink(),
           },
           Expanded(
-            child: Center(
+            child: Align(
+              alignment: Alignment.topCenter,
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 1400),
                 child: switch (items) {
@@ -179,7 +192,7 @@ class _CategoryChips extends StatelessWidget {
   }
 }
 
-class _ItemsList extends StatelessWidget {
+class _ItemsList extends ConsumerWidget {
   const _ItemsList({
     required this.items,
     required this.statuses,
@@ -193,12 +206,25 @@ class _ItemsList extends StatelessWidget {
   final Future<void> Function() onRefresh;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     if (items.isEmpty) {
       return const Center(child: Text('No items found.'));
     }
+    final pref = ref.watch(viewModeProvider);
     return LayoutBuilder(
       builder: (context, constraints) {
+        final mode = effectiveViewMode(pref, constraints.maxWidth);
+        if (mode == ViewMode.table) {
+          return RefreshIndicator(
+            onRefresh: onRefresh,
+            child: _ItemTable(
+              items: items,
+              statuses: statuses,
+              isStaff: isStaff,
+            ),
+          );
+        }
+        // Cards: a grid on wide screens, a single-column list on phones.
         if (constraints.maxWidth < 760) {
           return RefreshIndicator(
             onRefresh: onRefresh,
@@ -235,6 +261,86 @@ class _ItemsList extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+/// Table view — one item per row, columns for the details staff scan for.
+class _ItemTable extends StatelessWidget {
+  const _ItemTable({
+    required this.items,
+    required this.statuses,
+    required this.isStaff,
+  });
+
+  final List<Item> items;
+  final Map<String, ItemStatus> statuses;
+  final bool isStaff;
+
+  @override
+  Widget build(BuildContext context) {
+    return SbsTable(
+      columns: const ['Item', 'Category', 'Department', 'Status', ''],
+      rows: [
+        for (final item in items)
+          SbsRow(
+            onTap: isStaff
+                ? () => context.push(AppRoutes.itemEdit, extra: item)
+                : null,
+            cells: [
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _ItemThumbnail(path: item.referencePhotoPath, radius: 16),
+                  const SizedBox(width: 10),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 220),
+                    child: Text(
+                      item.displayName,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+              Text(item.category ?? '—'),
+              Text(item.departmentName ?? 'Shared LGU pool'),
+              _StatusCell(item: item, status: statuses[item.id]),
+              IconButton(
+                tooltip: 'Reservation calendar',
+                icon: const Icon(Icons.calendar_month_outlined),
+                onPressed: () =>
+                    context.push(AppRoutes.itemCalendar, extra: item),
+              ),
+            ],
+          ),
+      ],
+    );
+  }
+}
+
+class _StatusCell extends StatelessWidget {
+  const _StatusCell({required this.item, required this.status});
+
+  final Item item;
+  final ItemStatus? status;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!item.active) {
+      return Chip(
+        label: const Text('Inactive'),
+        visualDensity: VisualDensity.compact,
+        backgroundColor: Theme.of(context).colorScheme.errorContainer,
+      );
+    }
+    if (status == null) return const Text('—');
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        ItemStatusChip(status: status!.status),
+        _statusCaption(context, status!),
+      ],
     );
   }
 }
@@ -372,9 +478,9 @@ Widget _statusCaption(BuildContext context, ItemStatus status) {
   final String? text;
   if ((status.status == 'out' || status.status == 'overdue') &&
       status.currentDue != null) {
-    text = 'Due back ${_date(status.currentDue!)}';
+    text = 'Due back ${formatDate(status.currentDue!)}';
   } else if (status.status == 'available' && status.nextReservedFrom != null) {
-    text = 'Next reservation ${_date(status.nextReservedFrom!)}';
+    text = 'Next reservation ${formatDate(status.nextReservedFrom!)}';
   } else {
     text = null;
   }
@@ -388,10 +494,6 @@ Widget _statusCaption(BuildContext context, ItemStatus status) {
     ),
   );
 }
-
-String _date(DateTime dt) =>
-    '${dt.year}-${dt.month.toString().padLeft(2, '0')}-'
-    '${dt.day.toString().padLeft(2, '0')}';
 
 class _ItemThumbnail extends ConsumerWidget {
   const _ItemThumbnail({this.path, this.radius});

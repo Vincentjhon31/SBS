@@ -4,36 +4,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/router.dart';
+import '../../../core/utils/date_format.dart';
 import '../../../core/widgets/request_status_chip.dart';
 import '../../items/data/items_providers.dart';
 import '../data/admin_models.dart';
 import '../data/admin_providers.dart';
 
-const _monthAbbr = [
-  'Jan',
-  'Feb',
-  'Mar',
-  'Apr',
-  'May',
-  'Jun',
-  'Jul',
-  'Aug',
-  'Sep',
-  'Oct',
-  'Nov',
-  'Dec',
-];
+String _shortDate(DateTime d) => formatDayMonth(d);
 
-String _shortDate(DateTime d) => '${_monthAbbr[d.month - 1]} ${d.day}';
-
-String _relativeTime(DateTime dt) {
-  final diff = DateTime.now().difference(dt);
-  if (diff.inMinutes < 1) return 'just now';
-  if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
-  if (diff.inHours < 24) return '${diff.inHours}h ago';
-  if (diff.inDays < 7) return '${diff.inDays}d ago';
-  return _shortDate(dt);
-}
+String _relativeTime(DateTime dt) => formatRelative(dt);
 
 /// Full oversight bundle: cross-department stats, a request/activity
 /// overview, department/staff assignment, and shortcuts to things that

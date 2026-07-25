@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../app/router.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/background_style_controller.dart';
+import '../../../core/utils/date_format.dart';
 import '../../../core/theme/theme_mode_controller.dart';
 import '../../../core/widgets/glossy_background.dart';
 import '../../auth/data/auth_providers.dart';
@@ -247,9 +248,7 @@ class _ConsentStatus extends ConsumerWidget {
     };
   }
 
-  static String _date(DateTime dt) =>
-      '${dt.year}-${dt.month.toString().padLeft(2, '0')}-'
-      '${dt.day.toString().padLeft(2, '0')}';
+  static String _date(DateTime dt) => formatDate(dt);
 }
 
 class _DeletionRequestTile extends ConsumerWidget {
@@ -333,9 +332,7 @@ class _DeletionRequestTile extends ConsumerWidget {
     };
   }
 
-  static String _date(DateTime dt) =>
-      '${dt.year}-${dt.month.toString().padLeft(2, '0')}-'
-      '${dt.day.toString().padLeft(2, '0')}';
+  static String _date(DateTime dt) => formatDate(dt);
 }
 
 class _StaffDeletionQueue extends ConsumerWidget {
@@ -422,7 +419,5 @@ class _StaffDeletionQueue extends ConsumerWidget {
     };
   }
 
-  static String _date(DateTime dt) =>
-      '${dt.year}-${dt.month.toString().padLeft(2, '0')}-'
-      '${dt.day.toString().padLeft(2, '0')}';
+  static String _date(DateTime dt) => formatDate(dt);
 }

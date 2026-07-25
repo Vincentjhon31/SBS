@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../app/router.dart';
 import '../../../core/constants/app_constants.dart';
+import '../../../core/utils/date_format.dart';
 import '../../../core/widgets/glossy_background.dart';
 import '../../approvals/data/approvals_models.dart';
 import '../../approvals/data/approvals_providers.dart';
@@ -393,13 +394,5 @@ class _WalkInRequestScreenState extends ConsumerState<WalkInRequestScreen> {
     );
   }
 
-  static String _format(DateTime dt) {
-    final d =
-        '${dt.year}-${dt.month.toString().padLeft(2, '0')}-'
-        '${dt.day.toString().padLeft(2, '0')}';
-    final t =
-        '${dt.hour.toString().padLeft(2, '0')}:'
-        '${dt.minute.toString().padLeft(2, '0')}';
-    return '$d $t';
-  }
+  static String _format(DateTime dt) => formatDateTime(dt);
 }

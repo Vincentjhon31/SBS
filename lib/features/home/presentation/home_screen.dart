@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/router.dart';
 import '../../../core/constants/app_constants.dart';
+import '../../../core/utils/date_format.dart';
 import '../../../core/widgets/item_status_chip.dart';
 import '../../../core/widgets/request_status_chip.dart';
 import '../../auth/data/auth_providers.dart';
@@ -238,17 +239,13 @@ class _BorrowedItemTile extends StatelessWidget {
         leading: const Icon(Icons.inventory_2_outlined),
         title: Text(request.itemLabel),
         subtitle: request.dueAt != null
-            ? Text('Due back ${_date(request.dueAt!)}')
-            : Text('From ${_date(request.requestedFrom)}'),
+            ? Text('Due back ${formatDate(request.dueAt!)}')
+            : Text('From ${formatDate(request.requestedFrom)}'),
         trailing: RequestStatusChip(status: request.status),
         onTap: () => context.go(AppRoutes.requests),
       ),
     );
   }
-
-  static String _date(DateTime dt) =>
-      '${dt.year}-${dt.month.toString().padLeft(2, '0')}-'
-      '${dt.day.toString().padLeft(2, '0')}';
 }
 
 class _AvailableItemCard extends ConsumerWidget {

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/utils/date_format.dart';
 import '../../../core/widgets/glossy_background.dart';
 import '../../items/data/items_models.dart';
 import '../../items/data/items_providers.dart';
@@ -288,13 +289,5 @@ class _RequestFormScreenState extends ConsumerState<RequestFormScreen> {
     );
   }
 
-  static String _format(DateTime dt) {
-    final d =
-        '${dt.year}-${dt.month.toString().padLeft(2, '0')}-'
-        '${dt.day.toString().padLeft(2, '0')}';
-    final t =
-        '${dt.hour.toString().padLeft(2, '0')}:'
-        '${dt.minute.toString().padLeft(2, '0')}';
-    return '$d $t';
-  }
+  static String _format(DateTime dt) => formatDateTime(dt);
 }
