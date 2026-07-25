@@ -97,10 +97,6 @@ class _TabBarShell extends StatelessWidget {
   }
 }
 
-/// The Admin Dashboard shell branch (see router.dart) — listed here so
-/// the sidebar and header title map can reference it by name.
-const _adminBranchIndex = 5;
-
 /// Desktop admin layout for staff on web, styled like a classic admin
 /// panel (Laravel Nova / AdminLTE / Filament): a solid dark sidebar with
 /// grouped menu items on the left, a top header bar (page title, item
@@ -179,7 +175,6 @@ class _SideNav extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final expanded = ref.watch(sidebarExpandedProvider);
-    final isSuperadmin = ref.watch(isSuperadminProvider);
     final profile = ref.watch(myProfileProvider).value;
     final bg = Color.alphaBlend(
       AppConstants.seedColor.withValues(alpha: 0.22),
@@ -244,18 +239,6 @@ class _SideNav extends ConsumerWidget {
                 expanded: expanded,
                 onTap: () => onSelect(d.branchIndex),
               ),
-            if (isSuperadmin) ...[
-              const SizedBox(height: 10),
-              _SectionLabel('ADMINISTRATION', expanded: expanded),
-              _NavItem(
-                icon: Icons.admin_panel_settings_outlined,
-                selectedIcon: Icons.admin_panel_settings,
-                label: 'Admin Dashboard',
-                selected: currentBranch == _adminBranchIndex,
-                expanded: expanded,
-                onTap: () => onSelect(_adminBranchIndex),
-              ),
-            ],
             const Spacer(),
             const Divider(color: Colors.white12, height: 1),
             _AccountFooter(
@@ -458,12 +441,10 @@ class _TopBar extends ConsumerWidget {
   final ValueChanged<int> onSelectBranch;
 
   static const _titles = {
-    0: 'Home',
-    1: 'My Requests',
+    0: 'Dashboard',
     2: 'Items Registry',
     3: 'Approvals',
     4: 'Profile',
-    _adminBranchIndex: 'Admin Dashboard',
   };
 
   @override
@@ -685,18 +666,23 @@ class _StaffUseWebScreen extends ConsumerWidget {
 }
 
 List<_TabDestination> _tabDestinations(bool isStaff) => [
-  const _TabDestination(
+  // Branch 0: citizens get the borrowing Home; staff get the management
+  // Dashboard (the old Home + Admin Dashboard, merged).
+  _TabDestination(
     branchIndex: 0,
-    icon: Icons.home_outlined,
-    selectedIcon: Icons.home,
-    label: 'Home',
+    icon: isStaff ? Icons.space_dashboard_outlined : Icons.home_outlined,
+    selectedIcon: isStaff ? Icons.space_dashboard : Icons.home,
+    label: isStaff ? 'Dashboard' : 'Home',
   ),
-  const _TabDestination(
-    branchIndex: 1,
-    icon: Icons.receipt_long_outlined,
-    selectedIcon: Icons.receipt_long,
-    label: 'Requests',
-  ),
+  // Self-service borrowing is a citizen thing — staff manage requests
+  // through Approvals (and log walk-ins), so they don't get this tab.
+  if (!isStaff)
+    const _TabDestination(
+      branchIndex: 1,
+      icon: Icons.receipt_long_outlined,
+      selectedIcon: Icons.receipt_long,
+      label: 'Requests',
+    ),
   const _TabDestination(
     branchIndex: 2,
     icon: Icons.inventory_2_outlined,

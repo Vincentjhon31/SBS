@@ -8,12 +8,26 @@ import '../../../core/constants/app_constants.dart';
 import '../../../core/utils/date_format.dart';
 import '../../../core/widgets/item_status_chip.dart';
 import '../../../core/widgets/request_status_chip.dart';
+import '../../admin/presentation/admin_dashboard_screen.dart';
 import '../../auth/data/auth_providers.dart';
 import '../../borrowing/data/borrow_models.dart';
 import '../../borrowing/data/borrow_providers.dart';
 import '../../items/data/items_models.dart';
 import '../../items/data/items_providers.dart';
 import '../../notifications/data/notifications_providers.dart';
+
+/// The first tab. Citizens get the live borrowing Home; staff get the
+/// merged management Dashboard (the old Home + Admin Dashboard, unified).
+class HomeOrDashboard extends ConsumerWidget {
+  const HomeOrDashboard({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return ref.watch(isStaffProvider)
+        ? const StaffDashboardScreen()
+        : const HomeScreen();
+  }
+}
 
 /// Live dashboard: active borrowed items and items available right now.
 class HomeScreen extends ConsumerWidget {

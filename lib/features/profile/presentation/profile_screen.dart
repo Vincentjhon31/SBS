@@ -53,22 +53,6 @@ class ProfileScreen extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 16),
-          if (isSuperadmin) ...[
-            Card(
-              child: ListTile(
-                leading: Icon(
-                  Icons.admin_panel_settings_outlined,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-                title: const Text('Superadmin Dashboard'),
-                subtitle: const Text('Cross-department oversight & stats'),
-                trailing: const Icon(Icons.chevron_right),
-                // A shell branch now (not a pushed overlay) — see router.
-                onTap: () => context.go(AppRoutes.admin),
-              ),
-            ),
-            const SizedBox(height: 16),
-          ],
           Card(
             child: ListTile(
               leading: const Icon(Icons.settings_outlined),

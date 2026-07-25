@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../../app/router.dart';
 import '../../../core/utils/date_format.dart';
 import '../../../core/widgets/request_status_chip.dart';
+import '../../auth/data/auth_providers.dart';
 import '../../items/data/items_providers.dart';
 import '../data/admin_models.dart';
 import '../data/admin_providers.dart';
@@ -14,33 +15,23 @@ String _shortDate(DateTime d) => formatDayMonth(d);
 
 String _relativeTime(DateTime dt) => formatRelative(dt);
 
-/// Full oversight bundle: cross-department stats, a request/activity
-/// overview, department/staff assignment, and shortcuts to things that
-/// are already staff-wide (Approvals now shows every department to a
-/// superadmin via RLS; the deletion queue lives in Settings).
+/// The staff landing page — a merged "Dashboard" that replaces the old
+/// split of Home + Admin Dashboard. A superadmin sees the full oversight
+/// bundle (cross-department stats, activity charts, department/staff
+/// assignment, shortcuts); a regular department staffer sees a lighter
+/// panel of quick actions (the superadmin stats RPC is gated to them).
 ///
-/// Reached only from the web sidebar (staff never see this on mobile —
-/// see app_shell.dart), so the layout leans into desktop width: KPI
-/// bands, charts, and a two-column body all reflow with the window,
-/// falling back to a single column if the browser window is narrow.
-class AdminDashboardScreen extends ConsumerWidget {
-  const AdminDashboardScreen({super.key});
+/// Lives inside the staff web shell (a sidebar branch), which already
+/// provides the page title in its header bar — no AppBar. The layout
+/// leans into desktop width: the KPI band, charts, and two-column body
+/// reflow with the window and collapse to a single column when narrow.
+class StaffDashboardScreen extends ConsumerWidget {
+  const StaffDashboardScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isSuperadmin = ref.watch(isSuperadminProvider);
-
-    // Lives inside the staff web shell (a sidebar branch), which already
-    // provides the page title in its header bar — no AppBar needed.
-    if (!isSuperadmin) {
-      return const Scaffold(
-        backgroundColor: Colors.transparent,
-        body: Center(child: Text('Not authorized.')),
-      );
-    }
-
-    final stats = ref.watch(superadminStatsProvider);
-    final trends = ref.watch(superadminTrendsProvider);
+    final profile = ref.watch(myProfileProvider).value;
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -57,105 +48,284 @@ class AdminDashboardScreen extends ConsumerWidget {
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.all(24),
               children: [
-                Text(
-                  'Overview',
-                  style: Theme.of(context).textTheme.titleMedium,
+                _Greeting(
+                  fullName: profile?.fullName,
+                  isSuperadmin: isSuperadmin,
                 ),
-                const SizedBox(height: 12),
-                switch (stats) {
-                  AsyncData(:final value) => Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _AttentionBand(stats: value),
-                      const SizedBox(height: 20),
-                      _InventoryGrid(stats: value),
-                    ],
-                  ),
-                  AsyncError() => const Text('Could not load stats.'),
-                  _ => const Center(child: CircularProgressIndicator()),
-                },
-                const SizedBox(height: 32),
-                Text(
-                  'Activity',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const SizedBox(height: 12),
-                switch (trends) {
-                  AsyncData(:final value) => Column(
-                    children: [
-                      _TwoColumnRow(
-                        left: _TrendChartCard(daily: value.dailyRequests),
-                        right: _StatusBreakdownCard(
-                          byStatus: value.requestsByStatus,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      _TwoColumnRow(
-                        left: _TopCategoriesCard(
-                          categories: value.topCategories,
-                        ),
-                        right: _RecentActivityCard(
-                          activity: value.recentActivity,
-                        ),
-                      ),
-                    ],
-                  ),
-                  AsyncError() => const Text('Could not load activity data.'),
-                  _ => const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 24),
-                    child: Center(child: CircularProgressIndicator()),
-                  ),
-                },
-                const SizedBox(height: 32),
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    final departments = Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Departments & Staff',
-                          style: Theme.of(context).textTheme.titleMedium,
-                        ),
-                        const SizedBox(height: 8),
-                        const _DepartmentsPanel(),
-                      ],
-                    );
-                    final shortcuts = Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Shortcuts',
-                          style: Theme.of(context).textTheme.titleMedium,
-                        ),
-                        const SizedBox(height: 8),
-                        const _ShortcutsCard(),
-                      ],
-                    );
-                    if (constraints.maxWidth < 720) {
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          departments,
-                          const SizedBox(height: 24),
-                          shortcuts,
-                        ],
-                      );
-                    }
-                    return Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(flex: 2, child: departments),
-                        const SizedBox(width: 24),
-                        Expanded(child: shortcuts),
-                      ],
-                    );
-                  },
-                ),
+                const SizedBox(height: 24),
+                if (isSuperadmin)
+                  const _SuperadminSections()
+                else
+                  const _StaffQuickActions(),
               ],
             ),
           ),
         ),
       ),
+    );
+  }
+}
+
+/// A friendly, time-of-day greeting header at the top of the dashboard.
+class _Greeting extends StatelessWidget {
+  const _Greeting({required this.fullName, required this.isSuperadmin});
+
+  final String? fullName;
+  final bool isSuperadmin;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final hour = DateTime.now().hour;
+    final part = hour < 12
+        ? 'Good morning'
+        : hour < 18
+        ? 'Good afternoon'
+        : 'Good evening';
+    final first = (fullName ?? '').trim().split(RegExp(r'\s+')).first;
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            scheme.primaryContainer.withValues(alpha: 0.7),
+            scheme.surfaceContainerHigh.withValues(alpha: 0.4),
+          ],
+        ),
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 26,
+            backgroundColor: scheme.primary,
+            foregroundColor: scheme.onPrimary,
+            child: const Icon(Icons.space_dashboard_outlined),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  first.isEmpty ? '$part 👋' : '$part, $first 👋',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '${isSuperadmin ? 'Superadmin' : 'LGU Staff'} · '
+                  '${formatDate(DateTime.now())}',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The full superadmin oversight bundle (stats, activity, departments).
+class _SuperadminSections extends ConsumerWidget {
+  const _SuperadminSections();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final stats = ref.watch(superadminStatsProvider);
+    final trends = ref.watch(superadminTrendsProvider);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Overview', style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 12),
+        switch (stats) {
+          AsyncData(:final value) => Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _AttentionBand(stats: value),
+              const SizedBox(height: 20),
+              _InventoryGrid(stats: value),
+            ],
+          ),
+          AsyncError() => const Text('Could not load stats.'),
+          _ => const Center(child: CircularProgressIndicator()),
+        },
+        const SizedBox(height: 32),
+        Text('Activity', style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 12),
+        switch (trends) {
+          AsyncData(:final value) => Column(
+            children: [
+              _TwoColumnRow(
+                left: _TrendChartCard(daily: value.dailyRequests),
+                right: _StatusBreakdownCard(byStatus: value.requestsByStatus),
+              ),
+              const SizedBox(height: 16),
+              _TwoColumnRow(
+                left: _TopCategoriesCard(categories: value.topCategories),
+                right: _RecentActivityCard(activity: value.recentActivity),
+              ),
+            ],
+          ),
+          AsyncError() => const Text('Could not load activity data.'),
+          _ => const Padding(
+            padding: EdgeInsets.symmetric(vertical: 24),
+            child: Center(child: CircularProgressIndicator()),
+          ),
+        },
+        const SizedBox(height: 32),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final departments = Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Departments & Staff',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 8),
+                const _DepartmentsPanel(),
+              ],
+            );
+            final shortcuts = Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Shortcuts',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 8),
+                const _ShortcutsCard(),
+              ],
+            );
+            if (constraints.maxWidth < 720) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [departments, const SizedBox(height: 24), shortcuts],
+              );
+            }
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(flex: 2, child: departments),
+                const SizedBox(width: 24),
+                Expanded(child: shortcuts),
+              ],
+            );
+          },
+        ),
+      ],
+    );
+  }
+}
+
+/// Compact landing for a regular (non-superadmin) staffer — they can't
+/// see the cross-department stats, so give them their day-to-day actions.
+class _StaffQuickActions extends StatelessWidget {
+  const _StaffQuickActions();
+
+  @override
+  Widget build(BuildContext context) {
+    final actions = [
+      (
+        Icons.approval_outlined,
+        'Review approvals',
+        'Approve, release, and accept returns',
+        AppRoutes.approvals,
+      ),
+      (
+        Icons.inventory_2_outlined,
+        'Items registry',
+        'Browse and manage LGU items',
+        AppRoutes.items,
+      ),
+      (
+        Icons.person_add_alt_outlined,
+        'Walk-in request',
+        'Log a borrow for someone at the counter',
+        AppRoutes.walkinNew,
+      ),
+    ];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Quick actions', style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 12),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final columns = (constraints.maxWidth / 260).floor().clamp(1, 3);
+            return GridView.count(
+              crossAxisCount: columns,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              mainAxisSpacing: 12,
+              crossAxisSpacing: 12,
+              childAspectRatio: 2.4,
+              children: [
+                for (final (icon, title, subtitle, route) in actions)
+                  Card(
+                    clipBehavior: Clip.antiAlias,
+                    child: InkWell(
+                      // walk-in is a pushed route; the tab paths are shell
+                      // branches — go() handles both correctly.
+                      onTap: () => route == AppRoutes.walkinNew
+                          ? context.push(route)
+                          : context.go(route),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Row(
+                          children: [
+                            CircleAvatar(
+                              backgroundColor: Theme.of(
+                                context,
+                              ).colorScheme.primaryContainer,
+                              foregroundColor: Theme.of(
+                                context,
+                              ).colorScheme.onPrimaryContainer,
+                              child: Icon(icon),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    title,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleSmall
+                                        ?.copyWith(fontWeight: FontWeight.w600),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    subtitle,
+                                    style: Theme.of(
+                                      context,
+                                    ).textTheme.bodySmall,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            );
+          },
+        ),
+      ],
     );
   }
 }

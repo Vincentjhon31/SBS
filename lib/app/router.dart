@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../features/admin/presentation/admin_dashboard_screen.dart';
 import '../features/approvals/data/approvals_models.dart';
 import '../features/approvals/presentation/approvals_screen.dart';
 import '../features/approvals/presentation/evidence_capture_screen.dart';
@@ -48,7 +47,6 @@ abstract final class AppRoutes {
   static const profile = '/profile';
   static const settings = '/settings';
   static const dataExport = '/settings/export';
-  static const admin = '/admin';
 }
 
 /// Re-runs the router redirect whenever the auth state changes.
@@ -107,7 +105,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: AppRoutes.home,
-                builder: (context, state) => const HomeScreen(),
+                builder: (context, state) => const HomeOrDashboard(),
               ),
             ],
           ),
@@ -140,17 +138,6 @@ final routerProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: AppRoutes.profile,
                 builder: (context, state) => const ProfileScreen(),
-              ),
-            ],
-          ),
-          // Superadmin-only page, but still a shell branch (not a pushed
-          // overlay) so the web sidebar/header stay visible on it. Citizens
-          // have no UI entry point; the screen itself gates on the role.
-          StatefulShellBranch(
-            routes: [
-              GoRoute(
-                path: AppRoutes.admin,
-                builder: (context, state) => const AdminDashboardScreen(),
               ),
             ],
           ),
