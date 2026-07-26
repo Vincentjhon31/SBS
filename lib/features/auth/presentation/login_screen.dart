@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../app/router.dart';
 import '../../../core/constants/app_constants.dart';
+import '../../../core/widgets/app_logo.dart';
 import '../../../core/widgets/glossy_background.dart';
 import '../data/auth_providers.dart';
 
@@ -73,10 +74,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // The logo art has generous transparent margins, so the
-                    // box is larger than the visible mark.
-                    Image.asset(AppConstants.logoAsset, height: 132),
-                    const SizedBox(height: 12),
+                    const Center(child: AppLogoBadge(size: 116)),
+                    const SizedBox(height: 16),
                     Text(
                       AppConstants.appFullName,
                       textAlign: TextAlign.center,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/constants/app_constants.dart';
+import '../../../core/widgets/app_logo.dart';
 import '../../../core/widgets/glossy_background.dart';
 
 /// Branded fallback shown only while the router resolves the auth redirect;
@@ -18,8 +19,8 @@ class SplashScreen extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Image.asset(AppConstants.logoAsset, height: 160),
-              const SizedBox(height: 8),
+              const AppLogoBadge(size: 132),
+              const SizedBox(height: 12),
               Text(
                 AppConstants.appFullName,
                 style: Theme.of(context).textTheme.titleMedium,
