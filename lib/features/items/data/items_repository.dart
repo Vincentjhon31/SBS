@@ -95,6 +95,21 @@ class ItemsRepository {
   Future<String> signedPhotoUrl(String path) =>
       _client.storage.from('item-photos').createSignedUrl(path, 3600);
 
+  /// Permanently deletes an item. The RPC only allows this for items with
+  /// no borrow history (it raises otherwise — the caller should offer to
+  /// deactivate instead). Best-effort removes the reference photo too;
+  /// a leftover object is harmless if that cleanup fails.
+  Future<void> deleteItem(String itemId, {String? referencePhotoPath}) async {
+    await _client.rpc('delete_item', params: {'item': itemId});
+    if (referencePhotoPath != null) {
+      try {
+        await _client.storage.from('item-photos').remove([referencePhotoPath]);
+      } catch (_) {
+        // Orphaned photo is acceptable; the row is already gone.
+      }
+    }
+  }
+
   /// Live status per active item (identity-free, server-derived).
   Future<Map<String, ItemStatus>> fetchStatuses() async {
     final rows = await _client.rpc('items_status') as List;

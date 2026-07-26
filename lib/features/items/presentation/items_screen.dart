@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../app/router.dart';
 import '../../../core/theme/view_mode_controller.dart';
@@ -10,6 +11,7 @@ import '../../../core/widgets/item_status_chip.dart';
 import '../../../core/widgets/sbs_table.dart';
 import '../data/items_models.dart';
 import '../data/items_providers.dart';
+import '../data/items_repository.dart';
 
 class ItemsScreen extends ConsumerStatefulWidget {
   const ItemsScreen({super.key});
@@ -305,11 +307,17 @@ class _ItemTable extends StatelessWidget {
               Text(item.category ?? '—'),
               Text(item.departmentName ?? 'Shared LGU pool'),
               _StatusCell(item: item, status: statuses[item.id]),
-              IconButton(
-                tooltip: 'Reservation calendar',
-                icon: const Icon(Icons.calendar_month_outlined),
-                onPressed: () =>
-                    context.push(AppRoutes.itemCalendar, extra: item),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    tooltip: 'Reservation calendar',
+                    icon: const Icon(Icons.calendar_month_outlined),
+                    onPressed: () =>
+                        context.push(AppRoutes.itemCalendar, extra: item),
+                  ),
+                  if (isStaff) _DeleteItemButton(item: item),
+                ],
               ),
             ],
           ),
@@ -390,6 +398,7 @@ class _ItemRow extends StatelessWidget {
             icon: const Icon(Icons.calendar_month_outlined),
             onPressed: () => context.push(AppRoutes.itemCalendar, extra: item),
           ),
+          if (isStaff) _DeleteItemButton(item: item),
         ],
       ),
       onTap: isStaff
@@ -437,6 +446,11 @@ class _ItemCard extends StatelessWidget {
                     onPressed: () =>
                         context.push(AppRoutes.itemCalendar, extra: item),
                   ),
+                  if (isStaff)
+                    _DeleteItemButton(
+                      item: item,
+                      visualDensity: VisualDensity.compact,
+                    ),
                 ],
               ),
               const SizedBox(height: 8),
@@ -521,5 +535,145 @@ class _ItemThumbnail extends ConsumerWidget {
         child: const Icon(Icons.image_outlined),
       ),
     };
+  }
+}
+
+/// A destructive delete affordance for the registry. Permanent deletion
+/// only works for items with no borrow history; if the RPC refuses (the
+/// item was borrowed at least once), it offers to deactivate instead so
+/// the accountability record is preserved.
+class _DeleteItemButton extends ConsumerWidget {
+  const _DeleteItemButton({required this.item, this.visualDensity});
+
+  final Item item;
+  final VisualDensity? visualDensity;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return IconButton(
+      tooltip: 'Delete item',
+      visualDensity: visualDensity,
+      icon: Icon(
+        Icons.delete_outline,
+        color: Theme.of(context).colorScheme.error,
+      ),
+      onPressed: () => _run(context, ref),
+    );
+  }
+
+  Future<void> _run(BuildContext context, WidgetRef ref) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete item?'),
+        content: Text(
+          'Permanently delete "${item.displayName}"? This cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+
+    final repo = ref.read(itemsRepositoryProvider);
+    try {
+      await repo.deleteItem(
+        item.id,
+        referencePhotoPath: item.referencePhotoPath,
+      );
+      ref.invalidate(itemsProvider);
+      ref.invalidate(itemStatusesProvider);
+      messenger.showSnackBar(
+        SnackBar(content: Text('Deleted "${item.displayName}".')),
+      );
+    } on PostgrestException catch (e) {
+      final hasHistory =
+          e.hint == 'deactivate' || e.message.contains('borrow history');
+      if (hasHistory && context.mounted) {
+        await _offerDeactivate(context, ref, repo, messenger);
+      } else {
+        messenger.showSnackBar(
+          SnackBar(content: Text('Could not delete: ${e.message}')),
+        );
+      }
+    } catch (_) {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Could not delete. Check your connection.'),
+        ),
+      );
+    }
+  }
+
+  Future<void> _offerDeactivate(
+    BuildContext context,
+    WidgetRef ref,
+    ItemsRepository repo,
+    ScaffoldMessengerState messenger,
+  ) async {
+    if (!item.active) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            '"${item.displayName}" has borrow history, so it can\'t be '
+            'deleted. It is already deactivated.',
+          ),
+        ),
+      );
+      return;
+    }
+    final deactivate = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Keep the record instead?'),
+        content: Text(
+          '"${item.displayName}" has borrow history, so it can\'t be '
+          'permanently deleted. Deactivate it instead — it stays in the '
+          'records but can no longer be borrowed.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Deactivate'),
+          ),
+        ],
+      ),
+    );
+    if (deactivate != true) return;
+    try {
+      await repo.updateItem(
+        item.id,
+        name: item.name,
+        distinguishingTag: item.distinguishingTag,
+        category: item.category,
+        owningDepartmentId: item.owningDepartmentId,
+        active: false,
+      );
+      ref.invalidate(itemsProvider);
+      ref.invalidate(itemStatusesProvider);
+      messenger.showSnackBar(
+        SnackBar(content: Text('Deactivated "${item.displayName}".')),
+      );
+    } catch (_) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Could not deactivate the item.')),
+      );
+    }
   }
 }
