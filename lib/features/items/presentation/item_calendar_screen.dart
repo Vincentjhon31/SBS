@@ -30,65 +30,54 @@ class _ItemCalendarScreenState extends ConsumerState<ItemCalendarScreen> {
       appBar: AppBar(title: Text('Calendar — ${widget.item.displayName}')),
       body: GlossyBackground(
         child: switch (windows) {
-          AsyncData(:final value) => SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _MonthHeader(
-                  month: _month,
-                  onPrev: () => setState(
-                    () => _month = DateTime(_month.year, _month.month - 1),
-                  ),
-                  onNext: () => setState(
-                    () => _month = DateTime(_month.year, _month.month + 1),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                _MonthGrid(month: _month, windows: value),
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Container(
-                      width: 12,
-                      height: 12,
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.primaryContainer,
-                        shape: BoxShape.circle,
+          AsyncData(:final value) => Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 880),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    // The calendar itself is capped so its cells never
+                    // balloon on a wide laptop; beside it (when there's
+                    // room) sits the upcoming-reservations panel, otherwise
+                    // it stacks underneath.
+                    final calendar = _CalendarCard(
+                      month: _month,
+                      windows: value,
+                      onPrev: () => setState(
+                        () => _month = DateTime(_month.year, _month.month - 1),
                       ),
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      'Reserved',
-                      style: Theme.of(context).textTheme.labelSmall,
-                    ),
-                  ],
+                      onNext: () => setState(
+                        () => _month = DateTime(_month.year, _month.month + 1),
+                      ),
+                    );
+                    final details = _UpcomingPanel(windows: value);
+                    if (constraints.maxWidth >= 680) {
+                      return Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SizedBox(width: 360, child: calendar),
+                          const SizedBox(width: 24),
+                          Expanded(child: details),
+                        ],
+                      );
+                    }
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Center(
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 420),
+                            child: calendar,
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        details,
+                      ],
+                    );
+                  },
                 ),
-                const Divider(height: 32),
-                Text(
-                  'Upcoming reservations',
-                  style: Theme.of(context).textTheme.titleSmall,
-                ),
-                const SizedBox(height: 8),
-                if (value.isEmpty)
-                  const Text('No approved reservations ahead.')
-                else
-                  for (final w in value)
-                    ListTile(
-                      dense: true,
-                      contentPadding: EdgeInsets.zero,
-                      leading: const Icon(Icons.event),
-                      title: Text('${_fmt(w.from)}  →  ${_fmt(w.to)}'),
-                    ),
-                const SizedBox(height: 8),
-                Text(
-                  'Reservations shown without borrower details. Pending '
-                  'requests are not shown — only approved bookings block '
-                  'a window.',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ],
+              ),
             ),
           ),
           AsyncError() => const Center(child: Text('Could not load calendar.')),
@@ -97,8 +86,121 @@ class _ItemCalendarScreenState extends ConsumerState<ItemCalendarScreen> {
       ),
     );
   }
+}
+
+/// The month grid in a card, with the month switcher and a "Reserved"
+/// legend. Kept to a modest width so the day cells stay tidy on desktop.
+class _CalendarCard extends StatelessWidget {
+  const _CalendarCard({
+    required this.month,
+    required this.windows,
+    required this.onPrev,
+    required this.onNext,
+  });
+
+  final DateTime month;
+  final List<ReservedWindow> windows;
+  final VoidCallback onPrev;
+  final VoidCallback onNext;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _MonthHeader(month: month, onPrev: onPrev, onNext: onNext),
+            const SizedBox(height: 8),
+            _MonthGrid(month: month, windows: windows),
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  width: 12,
+                  height: 12,
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.primaryContainer,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Text('Reserved', style: Theme.of(context).textTheme.labelSmall),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The list of upcoming approved windows plus the privacy note.
+class _UpcomingPanel extends StatelessWidget {
+  const _UpcomingPanel({required this.windows});
+
+  final List<ReservedWindow> windows;
 
   static String _fmt(DateTime dt) => formatDateTime(dt);
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Upcoming reservations',
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
+        const SizedBox(height: 8),
+        if (windows.isEmpty)
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Icon(Icons.event_available, color: scheme.onSurfaceVariant),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Text('No approved reservations ahead.'),
+                  ),
+                ],
+              ),
+            ),
+          )
+        else
+          Card(
+            child: Column(
+              children: [
+                for (final (i, w) in windows.indexed) ...[
+                  if (i > 0) const Divider(height: 1),
+                  ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: scheme.primaryContainer,
+                      foregroundColor: scheme.onPrimaryContainer,
+                      child: const Icon(Icons.event, size: 20),
+                    ),
+                    title: Text(_fmt(w.from)),
+                    subtitle: Text('until ${_fmt(w.to)}'),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        const SizedBox(height: 12),
+        Text(
+          'Reservations are shown without borrower details. Pending requests '
+          'are not shown — only approved bookings block a window.',
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+        ),
+      ],
+    );
+  }
 }
 
 class _MonthHeader extends StatelessWidget {

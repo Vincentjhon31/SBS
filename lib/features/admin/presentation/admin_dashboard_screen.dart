@@ -110,7 +110,7 @@ class _Greeting extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  first.isEmpty ? '$part 👋' : '$part, $first 👋',
+                  first.isEmpty ? part : '$part, $first',
                   style: Theme.of(
                     context,
                   ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
