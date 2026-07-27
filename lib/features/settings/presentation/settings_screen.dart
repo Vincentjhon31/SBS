@@ -192,8 +192,8 @@ class _BackgroundStyleSelector extends ConsumerWidget {
         Text('Background', style: Theme.of(context).textTheme.labelLarge),
         const SizedBox(height: 4),
         Text(
-          'Glossy adds soft color glow behind screens; Solid is flat and '
-          'lighter on slower devices.',
+          'Glossy adds soft color glow behind screens; Blob shows floating '
+          'organic shapes; Solid is flat and lighter on slower devices.',
           style: Theme.of(context).textTheme.bodySmall,
         ),
         const SizedBox(height: 12),
@@ -203,6 +203,11 @@ class _BackgroundStyleSelector extends ConsumerWidget {
               value: BackgroundStyle.glossy,
               icon: Icon(Icons.blur_on_outlined),
               label: Text('Glossy'),
+            ),
+            ButtonSegment(
+              value: BackgroundStyle.blob,
+              icon: Icon(Icons.blur_circular_outlined),
+              label: Text('Blob'),
             ),
             ButtonSegment(
               value: BackgroundStyle.solid,

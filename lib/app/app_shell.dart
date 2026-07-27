@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/constants/app_constants.dart';
+import '../core/theme/background_style_controller.dart';
 import '../core/widgets/glossy_background.dart';
 import '../features/auth/data/auth_providers.dart';
 import '../features/items/data/items_providers.dart';
@@ -55,8 +56,11 @@ class AppShell extends ConsumerWidget {
   }
 }
 
-/// Original mobile-style shell: bottom NavigationBar. Used by citizens on
-/// any platform (mobile app or web browser) — unchanged from before.
+/// Mobile-style shell for citizens (any platform): content fills the
+/// screen behind a floating, icon-only "pill" tab bar — a dark rounded
+/// stadium hovering above the bottom edge rather than a bar flush against
+/// it, matching the travel-app reference look requested for the mobile
+/// design.
 class _TabBarShell extends StatelessWidget {
   const _TabBarShell({required this.navigationShell, required this.isStaff});
 
@@ -72,10 +76,18 @@ class _TabBarShell extends StatelessWidget {
     if (selectedVisualIndex < 0) selectedVisualIndex = 0;
 
     return Scaffold(
+      // NOT extendBody: each branch screen is its own nested Scaffold, and
+      // some (My Requests' "New request") have their own FAB, which floats
+      // to the bottom-right of ITS body. extendBody stretches that body
+      // behind the floating pill bar, so the FAB would land behind/under
+      // it. Leaving extendBody off makes this outer Scaffold reserve the
+      // pill's height as normal — the FAB then sits correctly above it,
+      // just like the pill bar reserving space from a regular bottom bar.
       body: GlossyBackground(child: navigationShell),
-      bottomNavigationBar: NavigationBar(
+      bottomNavigationBar: _FloatingPillNavBar(
+        destinations: destinations,
         selectedIndex: selectedVisualIndex,
-        onDestinationSelected: (i) {
+        onSelect: (i) {
           final branchIndex = destinations[i].branchIndex;
           // Re-tapping the active tab resets it to its root (initialLocation)
           // instead of doing nothing — matches iOS tab-bar behavior.
@@ -84,14 +96,93 @@ class _TabBarShell extends StatelessWidget {
             initialLocation: branchIndex == navigationShell.currentIndex,
           );
         },
-        destinations: [
-          for (final d in destinations)
-            NavigationDestination(
-              icon: Icon(d.icon),
-              selectedIcon: Icon(d.selectedIcon),
-              label: d.label,
+      ),
+    );
+  }
+}
+
+class _FloatingPillNavBar extends StatelessWidget {
+  const _FloatingPillNavBar({
+    required this.destinations,
+    required this.selectedIndex,
+    required this.onSelect,
+  });
+
+  final List<_TabDestination> destinations;
+  final int selectedIndex;
+  final ValueChanged<int> onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      minimum: const EdgeInsets.fromLTRB(28, 0, 28, 14),
+      child: Container(
+        height: 62,
+        padding: const EdgeInsets.symmetric(horizontal: 6),
+        decoration: BoxDecoration(
+          color: const Color(0xFF14161D),
+          borderRadius: BorderRadius.circular(31),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.28),
+              blurRadius: 22,
+              offset: const Offset(0, 10),
             ),
-        ],
+          ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            for (final (i, d) in destinations.indexed)
+              _PillNavItem(
+                icon: i == selectedIndex ? d.selectedIcon : d.icon,
+                label: d.label,
+                selected: i == selectedIndex,
+                onTap: () => onSelect(i),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PillNavItem extends StatelessWidget {
+  const _PillNavItem({
+    required this.icon,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: label,
+      child: InkResponse(
+        onTap: onTap,
+        radius: 30,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+          width: 46,
+          height: 46,
+          decoration: BoxDecoration(
+            color: selected ? Colors.white : Colors.transparent,
+            shape: BoxShape.circle,
+          ),
+          alignment: Alignment.center,
+          child: Icon(
+            icon,
+            size: 22,
+            color: selected ? const Color(0xFF14161D) : Colors.white60,
+          ),
+        ),
       ),
     );
   }
@@ -112,6 +203,11 @@ class _SidebarShell extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final light = theme.brightness == Brightness.light;
+    final style = ref.watch(backgroundStyleProvider);
+    // Glossy/blob paint their own colored backdrop; the flat gray/surface
+    // canvas below is only needed for the "Solid" choice, otherwise it'd
+    // just hide the backdrop behind an opaque panel.
+    final useBackdrop = style != BackgroundStyle.solid;
 
     void goBranch(int branchIndex) => navigationShell.goBranch(
       branchIndex,
@@ -121,9 +217,9 @@ class _SidebarShell extends ConsumerWidget {
     // Gray canvas + white cards in light mode (the admin-panel classic);
     // dark mode's default card color already contrasts with the surface.
     final content = Container(
-      color: light
-          ? theme.colorScheme.surfaceContainer
-          : theme.colorScheme.surface,
+      color: useBackdrop
+          ? Colors.transparent
+          : (light ? theme.colorScheme.surfaceContainer : theme.colorScheme.surface),
       child: light
           ? Theme(
               data: theme.copyWith(
@@ -136,27 +232,29 @@ class _SidebarShell extends ConsumerWidget {
           : navigationShell,
     );
 
+    final body = Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _SideNav(
+          currentBranch: navigationShell.currentIndex,
+          onSelect: goBranch,
+        ),
+        Expanded(
+          child: Column(
+            children: [
+              _TopBar(
+                currentBranch: navigationShell.currentIndex,
+                onSelectBranch: goBranch,
+              ),
+              Expanded(child: content),
+            ],
+          ),
+        ),
+      ],
+    );
+
     return Scaffold(
-      body: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _SideNav(
-            currentBranch: navigationShell.currentIndex,
-            onSelect: goBranch,
-          ),
-          Expanded(
-            child: Column(
-              children: [
-                _TopBar(
-                  currentBranch: navigationShell.currentIndex,
-                  onSelectBranch: goBranch,
-                ),
-                Expanded(child: content),
-              ],
-            ),
-          ),
-        ],
-      ),
+      body: useBackdrop ? GlossyBackground(child: body) : body,
     );
   }
 }

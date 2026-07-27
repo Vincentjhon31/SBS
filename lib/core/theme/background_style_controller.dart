@@ -3,11 +3,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 const _prefsKey = 'sbs_background_style';
 
-/// The glow-and-orbs "glossy" backdrop vs. a flat solid surface — a
-/// device/session preference (like [ThemeMode]), not synced to the
-/// account, since it's really a "turn off the fancy effects" toggle for
-/// lower-end devices/browsers rather than an identity preference.
-enum BackgroundStyle { glossy, solid }
+/// The glow-and-orbs "glossy" backdrop, organic "blob" shapes, or a flat
+/// solid surface — a device/session preference (like [ThemeMode]), not
+/// synced to the account, since it's really a "turn off the fancy
+/// effects" toggle for lower-end devices/browsers rather than an
+/// identity preference.
+enum BackgroundStyle { glossy, blob, solid }
 
 /// Loads the persisted choice before the app builds, so there's no
 /// glossy/solid flash on startup. Call once in main() before runApp.
