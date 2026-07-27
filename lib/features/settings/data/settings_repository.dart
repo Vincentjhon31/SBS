@@ -56,10 +56,22 @@ class SettingsRepository {
   Future<void> completeDeletionRequest(String id) =>
       _client.rpc('complete_deletion_request', params: {'request_id': id});
 
-  /// 'blue' | 'purple' — server-synced so it follows the user across devices.
+  /// 'blue' | 'purple' | 'teal' | 'coral' | 'green' — server-synced so it
+  /// follows the user across devices.
   Future<void> updateThemeColor(String value) async {
     await _client
         .from('profiles')
         .update({'theme_color': value}).eq('id', _client.auth.currentUser!.id);
+  }
+
+  /// 'glossy' | 'blob' | 'solid' — server-synced so it follows the user
+  /// across devices (mirrors [updateThemeColor]).
+  Future<void> updateBackgroundStyle(String value) async {
+    await _client
+        .from('profiles')
+        .update({'background_style': value}).eq(
+      'id',
+      _client.auth.currentUser!.id,
+    );
   }
 }

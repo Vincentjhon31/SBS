@@ -34,6 +34,7 @@ class Profile {
     required this.fullName,
     required this.userType,
     required this.themeColor,
+    required this.backgroundStyle,
     required this.isSuperadmin,
   });
 
@@ -41,8 +42,13 @@ class Profile {
   final String fullName;
   final String userType;
 
-  /// 'blue' | 'purple' — server-synced accent color preference.
+  /// 'blue' | 'purple' | 'teal' | 'coral' | 'green' — server-synced accent
+  /// color preference.
   final String themeColor;
+
+  /// 'glossy' | 'blob' | 'solid' — server-synced background style
+  /// preference (mirrors [themeColor]'s sync pattern).
+  final String backgroundStyle;
 
   /// Cross-department oversight tier layered on top of staff — see
   /// supabase/migrations/*_superadmin.sql.
@@ -55,6 +61,7 @@ class Profile {
         fullName: json['full_name'] as String,
         userType: json['user_type'] as String,
         themeColor: json['theme_color'] as String? ?? 'blue',
+        backgroundStyle: json['background_style'] as String? ?? 'glossy',
         isSuperadmin: json['is_superadmin'] as bool? ?? false,
       );
 }

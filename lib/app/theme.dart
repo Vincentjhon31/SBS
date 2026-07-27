@@ -4,14 +4,16 @@ import 'package:flutter/services.dart';
 import '../core/constants/app_constants.dart';
 
 abstract final class SBSTheme {
-  static ThemeData light() => _base(Brightness.light);
+  static ThemeData light({Color seed = AppConstants.seedColor}) =>
+      _base(Brightness.light, seed);
 
-  static ThemeData dark() => _base(Brightness.dark);
+  static ThemeData dark({Color seed = AppConstants.seedColor}) =>
+      _base(Brightness.dark, seed);
 
-  static ThemeData _base(Brightness brightness) {
+  static ThemeData _base(Brightness brightness, Color seed) {
     final isDark = brightness == Brightness.dark;
     final colorScheme = ColorScheme.fromSeed(
-      seedColor: AppConstants.seedColor,
+      seedColor: seed,
       brightness: brightness,
     );
     return ThemeData(

@@ -26,6 +26,35 @@ class ItemsRepository {
     return [for (final row in rows) Department.fromJson(row)];
   }
 
+  /// All departments regardless of active state — for the department
+  /// management screen, where staff need to see (and possibly reactivate)
+  /// deactivated ones too, unlike the item-assignment dropdown above.
+  Future<List<Department>> fetchAllDepartments() async {
+    final rows = await _client
+        .from('departments')
+        .select()
+        .order('name', ascending: true);
+    return [for (final row in rows) Department.fromJson(row)];
+  }
+
+  Future<void> createDepartment(String name) async {
+    await _client.from('departments').insert({'name': name.trim()});
+  }
+
+  Future<void> renameDepartment(String id, String name) async {
+    await _client.from('departments').update({'name': name.trim()}).eq('id', id);
+  }
+
+  Future<void> setDepartmentActive(String id, bool active) async {
+    await _client.from('departments').update({'active': active}).eq('id', id);
+  }
+
+  /// Hard-deletes when nothing references the department; the RPC raises
+  /// with `hint: 'deactivate'` otherwise (caught by the caller to offer
+  /// [setDepartmentActive] instead — mirrors [deleteItem]).
+  Future<void> deleteDepartment(String id) =>
+      _client.rpc('delete_department', params: {'dept': id});
+
   /// Departments the current user can assign items to (their memberships).
   Future<Set<String>> fetchMyDepartmentIds() async {
     final uid = _client.auth.currentUser?.id;

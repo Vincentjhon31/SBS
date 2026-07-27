@@ -12,6 +12,7 @@ class PendingApproval {
     required this.createdAt,
     this.useFrom,
     this.useTo,
+    this.rejectedReason,
   });
 
   final String id;
@@ -35,6 +36,9 @@ class PendingApproval {
   final String borrowerType;
   final String status;
   final DateTime createdAt;
+
+  /// Set only when [status] == 'rejected'.
+  final String? rejectedReason;
 
   bool get isCitizenBorrower => borrowerType == 'citizen';
   bool get isGuestBorrower => borrowerType == 'guest';
@@ -67,6 +71,7 @@ class PendingApproval {
       borrowerType: json['borrower_type'] as String,
       status: json['status'] as String,
       createdAt: DateTime.parse(json['created_at'] as String).toLocal(),
+      rejectedReason: json['rejected_reason'] as String?,
     );
   }
 }

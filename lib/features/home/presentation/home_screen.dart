@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/router.dart';
 import '../../../core/constants/app_constants.dart';
+import '../../../core/utils/category_color.dart';
 import '../../../core/utils/date_format.dart';
 import '../../../core/widgets/request_status_chip.dart';
 import '../../admin/presentation/admin_dashboard_screen.dart';
@@ -391,6 +392,7 @@ class _CategoryPills extends StatelessWidget {
               label: c,
               selected: selected == c,
               onTap: () => onSelected(c),
+              accentColor: categoryColor(c).$2,
             ),
           ],
         ],
@@ -404,15 +406,22 @@ class _Pill extends StatelessWidget {
     required this.label,
     required this.selected,
     required this.onTap,
+    this.accentColor,
   });
 
   final String label;
   final bool selected;
   final VoidCallback onTap;
 
+  /// Category color-coding for the unselected state; null for the neutral
+  /// "All" pill. Selected state stays the high-contrast dark fill so the
+  /// current filter is always unambiguous regardless of category color.
+  final Color? accentColor;
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final unselectedColor = accentColor ?? scheme.onSurface;
     return InkWell(
       borderRadius: BorderRadius.circular(20),
       onTap: onTap,
@@ -423,14 +432,14 @@ class _Pill extends StatelessWidget {
           color: selected ? scheme.onSurface : Colors.transparent,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: selected ? scheme.onSurface : scheme.outlineVariant,
+            color: selected ? scheme.onSurface : unselectedColor.withValues(alpha: 0.5),
           ),
         ),
         child: Text(
           label,
           style: TextStyle(
-            color: selected ? scheme.surface : scheme.onSurface,
-            fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+            color: selected ? scheme.surface : unselectedColor,
+            fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
             fontSize: 13,
           ),
         ),
@@ -556,8 +565,11 @@ class _HeroItemCard extends ConsumerWidget {
                           if (item.category != null)
                             Text(
                               item.category!.toUpperCase(),
-                              style: const TextStyle(
-                                color: Colors.white70,
+                              style: TextStyle(
+                                // The pastel (not the paired dark-text)
+                                // half of the pair, since this sits on a
+                                // dark photo scrim, not a light chip.
+                                color: categoryColor(item.category).$1,
                                 fontSize: 11,
                                 fontWeight: FontWeight.w700,
                                 letterSpacing: 0.8,

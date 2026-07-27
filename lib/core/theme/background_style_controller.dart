@@ -1,13 +1,18 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import '../../features/auth/data/auth_providers.dart';
+import '../../features/settings/data/settings_providers.dart';
 
 const _prefsKey = 'sbs_background_style';
 
 /// The glow-and-orbs "glossy" backdrop, organic "blob" shapes, or a flat
-/// solid surface — a device/session preference (like [ThemeMode]), not
-/// synced to the account, since it's really a "turn off the fancy
-/// effects" toggle for lower-end devices/browsers rather than an
-/// identity preference.
+/// solid surface. Cached locally (so pre-auth screens like login/splash
+/// have something to paint immediately) but also synced with
+/// `profiles.background_style`, so a signed-in user's choice follows them
+/// across devices — the local cache is just a fast/offline fallback.
 enum BackgroundStyle { glossy, blob, solid }
 
 /// Loads the persisted choice before the app builds, so there's no
@@ -27,12 +32,36 @@ class BackgroundStyleController extends Notifier<BackgroundStyle> {
   static BackgroundStyle initialStyle = BackgroundStyle.glossy;
 
   @override
-  BackgroundStyle build() => initialStyle;
+  BackgroundStyle build() {
+    // Adopt the DB value whenever the signed-in profile loads/changes, so
+    // switching devices brings the user's choice with them.
+    ref.listen<AsyncValue<Profile?>>(myProfileProvider, (previous, next) {
+      final value = next.value?.backgroundStyle;
+      if (value != null) unawaited(_adoptFromProfile(value));
+    });
+    return initialStyle;
+  }
+
+  Future<void> _adoptFromProfile(String value) async {
+    final style = BackgroundStyle.values.firstWhere(
+      (s) => s.name == value,
+      orElse: () => BackgroundStyle.glossy,
+    );
+    if (style == state) return;
+    state = style;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_prefsKey, style.name);
+  }
 
   Future<void> setStyle(BackgroundStyle style) async {
     state = style;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_prefsKey, style.name);
+    // Best-effort account sync — signed-out users (e.g. still on the
+    // login screen) just keep the local/device preference.
+    if (ref.read(supabaseClientProvider).auth.currentUser != null) {
+      await ref.read(settingsRepositoryProvider).updateBackgroundStyle(style.name);
+    }
   }
 }
 

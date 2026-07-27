@@ -158,9 +158,10 @@ class _Orb extends StatelessWidget {
   }
 }
 
-/// Organic freeform "blob" shapes (à la Blobmaker) drifting behind the
-/// content, softened with a blur so they read as ambient color the same
-/// way the glow orbs do, rather than flat graphic-design cutouts.
+/// Organic freeform pastel "blob" shapes (à la Blobmaker), flat and
+/// crisp-edged rather than blurred — each blob is filled with its own
+/// radial gradient so it still reads as rich/"radiant" instead of a flat
+/// paint swatch, without the soft haze of the glossy orb look.
 class _BlobLayer extends StatelessWidget {
   const _BlobLayer({required this.dark});
 
@@ -168,82 +169,93 @@ class _BlobLayer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final alpha = dark ? 0.30 : 0.22;
-    return ImageFiltered(
-      imageFilter: ImageFilter.blur(sigmaX: 34, sigmaY: 34),
-      child: CustomPaint(
-        painter: _BlobPainter(dark: dark, alpha: alpha),
-        child: const SizedBox.expand(),
-      ),
+    // A flat pastel colour reads as pastel on the light backdrop but as a
+    // deep, muted jewel tone once blended over the near-black dark
+    // backdrop — so the same alpha works for both, no separate dark
+    // palette needed.
+    final alpha = dark ? 0.55 : 0.75;
+    return CustomPaint(
+      painter: _BlobPainter(alpha: alpha),
+      child: const SizedBox.expand(),
     );
   }
 }
 
 class _BlobPainter extends CustomPainter {
-  _BlobPainter({required this.dark, required this.alpha});
+  _BlobPainter({required this.alpha});
 
-  final bool dark;
   final double alpha;
 
   /// Fractional (0..1) control points, smoothed into a closed loop below —
-  /// an irregular hand-placed hexagon-ish ring reads as an organic blob
-  /// once every corner is rounded off by [_smoothClosedPath].
+  /// irregular hand-placed rings that read as organic blobs once every
+  /// corner is rounded off by [_smoothClosedPath]. Generously overlapping
+  /// and spanning the full canvas, matching the reference art's continuous
+  /// coverage rather than a few corner accents.
   static const _blobA = [
-    Offset(0.18, -0.06),
-    Offset(0.52, -0.10),
-    Offset(0.74, 0.10),
-    Offset(0.66, 0.42),
-    Offset(0.34, 0.46),
-    Offset(0.04, 0.26),
+    Offset(-0.10, -0.08),
+    Offset(0.34, -0.14),
+    Offset(0.58, 0.02),
+    Offset(0.50, 0.28),
+    Offset(0.20, 0.34),
+    Offset(-0.14, 0.18),
   ];
 
   static const _blobB = [
-    Offset(0.30, 0.66),
-    Offset(0.62, 0.60),
-    Offset(0.96, 0.78),
-    Offset(0.92, 1.12),
-    Offset(0.56, 1.16),
-    Offset(0.26, 0.96),
+    Offset(0.46, -0.10),
+    Offset(0.86, -0.04),
+    Offset(1.10, 0.20),
+    Offset(0.92, 0.46),
+    Offset(0.60, 0.40),
+    Offset(0.52, 0.14),
+  ];
+
+  static const _blobC = [
+    Offset(-0.12, 0.42),
+    Offset(0.22, 0.36),
+    Offset(0.40, 0.58),
+    Offset(0.26, 0.86),
+    Offset(-0.06, 0.92),
+    Offset(-0.22, 0.62),
+  ];
+
+  static const _blobD = [
+    Offset(0.34, 0.60),
+    Offset(0.68, 0.54),
+    Offset(1.02, 0.70),
+    Offset(1.08, 1.02),
+    Offset(0.68, 1.12),
+    Offset(0.36, 0.90),
+  ];
+
+  static const _blobE = [
+    Offset(-0.10, 0.78),
+    Offset(0.18, 0.76),
+    Offset(0.30, 1.00),
+    Offset(0.06, 1.14),
+    Offset(-0.20, 1.02),
   ];
 
   @override
   void paint(Canvas canvas, Size size) {
-    _paintBlob(
-      canvas,
-      size,
-      _blobA,
-      Alignment.topRight,
-      Alignment.bottomLeft,
-      [
-        AppConstants.glowBlue.withValues(alpha: alpha),
-        AppConstants.glowGreen.withValues(alpha: alpha * 0.8),
-      ],
-    );
-    _paintBlob(
-      canvas,
-      size,
-      _blobB,
-      Alignment.bottomLeft,
-      Alignment.topRight,
-      [
-        AppConstants.glowOrange.withValues(alpha: alpha),
-        AppConstants.glowBlue.withValues(alpha: alpha * 0.7),
-      ],
-    );
+    _paintBlob(canvas, size, _blobA, AppConstants.pastelSky, alpha);
+    _paintBlob(canvas, size, _blobB, AppConstants.pastelMint, alpha);
+    _paintBlob(canvas, size, _blobC, AppConstants.pastelLavender, alpha * 0.9);
+    _paintBlob(canvas, size, _blobD, AppConstants.pastelPeach, alpha * 0.85);
+    _paintBlob(canvas, size, _blobE, AppConstants.pastelCoral, alpha * 0.8);
+
     // A few small floating "bubbles" for extra depth, echoing the
     // reference art's scattered circles.
-    _bubble(canvas, size, const Offset(0.86, 0.16), 0.05, AppConstants.glowGreen, alpha);
-    _bubble(canvas, size, const Offset(0.10, 0.58), 0.035, AppConstants.glowOrange, alpha);
-    _bubble(canvas, size, const Offset(0.70, 0.86), 0.04, AppConstants.glowBlue, alpha * 0.8);
+    _bubble(canvas, size, const Offset(0.84, 0.14), 0.045, AppConstants.pastelMint, alpha);
+    _bubble(canvas, size, const Offset(0.12, 0.60), 0.032, AppConstants.pastelPeach, alpha);
+    _bubble(canvas, size, const Offset(0.72, 0.88), 0.038, AppConstants.pastelSky, alpha * 0.85);
   }
 
   void _paintBlob(
     Canvas canvas,
     Size size,
     List<Offset> fractionalPoints,
-    Alignment from,
-    Alignment to,
-    List<Color> colors,
+    Color color,
+    double alpha,
   ) {
     final points = [
       for (final p in fractionalPoints)
@@ -251,11 +263,17 @@ class _BlobPainter extends CustomPainter {
     ];
     final path = _smoothClosedPath(points);
     final rect = path.getBounds();
+    // Radial gradient from the shape's own centre so each flat blob still
+    // has some internal variation ("radiant") rather than one flat tint,
+    // while keeping the outer edge fully crisp (no blur).
     final paint = Paint()
-      ..shader = LinearGradient(
-        begin: from,
-        end: to,
-        colors: colors,
+      ..shader = RadialGradient(
+        center: Alignment.center,
+        radius: 0.85,
+        colors: [
+          color.withValues(alpha: alpha),
+          color.withValues(alpha: alpha * 0.72),
+        ],
       ).createShader(rect);
     canvas.drawPath(path, paint);
   }
@@ -273,11 +291,14 @@ class _BlobPainter extends CustomPainter {
       centerFraction.dy * size.height,
     );
     final radius = radiusFraction * size.shortestSide;
-    canvas.drawCircle(
-      center,
-      radius,
-      Paint()..color = color.withValues(alpha: alpha),
-    );
+    final paint = Paint()
+      ..shader = RadialGradient(
+        colors: [
+          color.withValues(alpha: alpha),
+          color.withValues(alpha: alpha * 0.7),
+        ],
+      ).createShader(Rect.fromCircle(center: center, radius: radius));
+    canvas.drawCircle(center, radius, paint);
   }
 
   /// Turns a handful of corner points into a smooth closed blob: each
@@ -300,5 +321,5 @@ class _BlobPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _BlobPainter oldDelegate) =>
-      oldDelegate.dark != dark || oldDelegate.alpha != alpha;
+      oldDelegate.alpha != alpha;
 }

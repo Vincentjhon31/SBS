@@ -7,6 +7,7 @@ import '../../../app/router.dart';
 import '../../../core/theme/view_mode_controller.dart';
 import '../../../core/utils/date_format.dart';
 import '../../../core/widgets/glossy_background.dart';
+import '../../../core/widgets/request_status_chip.dart';
 import '../../../core/widgets/sbs_table.dart';
 import '../../items/data/items_providers.dart';
 import '../data/approvals_models.dart';
@@ -24,7 +25,7 @@ class ApprovalsScreen extends ConsumerWidget {
     final inWebShell = kIsWeb && ref.watch(isStaffProvider);
 
     return DefaultTabController(
-      length: 3,
+      length: 4,
       child: Scaffold(
         appBar: AppBar(
           toolbarHeight: inWebShell ? 0 : null,
@@ -44,6 +45,7 @@ class ApprovalsScreen extends ConsumerWidget {
               Tab(text: 'Pending'),
               Tab(text: 'To Release'),
               Tab(text: 'To Return'),
+              Tab(text: 'History'),
             ],
           ),
         ),
@@ -92,6 +94,20 @@ class ApprovalsScreen extends ConsumerWidget {
                       extra: EvidenceCaptureArgs(request: req, stage: 'return'),
                     ),
                   ),
+                  _ApprovalQueue(
+                    status: 'returned,closed,rejected',
+                    emptyText: 'No completed or rejected requests yet.',
+                    showStatusChip: true,
+                    onTap: (context, req) => req.status == 'rejected'
+                        ? _showRejectionReason(context, req)
+                        : context.push(
+                            AppRoutes.evidenceView,
+                            extra: EvidenceViewArgs(
+                              requestId: req.id,
+                              itemLabel: req.itemLabel,
+                            ),
+                          ),
+                  ),
                 ],
               ),
             ),
@@ -107,11 +123,17 @@ class _ApprovalQueue extends ConsumerWidget {
     required this.status,
     required this.emptyText,
     required this.onTap,
+    this.showStatusChip = false,
   });
 
   final String status;
   final String emptyText;
   final void Function(BuildContext, PendingApproval) onTap;
+
+  /// True for the History tab, which mixes several terminal statuses
+  /// together — each row needs to say which one, unlike the other tabs
+  /// where the tab itself already implies the status.
+  final bool showStatusChip;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -175,15 +197,18 @@ class _ApprovalQueue extends ConsumerWidget {
                                     '${formatDateTime(req.requestedFrom)}\n'
                                     '→ ${_dateOrOpenEnded(req.requestedTo)}',
                                   ),
-                                  req.isOverdue
-                                      ? Chip(
-                                          label: const Text('OVERDUE'),
-                                          visualDensity: VisualDensity.compact,
-                                          backgroundColor: Theme.of(
-                                            context,
-                                          ).colorScheme.errorContainer,
-                                        )
-                                      : const Icon(Icons.chevron_right),
+                                  if (showStatusChip)
+                                    RequestStatusChip(status: req.status)
+                                  else if (req.isOverdue)
+                                    Chip(
+                                      label: const Text('OVERDUE'),
+                                      visualDensity: VisualDensity.compact,
+                                      backgroundColor: Theme.of(
+                                        context,
+                                      ).colorScheme.errorContainer,
+                                    )
+                                  else
+                                    const Icon(Icons.chevron_right),
                                 ],
                               ),
                           ],
@@ -197,6 +222,7 @@ class _ApprovalQueue extends ConsumerWidget {
                         itemBuilder: (context, index) => _ApprovalCard(
                           request: value[index],
                           onTap: () => onTap(context, value[index]),
+                          showStatusChip: showStatusChip,
                         ),
                       ),
               );
@@ -213,6 +239,22 @@ class _ApprovalQueue extends ConsumerWidget {
 String _dateOrOpenEnded(DateTime? dt) =>
     dt == null ? 'not yet known' : formatDateTime(dt);
 
+void _showRejectionReason(BuildContext context, PendingApproval req) {
+  showDialog<void>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: Text(req.itemLabel),
+      content: Text(req.rejectedReason ?? 'No reason given.'),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Close'),
+        ),
+      ],
+    ),
+  );
+}
+
 String _borrowerTypeLabel(PendingApproval req) => switch (req.borrowerType) {
   'citizen' => 'Citizen',
   'guest' => 'Walk-in',
@@ -227,10 +269,15 @@ IconData _borrowerIcon(PendingApproval req) => req.isGuestBorrower
 
 /// Mobile/narrow layout: the original Card+ListTile row.
 class _ApprovalCard extends StatelessWidget {
-  const _ApprovalCard({required this.request, required this.onTap});
+  const _ApprovalCard({
+    required this.request,
+    required this.onTap,
+    this.showStatusChip = false,
+  });
 
   final PendingApproval request;
   final VoidCallback onTap;
+  final bool showStatusChip;
 
   @override
   Widget build(BuildContext context) {
@@ -256,13 +303,15 @@ class _ApprovalCard extends StatelessWidget {
           ],
         ),
         isThreeLine: true,
-        trailing: request.isOverdue
-            ? Chip(
-                label: const Text('OVERDUE'),
-                visualDensity: VisualDensity.compact,
-                backgroundColor: Theme.of(context).colorScheme.errorContainer,
-              )
-            : const Icon(Icons.chevron_right),
+        trailing: showStatusChip
+            ? RequestStatusChip(status: request.status)
+            : request.isOverdue
+                ? Chip(
+                    label: const Text('OVERDUE'),
+                    visualDensity: VisualDensity.compact,
+                    backgroundColor: Theme.of(context).colorScheme.errorContainer,
+                  )
+                : const Icon(Icons.chevron_right),
         onTap: onTap,
       ),
     );

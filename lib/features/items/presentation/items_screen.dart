@@ -6,7 +6,10 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../app/router.dart';
 import '../../../core/theme/view_mode_controller.dart';
+import '../../../core/utils/category_color.dart';
 import '../../../core/utils/date_format.dart';
+import '../../../core/widgets/category_badge.dart';
+import '../../../core/widgets/full_image_viewer.dart';
 import '../../../core/widgets/item_status_chip.dart';
 import '../../../core/widgets/sbs_table.dart';
 import '../data/items_models.dart';
@@ -81,6 +84,14 @@ class _ItemsScreenState extends ConsumerState<ItemsScreen> {
                 ),
                 const SizedBox(width: 8),
                 ViewModeToggle(width: MediaQuery.sizeOf(context).width),
+                if (isStaff) ...[
+                  const SizedBox(width: 8),
+                  IconButton(
+                    tooltip: 'Manage departments',
+                    icon: const Icon(Icons.apartment_outlined),
+                    onPressed: () => context.push(AppRoutes.departments),
+                  ),
+                ],
               ],
             ),
           ),
@@ -182,10 +193,23 @@ class _CategoryChips extends StatelessWidget {
           for (final category in categories)
             Padding(
               padding: const EdgeInsets.only(right: 8),
-              child: ChoiceChip(
-                label: Text(category),
-                selected: selected == category,
-                onSelected: (_) => onSelected(category),
+              child: Builder(
+                builder: (context) {
+                  final (bg, fg) = categoryColor(category);
+                  final isSelected = selected == category;
+                  return ChoiceChip(
+                    label: Text(category),
+                    selected: isSelected,
+                    onSelected: (_) => onSelected(category),
+                    labelStyle: TextStyle(
+                      color: fg,
+                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                    ),
+                    backgroundColor: bg.withValues(alpha: 0.55),
+                    selectedColor: bg,
+                    side: BorderSide.none,
+                  );
+                },
               ),
             ),
         ],
@@ -304,7 +328,9 @@ class _ItemTable extends StatelessWidget {
                   ),
                 ],
               ),
-              Text(item.category ?? '—'),
+              item.category != null && item.category!.trim().isNotEmpty
+                  ? CategoryBadge(category: item.category)
+                  : const Text('—'),
               Text(item.departmentName ?? 'Shared LGU pool'),
               _StatusCell(item: item, status: statuses[item.id]),
               Row(
@@ -373,11 +399,15 @@ class _ItemRow extends StatelessWidget {
       subtitle: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            [
-              if (item.category != null) item.category!,
-              item.departmentName ?? 'Shared LGU pool',
-            ].join(' • '),
+          Wrap(
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 6,
+            runSpacing: 4,
+            children: [
+              if (item.category != null && item.category!.trim().isNotEmpty)
+                CategoryBadge(category: item.category),
+              Text(item.departmentName ?? 'Shared LGU pool'),
+            ],
           ),
           if (status != null) _statusCaption(context, status!),
         ],
@@ -460,15 +490,21 @@ class _ItemCard extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
-              const SizedBox(height: 2),
-              Text(
-                [
-                  if (item.category != null) item.category!,
-                  item.departmentName ?? 'Shared LGU pool',
-                ].join(' • '),
-                style: Theme.of(context).textTheme.bodySmall,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+              const SizedBox(height: 4),
+              Wrap(
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 6,
+                runSpacing: 4,
+                children: [
+                  if (item.category != null && item.category!.trim().isNotEmpty)
+                    CategoryBadge(category: item.category),
+                  Text(
+                    item.departmentName ?? 'Shared LGU pool',
+                    style: Theme.of(context).textTheme.bodySmall,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
               ),
               if (status != null) _statusCaption(context, status!),
               const Spacer(),
@@ -525,10 +561,16 @@ class _ItemThumbnail extends ConsumerWidget {
     }
     final url = ref.watch(itemPhotoUrlProvider(path!));
     return switch (url) {
-      AsyncData(:final value) => CircleAvatar(
-        radius: radius,
-        backgroundImage: NetworkImage(value),
-        onBackgroundImageError: (_, s) {},
+      AsyncData(:final value) => Tooltip(
+        message: 'View photo',
+        child: GestureDetector(
+          onTap: () => showFullImage(context, value),
+          child: CircleAvatar(
+            radius: radius,
+            backgroundImage: NetworkImage(value),
+            onBackgroundImageError: (_, s) {},
+          ),
+        ),
       ),
       _ => CircleAvatar(
         radius: radius,

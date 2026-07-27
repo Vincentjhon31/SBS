@@ -16,6 +16,12 @@ final departmentsProvider = FutureProvider<List<Department>>(
   (ref) => ref.watch(itemsRepositoryProvider).fetchDepartments(),
 );
 
+/// Active + inactive — for the department management screen only; every
+/// other consumer (item-assignment dropdowns) wants [departmentsProvider].
+final allDepartmentsProvider = FutureProvider<List<Department>>(
+  (ref) => ref.watch(itemsRepositoryProvider).fetchAllDepartments(),
+);
+
 final myDepartmentIdsProvider = FutureProvider<Set<String>>(
   (ref) => ref.watch(itemsRepositoryProvider).fetchMyDepartmentIds(),
 );

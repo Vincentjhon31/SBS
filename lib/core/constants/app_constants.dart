@@ -22,6 +22,42 @@ abstract final class AppConstants {
   static const glowGreen = Color(0xFF1F9D65);
   static const glowOrange = Color(0xFFFFA726);
 
+  /// Soft pastel palette for the "Blob" background and for category/status
+  /// color-coding — deliberately lighter/friendlier than the glow-orb
+  /// colors above, so the app reads as colorful without being loud.
+  static const pastelSky = Color(0xFFBFE1FF);
+  static const pastelMint = Color(0xFFBFF2E0);
+  static const pastelPeach = Color(0xFFFFE1B8);
+  static const pastelCoral = Color(0xFFFFC9C2);
+  static const pastelLavender = Color(0xFFE3D1FF);
+  static const pastelPink = Color(0xFFFFE0F3);
+
+  /// (background, foreground) pairs used to color-code item categories and
+  /// request/item statuses — cycled through deterministically (by name
+  /// hash) rather than assigned by hand, so any new category/staff-typed
+  /// value still gets a legible, distinct color automatically.
+  static const categoryPalette = <(Color bg, Color fg)>[
+    (Color(0xFFBFE1FF), Color(0xFF0B4A8F)), // sky
+    (Color(0xFFBFF2E0), Color(0xFF0E6B52)), // mint
+    (Color(0xFFFFE1B8), Color(0xFF8A5A00)), // peach
+    (Color(0xFFFFC9C2), Color(0xFF9C2B1F)), // coral
+    (Color(0xFFE3D1FF), Color(0xFF5B3B96)), // lavender
+    (Color(0xFFFFE0F3), Color(0xFF9C1F6E)), // pink
+    (Color(0xFFFFF3B0), Color(0xFF7A6A00)), // yellow
+    (Color(0xFFBFF4F2), Color(0xFF0B6E6A)), // turquoise
+  ];
+
+  /// User-selectable accent seed colors (Settings → Appearance), synced to
+  /// `profiles.theme_color` so the choice follows the account, not just the
+  /// device. Keys match the DB CHECK constraint values exactly.
+  static const accentSeedColors = <String, Color>{
+    'blue': Color(0xFF2B7FFF),
+    'purple': Color(0xFF6750A4),
+    'teal': Color(0xFF149C8B),
+    'coral': Color(0xFFE8604C),
+    'green': Color(0xFF2E9E5B),
+  };
+
   /// The bundled full-color logo (transparent background) shown on the
   /// login, splash, and staff web sidebar.
   static const logoAsset = 'assets/branding/splash_logo.png';

@@ -36,11 +36,25 @@ end $$;
 do $$
 begin
   begin
-    update public.profiles set theme_color = 'green' where id = auth.uid();
+    update public.profiles set theme_color = 'chartreuse' where id = auth.uid();
     raise exception 'FAIL: invalid theme_color value was accepted';
   exception
     when check_violation then null; -- expected
   end;
+end $$;
+
+-- The broadened palette (teal/coral/green) added alongside background_style
+-- must all be accepted.
+do $$
+begin
+  update public.profiles set theme_color = 'teal' where id = auth.uid();
+  update public.profiles set theme_color = 'coral' where id = auth.uid();
+  update public.profiles set theme_color = 'green' where id = auth.uid();
+  if not exists (select 1 from public.profiles
+                 where id = '99999999-1111-1111-1111-111111111111'
+                   and theme_color = 'green') then
+    raise exception 'FAIL: broadened palette value green did not persist';
+  end if;
 end $$;
 
 -- Cannot change another user's theme_color.

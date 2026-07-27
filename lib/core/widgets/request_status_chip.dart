@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../utils/status_colors.dart';
+
 /// Status pill for a borrow_requests row: pending, approved, rejected,
 /// released, returned, closed, overdue.
 class RequestStatusChip extends StatelessWidget {
@@ -9,20 +11,21 @@ class RequestStatusChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final (color, label) = switch (status) {
-      'pending' => (scheme.tertiaryContainer, 'Pending'),
-      'approved' => (scheme.primaryContainer, 'Approved'),
-      'rejected' => (scheme.errorContainer, 'Rejected'),
-      'released' => (scheme.secondaryContainer, 'Released'),
-      'returned' => (scheme.surfaceContainerHighest, 'Returned'),
-      'closed' => (scheme.surfaceContainerHighest, 'Closed'),
-      'overdue' => (scheme.errorContainer, 'OVERDUE'),
-      _ => (scheme.surfaceContainerHighest, status),
+    final (tone, label) = switch (status) {
+      'pending' => (StatusTone.waiting, 'Pending'),
+      'approved' => (StatusTone.positive, 'Approved'),
+      'rejected' => (StatusTone.attention, 'Rejected'),
+      'released' => (StatusTone.active, 'Released'),
+      'returned' => (StatusTone.neutral, 'Returned'),
+      'closed' => (StatusTone.neutral, 'Closed'),
+      'overdue' => (StatusTone.attention, 'OVERDUE'),
+      _ => (StatusTone.neutral, status),
     };
+    final (bg, fg) = statusToneColors(tone);
     return Chip(
-      label: Text(label),
-      backgroundColor: color,
+      label: Text(label, style: TextStyle(color: fg, fontWeight: FontWeight.w600)),
+      backgroundColor: bg,
+      side: BorderSide.none,
       visualDensity: VisualDensity.compact,
     );
   }

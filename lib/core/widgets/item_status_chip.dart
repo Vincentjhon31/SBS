@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../utils/status_colors.dart';
+
 /// Status pill for an item's live availability: available, reserved_now,
 /// out, overdue (see items_status() RPC).
 class ItemStatusChip extends StatelessWidget {
@@ -9,17 +11,18 @@ class ItemStatusChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final (color, label) = switch (status) {
-      'available' => (scheme.secondaryContainer, 'Available'),
-      'reserved_now' => (scheme.tertiaryContainer, 'Reserved'),
-      'out' => (scheme.primaryContainer, 'On loan'),
-      'overdue' => (scheme.errorContainer, 'OVERDUE'),
-      _ => (scheme.surfaceContainerHighest, status),
+    final (tone, label) = switch (status) {
+      'available' => (StatusTone.positive, 'Available'),
+      'reserved_now' => (StatusTone.waiting, 'Reserved'),
+      'out' => (StatusTone.active, 'On loan'),
+      'overdue' => (StatusTone.attention, 'OVERDUE'),
+      _ => (StatusTone.neutral, status),
     };
+    final (bg, fg) = statusToneColors(tone);
     return Chip(
-      label: Text(label),
-      backgroundColor: color,
+      label: Text(label, style: TextStyle(color: fg, fontWeight: FontWeight.w600)),
+      backgroundColor: bg,
+      side: BorderSide.none,
       visualDensity: VisualDensity.compact,
     );
   }
