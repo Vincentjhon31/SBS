@@ -23,7 +23,10 @@ import '../features/items/presentation/item_form_screen.dart';
 import '../features/items/presentation/items_screen.dart';
 import '../features/notifications/presentation/notifications_screen.dart';
 import '../features/profile/presentation/profile_screen.dart';
-import '../features/settings/presentation/data_export_screen.dart';
+import '../features/settings/presentation/about_screen.dart';
+import '../features/settings/presentation/privacy_policy_screen.dart';
+import '../features/settings/presentation/profile_info_screen.dart';
+import '../features/settings/presentation/security_screen.dart';
 import '../features/settings/presentation/settings_screen.dart';
 import '../features/splash/presentation/splash_screen.dart';
 import 'app_shell.dart';
@@ -48,7 +51,10 @@ abstract final class AppRoutes {
   static const notifications = '/notifications';
   static const profile = '/profile';
   static const settings = '/settings';
-  static const dataExport = '/settings/export';
+  static const profileInfo = '/profile/info';
+  static const security = '/profile/security';
+  static const privacyPolicy = '/profile/privacy';
+  static const about = '/profile/about';
 }
 
 /// Re-runs the router redirect whenever the auth state changes.
@@ -211,11 +217,20 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const SettingsScreen(),
       ),
       GoRoute(
-        path: AppRoutes.dataExport,
-        redirect: (context, state) =>
-            state.extra is Map<String, dynamic> ? null : AppRoutes.settings,
-        builder: (context, state) =>
-            DataExportScreen(data: state.extra as Map<String, dynamic>),
+        path: AppRoutes.profileInfo,
+        builder: (context, state) => const ProfileInfoScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.security,
+        builder: (context, state) => const SecurityScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.privacyPolicy,
+        builder: (context, state) => const PrivacyPolicyScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.about,
+        builder: (context, state) => const AboutScreen(),
       ),
     ],
   );

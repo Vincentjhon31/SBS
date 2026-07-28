@@ -35,31 +35,40 @@ class SbsTable extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     return LayoutBuilder(
       builder: (context, constraints) {
-        return Scrollbar(
-          child: SingleChildScrollView(
-            child: Scrollbar(
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(minWidth: constraints.maxWidth),
-                  child: DataTable(
-                    headingRowColor: WidgetStatePropertyAll(
-                      scheme.surfaceContainerHighest.withValues(alpha: 0.4),
+        // A bare DataTable has no background of its own, so it just floated
+        // directly over the glossy/blob backdrop — wrapped in a solid card
+        // so it reads as one legible panel instead.
+        return Card(
+          margin: EdgeInsets.zero,
+          clipBehavior: Clip.antiAlias,
+          child: Scrollbar(
+            child: SingleChildScrollView(
+              child: Scrollbar(
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                    child: DataTable(
+                      headingRowColor: WidgetStatePropertyAll(
+                        scheme.surfaceContainerHighest,
+                      ),
+                      headingTextStyle: Theme.of(context).textTheme.labelLarge
+                          ?.copyWith(fontWeight: FontWeight.w700),
+                      columns: [
+                        for (final c in columns) DataColumn(label: Text(c)),
+                      ],
+                      rows: [
+                        for (final r in rows)
+                          DataRow(
+                            onSelectChanged: r.onTap == null
+                                ? null
+                                : (_) => r.onTap!(),
+                            cells: [
+                              for (final cell in r.cells) DataCell(cell),
+                            ],
+                          ),
+                      ],
                     ),
-                    headingTextStyle: Theme.of(context).textTheme.labelLarge
-                        ?.copyWith(fontWeight: FontWeight.w700),
-                    columns: [
-                      for (final c in columns) DataColumn(label: Text(c)),
-                    ],
-                    rows: [
-                      for (final r in rows)
-                        DataRow(
-                          onSelectChanged: r.onTap == null
-                              ? null
-                              : (_) => r.onTap!(),
-                          cells: [for (final cell in r.cells) DataCell(cell)],
-                        ),
-                    ],
                   ),
                 ),
               ),

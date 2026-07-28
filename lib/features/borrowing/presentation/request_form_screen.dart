@@ -249,30 +249,40 @@ class _RequestFormScreenState extends ConsumerState<RequestFormScreen> {
                     'When will you use it?',
                     style: Theme.of(context).textTheme.titleSmall,
                   ),
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: const Icon(Icons.event),
-                    title: Text(
-                      _useFrom == null
-                          ? 'Use from…'
-                          : 'Use from: ${_format(_useFrom!)}',
+                  const SizedBox(height: 8),
+                  Card(
+                    margin: EdgeInsets.zero,
+                    clipBehavior: Clip.antiAlias,
+                    child: Column(
+                      children: [
+                        ListTile(
+                          leading: const Icon(Icons.event),
+                          title: Text(
+                            _useFrom == null
+                                ? 'Use from…'
+                                : 'Use from: ${_format(_useFrom!)}',
+                          ),
+                          subtitle: const Text(
+                            'Bookings must be at least a day ahead',
+                          ),
+                          onTap: _submitting ? null : _pickUseFrom,
+                        ),
+                        const Divider(height: 1),
+                        ListTile(
+                          leading: const Icon(Icons.event_repeat),
+                          title: Text(
+                            _useTo == null
+                                ? 'Use until…'
+                                : 'Use until: ${_format(_useTo!)}',
+                          ),
+                          subtitle: const Text('Same day for a one-day event'),
+                          enabled: !_submitting && _useFrom != null,
+                          onTap: _submitting || _useFrom == null
+                              ? null
+                              : _pickUseTo,
+                        ),
+                      ],
                     ),
-                    subtitle: const Text(
-                      'Bookings must be at least a day ahead',
-                    ),
-                    onTap: _submitting ? null : _pickUseFrom,
-                  ),
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: const Icon(Icons.event_repeat),
-                    title: Text(
-                      _useTo == null
-                          ? 'Use until…'
-                          : 'Use until: ${_format(_useTo!)}',
-                    ),
-                    subtitle: const Text('Same day for a one-day event'),
-                    enabled: !_submitting && _useFrom != null,
-                    onTap: _submitting || _useFrom == null ? null : _pickUseTo,
                   ),
                   const SizedBox(height: 16),
                   Text(
@@ -280,44 +290,59 @@ class _RequestFormScreenState extends ConsumerState<RequestFormScreen> {
                     style: Theme.of(context).textTheme.titleSmall,
                   ),
                   const SizedBox(height: 8),
-                  SegmentedButton<_PickupWhen>(
-                    segments: const [
-                      ButtonSegment(
-                        value: _PickupWhen.sameDay,
-                        icon: Icon(Icons.today),
-                        label: Text('On the day'),
+                  Card(
+                    margin: EdgeInsets.zero,
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          SegmentedButton<_PickupWhen>(
+                            segments: const [
+                              ButtonSegment(
+                                value: _PickupWhen.sameDay,
+                                icon: Icon(Icons.today),
+                                label: Text('On the day'),
+                              ),
+                              ButtonSegment(
+                                value: _PickupWhen.dayBefore,
+                                icon: Icon(Icons.history),
+                                label: Text('1 day before'),
+                              ),
+                            ],
+                            selected: {_pickupWhen},
+                            onSelectionChanged: _submitting || _useFrom == null
+                                ? null
+                                : (s) => setState(() => _pickupWhen = s.first),
+                          ),
+                          if (_pickup != null) ...[
+                            const SizedBox(height: 8),
+                            Text(
+                              'Pick up on ${_format(_pickup!)}',
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                          ],
+                        ],
                       ),
-                      ButtonSegment(
-                        value: _PickupWhen.dayBefore,
-                        icon: Icon(Icons.history),
-                        label: Text('1 day before'),
-                      ),
-                    ],
-                    selected: {_pickupWhen},
-                    onSelectionChanged: _submitting || _useFrom == null
-                        ? null
-                        : (s) => setState(() => _pickupWhen = s.first),
-                  ),
-                  if (_pickup != null) ...[
-                    const SizedBox(height: 6),
-                    Text(
-                      'Pick up on ${_format(_pickup!)}',
-                      style: Theme.of(context).textTheme.bodySmall,
                     ),
-                  ],
+                  ),
                   const SizedBox(height: 16),
                   Text('Return', style: Theme.of(context).textTheme.titleSmall),
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: const Icon(Icons.event_available),
-                    title: Text(
-                      _return == null
-                          ? 'Return by…'
-                          : 'Return by: ${_format(_return!)}',
+                  const SizedBox(height: 8),
+                  Card(
+                    margin: EdgeInsets.zero,
+                    clipBehavior: Clip.antiAlias,
+                    child: ListTile(
+                      leading: const Icon(Icons.event_available),
+                      title: Text(
+                        _return == null
+                            ? 'Return by…'
+                            : 'Return by: ${_format(_return!)}',
+                      ),
+                      subtitle: const Text('Defaults to your last use day'),
+                      enabled: !_submitting && _useTo != null,
+                      onTap: _submitting || _useTo == null ? null : _pickReturn,
                     ),
-                    subtitle: const Text('Defaults to your last use day'),
-                    enabled: !_submitting && _useTo != null,
-                    onTap: _submitting || _useTo == null ? null : _pickReturn,
                   ),
                   if (hasConflict) ...[
                     const SizedBox(height: 8),

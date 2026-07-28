@@ -429,7 +429,12 @@ class _Pill extends StatelessWidget {
         duration: const Duration(milliseconds: 150),
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
         decoration: BoxDecoration(
-          color: selected ? scheme.onSurface : Colors.transparent,
+          // A transparent fill let the busy blob backdrop show straight
+          // through the unselected pills — a solid tint (matching the
+          // items registry's category chips) keeps them legible.
+          color: selected
+              ? scheme.onSurface
+              : unselectedColor.withValues(alpha: 0.16),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: selected ? scheme.onSurface : unselectedColor.withValues(alpha: 0.5),

@@ -276,7 +276,9 @@ class _ItemsList extends ConsumerWidget {
               crossAxisCount: columns,
               mainAxisSpacing: 12,
               crossAxisSpacing: 12,
-              childAspectRatio: 1.05,
+              // Shorter than square — the card now leads with a wide photo
+              // banner (16:10) on top of the usual details underneath.
+              childAspectRatio: 0.78,
             ),
             itemCount: items.length,
             itemBuilder: (context, index) => _ItemCard(
@@ -317,7 +319,11 @@ class _ItemTable extends StatelessWidget {
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  _ItemThumbnail(path: item.referencePhotoPath, radius: 16),
+                  _ItemThumbnail(
+                    path: item.referencePhotoPath,
+                    size: 40,
+                    borderRadius: 8,
+                  ),
                   const SizedBox(width: 10),
                   ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 220),
@@ -379,7 +385,9 @@ class _StatusCell extends StatelessWidget {
   }
 }
 
-/// Mobile/narrow layout: one item per row, matching the original list.
+/// Mobile/narrow layout: one item per row, matching the original list — a
+/// large photo (not a tiny avatar) so the item is actually recognizable at
+/// a glance, matching the Home hero cards' treatment.
 class _ItemRow extends StatelessWidget {
   const _ItemRow({
     required this.item,
@@ -393,47 +401,83 @@ class _ItemRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      leading: _ItemThumbnail(path: item.referencePhotoPath),
-      title: Text(item.displayName),
-      subtitle: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Wrap(
-            crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: 6,
-            runSpacing: 4,
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: isStaff
+            ? () => context.push(AppRoutes.itemEdit, extra: item)
+            : null,
+        child: Padding(
+          padding: const EdgeInsets.all(10),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (item.category != null && item.category!.trim().isNotEmpty)
-                CategoryBadge(category: item.category),
-              Text(item.departmentName ?? 'Shared LGU pool'),
+              _ItemThumbnail(
+                path: item.referencePhotoPath,
+                size: 84,
+                borderRadius: 14,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      item.displayName,
+                      style: Theme.of(context).textTheme.titleSmall,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    Wrap(
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 6,
+                      runSpacing: 4,
+                      children: [
+                        if (item.category != null &&
+                            item.category!.trim().isNotEmpty)
+                          CategoryBadge(category: item.category),
+                        Text(item.departmentName ?? 'Shared LGU pool'),
+                      ],
+                    ),
+                    if (status != null) _statusCaption(context, status!),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        if (!item.active)
+                          Chip(
+                            label: const Text('Inactive'),
+                            visualDensity: VisualDensity.compact,
+                            backgroundColor:
+                                Theme.of(context).colorScheme.errorContainer,
+                          )
+                        else if (status != null)
+                          ItemStatusChip(status: status!.status),
+                        const Spacer(),
+                        IconButton(
+                          tooltip: 'Reservation calendar',
+                          icon: const Icon(Icons.calendar_month_outlined),
+                          visualDensity: VisualDensity.compact,
+                          onPressed: () => context.push(
+                            AppRoutes.itemCalendar,
+                            extra: item,
+                          ),
+                        ),
+                        if (isStaff)
+                          _DeleteItemButton(
+                            item: item,
+                            visualDensity: VisualDensity.compact,
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
-          if (status != null) _statusCaption(context, status!),
-        ],
+        ),
       ),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (!item.active)
-            Chip(
-              label: const Text('Inactive'),
-              visualDensity: VisualDensity.compact,
-              backgroundColor: Theme.of(context).colorScheme.errorContainer,
-            )
-          else if (status != null)
-            ItemStatusChip(status: status!.status),
-          IconButton(
-            tooltip: 'Reservation calendar',
-            icon: const Icon(Icons.calendar_month_outlined),
-            onPressed: () => context.push(AppRoutes.itemCalendar, extra: item),
-          ),
-          if (isStaff) _DeleteItemButton(item: item),
-        ],
-      ),
-      onTap: isStaff
-          ? () => context.push(AppRoutes.itemEdit, extra: item)
-          : null,
     );
   }
 }
@@ -460,66 +504,96 @@ class _ItemCard extends StatelessWidget {
         onTap: isStaff
             ? () => context.push(AppRoutes.itemEdit, extra: item)
             : null,
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // A real photo banner up top (Home hero-card treatment) instead
+            // of a tiny avatar buried in the action row.
+            AspectRatio(
+              aspectRatio: 16 / 10,
+              child: _ItemThumbnail(
+                path: item.referencePhotoPath,
+                fit: BoxFit.cover,
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _ItemThumbnail(path: item.referencePhotoPath, radius: 22),
-                  const Spacer(),
-                  IconButton(
-                    tooltip: 'Reservation calendar',
-                    icon: const Icon(Icons.calendar_month_outlined),
-                    visualDensity: VisualDensity.compact,
-                    onPressed: () =>
-                        context.push(AppRoutes.itemCalendar, extra: item),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          item.displayName,
+                          style: Theme.of(context).textTheme.titleSmall,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: 'Reservation calendar',
+                        icon: const Icon(Icons.calendar_month_outlined),
+                        visualDensity: VisualDensity.compact,
+                        onPressed: () =>
+                            context.push(AppRoutes.itemCalendar, extra: item),
+                      ),
+                      if (isStaff)
+                        _DeleteItemButton(
+                          item: item,
+                          visualDensity: VisualDensity.compact,
+                        ),
+                    ],
                   ),
-                  if (isStaff)
-                    _DeleteItemButton(
-                      item: item,
-                      visualDensity: VisualDensity.compact,
-                    ),
+                  _ItemCardBody(item: item, status: status),
                 ],
               ),
-              const SizedBox(height: 8),
-              Text(
-                item.displayName,
-                style: Theme.of(context).textTheme.titleSmall,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 4),
-              Wrap(
-                crossAxisAlignment: WrapCrossAlignment.center,
-                spacing: 6,
-                runSpacing: 4,
-                children: [
-                  if (item.category != null && item.category!.trim().isNotEmpty)
-                    CategoryBadge(category: item.category),
-                  Text(
-                    item.departmentName ?? 'Shared LGU pool',
-                    style: Theme.of(context).textTheme.bodySmall,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
-              if (status != null) _statusCaption(context, status!),
-              const Spacer(),
-              if (!item.active)
-                Chip(
-                  label: const Text('Inactive'),
-                  visualDensity: VisualDensity.compact,
-                  backgroundColor: Theme.of(context).colorScheme.errorContainer,
-                )
-              else if (status != null)
-                ItemStatusChip(status: status!.status),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
+    );
+  }
+}
+
+class _ItemCardBody extends StatelessWidget {
+  const _ItemCardBody({required this.item, required this.status});
+
+  final Item item;
+  final ItemStatus? status;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 4),
+        Wrap(
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 6,
+          runSpacing: 4,
+          children: [
+            if (item.category != null && item.category!.trim().isNotEmpty)
+              CategoryBadge(category: item.category),
+            Text(
+              item.departmentName ?? 'Shared LGU pool',
+              style: Theme.of(context).textTheme.bodySmall,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+        if (status != null) _statusCaption(context, status!),
+        const SizedBox(height: 4),
+        if (!item.active)
+          Chip(
+            label: const Text('Inactive'),
+            visualDensity: VisualDensity.compact,
+            backgroundColor: Theme.of(context).colorScheme.errorContainer,
+          )
+        else if (status != null)
+          ItemStatusChip(status: status!.status),
+      ],
     );
   }
 }
@@ -545,37 +619,61 @@ Widget _statusCaption(BuildContext context, ItemStatus status) {
   );
 }
 
+/// A real, recognizable rounded-rect photo (the Home hero cards'
+/// treatment) rather than a tiny circular avatar — tap to view full-screen.
+/// Pass [size] for a fixed square thumbnail (list/table rows), or leave it
+/// null to fill whatever bounded parent it's given (e.g. an [AspectRatio]
+/// banner).
 class _ItemThumbnail extends ConsumerWidget {
-  const _ItemThumbnail({this.path, this.radius});
+  const _ItemThumbnail({
+    this.path,
+    this.size,
+    this.borderRadius = 12,
+    this.fit = BoxFit.cover,
+  });
 
   final String? path;
-  final double? radius;
+  final double? size;
+  final double borderRadius;
+  final BoxFit fit;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    if (path == null) {
-      return CircleAvatar(
-        radius: radius,
-        child: const Icon(Icons.inventory_2_outlined),
-      );
-    }
+    final scheme = Theme.of(context).colorScheme;
+    Widget placeholder(IconData icon) => Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(borderRadius),
+      ),
+      alignment: Alignment.center,
+      child: Icon(icon, color: scheme.onSurfaceVariant),
+    );
+    if (path == null) return placeholder(Icons.inventory_2_outlined);
+
     final url = ref.watch(itemPhotoUrlProvider(path!));
     return switch (url) {
       AsyncData(:final value) => Tooltip(
         message: 'View photo',
         child: GestureDetector(
           onTap: () => showFullImage(context, value),
-          child: CircleAvatar(
-            radius: radius,
-            backgroundImage: NetworkImage(value),
-            onBackgroundImageError: (_, s) {},
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(borderRadius),
+            child: SizedBox(
+              width: size,
+              height: size,
+              child: Image.network(
+                value,
+                fit: fit,
+                errorBuilder: (context, e, s) =>
+                    placeholder(Icons.broken_image_outlined),
+              ),
+            ),
           ),
         ),
       ),
-      _ => CircleAvatar(
-        radius: radius,
-        child: const Icon(Icons.image_outlined),
-      ),
+      _ => placeholder(Icons.image_outlined),
     };
   }
 }

@@ -287,40 +287,47 @@ class _WalkInRequestScreenState extends ConsumerState<WalkInRequestScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: const Icon(Icons.event),
-                    title: Text('Borrow from: ${_format(_from)}'),
-                    onTap: _submitting
-                        ? null
-                        : () => _pickDateTime(isFrom: true),
-                  ),
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: const Icon(Icons.event_available),
-                    title: Text(
-                      _to == null
-                          ? 'Return by…'
-                          : 'Return by: ${_format(_to!)}',
-                    ),
-                    enabled: !_notSureWhenReturning,
-                    onTap: _submitting || _notSureWhenReturning
-                        ? null
-                        : () => _pickDateTime(isFrom: false),
-                  ),
-                  CheckboxListTile(
-                    value: _notSureWhenReturning,
-                    onChanged: _submitting
-                        ? null
-                        : (v) => setState(() {
-                            _notSureWhenReturning = v ?? false;
-                            if (_notSureWhenReturning) _to = null;
-                          }),
-                    contentPadding: EdgeInsets.zero,
-                    controlAffinity: ListTileControlAffinity.leading,
-                    title: const Text('Not sure when returning'),
-                    subtitle: const Text(
-                      'This item stays reserved to them until it\'s marked returned',
+                  Card(
+                    margin: EdgeInsets.zero,
+                    clipBehavior: Clip.antiAlias,
+                    child: Column(
+                      children: [
+                        ListTile(
+                          leading: const Icon(Icons.event),
+                          title: Text('Borrow from: ${_format(_from)}'),
+                          onTap: _submitting
+                              ? null
+                              : () => _pickDateTime(isFrom: true),
+                        ),
+                        const Divider(height: 1),
+                        ListTile(
+                          leading: const Icon(Icons.event_available),
+                          title: Text(
+                            _to == null
+                                ? 'Return by…'
+                                : 'Return by: ${_format(_to!)}',
+                          ),
+                          enabled: !_notSureWhenReturning,
+                          onTap: _submitting || _notSureWhenReturning
+                              ? null
+                              : () => _pickDateTime(isFrom: false),
+                        ),
+                        const Divider(height: 1),
+                        CheckboxListTile(
+                          value: _notSureWhenReturning,
+                          onChanged: _submitting
+                              ? null
+                              : (v) => setState(() {
+                                  _notSureWhenReturning = v ?? false;
+                                  if (_notSureWhenReturning) _to = null;
+                                }),
+                          controlAffinity: ListTileControlAffinity.leading,
+                          title: const Text('Not sure when returning'),
+                          subtitle: const Text(
+                            'This item stays reserved to them until it\'s marked returned',
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(height: 8),

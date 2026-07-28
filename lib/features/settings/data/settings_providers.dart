@@ -18,3 +18,7 @@ final myDeletionRequestProvider = FutureProvider(
 final pendingDeletionRequestsProvider = FutureProvider(
   (ref) => ref.watch(settingsRepositoryProvider).pendingDeletionRequests(),
 );
+
+final myProfileInfoProvider = FutureProvider(
+  (ref) => ref.watch(settingsRepositoryProvider).myProfileInfo(),
+);

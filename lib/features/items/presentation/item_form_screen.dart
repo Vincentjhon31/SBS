@@ -252,16 +252,19 @@ class _ItemFormScreenState extends ConsumerState<ItemFormScreen> {
                   ),
                   if (_isEdit) ...[
                     const SizedBox(height: 8),
-                    SwitchListTile(
-                      value: _active,
-                      onChanged: _submitting
-                          ? null
-                          : (v) => setState(() => _active = v),
-                      title: const Text('Active'),
-                      subtitle: const Text(
-                        'Inactive items stay in history but cannot be borrowed',
+                    Card(
+                      margin: EdgeInsets.zero,
+                      clipBehavior: Clip.antiAlias,
+                      child: SwitchListTile(
+                        value: _active,
+                        onChanged: _submitting
+                            ? null
+                            : (v) => setState(() => _active = v),
+                        title: const Text('Active'),
+                        subtitle: const Text(
+                          'Inactive items stay in history but cannot be borrowed',
+                        ),
                       ),
-                      contentPadding: EdgeInsets.zero,
                     ),
                   ],
                   const SizedBox(height: 24),

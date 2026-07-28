@@ -59,8 +59,32 @@ abstract final class SBSTheme {
         elevation: 0,
         scrolledUnderElevation: 0,
       ),
-      inputDecorationTheme: const InputDecorationTheme(
-        border: OutlineInputBorder(),
+      // Filled, not just outlined — an unfilled field over the glossy/blob
+      // backdrop let the busy background show straight through it, reading
+      // as a broken/transparent box rather than an input.
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: colorScheme.surface,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: colorScheme.outlineVariant),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: colorScheme.outlineVariant),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: colorScheme.primary, width: 2),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: colorScheme.error),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: colorScheme.error, width: 2),
+        ),
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),

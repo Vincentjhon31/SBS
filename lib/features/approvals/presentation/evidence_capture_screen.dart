@@ -25,7 +25,9 @@ class EvidenceCaptureScreen extends ConsumerStatefulWidget {
 class _EvidenceCaptureScreenState extends ConsumerState<EvidenceCaptureScreen> {
   final _notesController = TextEditingController();
   XFile? _borrowerPhoto;
+  Uint8List? _borrowerPhotoBytes;
   XFile? _itemPhoto;
+  Uint8List? _itemPhotoBytes;
   bool _acknowledged = false;
   bool _busy = false;
 
@@ -66,11 +68,14 @@ class _EvidenceCaptureScreenState extends ConsumerState<EvidenceCaptureScreen> {
       imageQuality: 85,
     );
     if (picked == null) return;
+    final bytes = await picked.readAsBytes();
     setState(() {
       if (borrower) {
         _borrowerPhoto = picked;
+        _borrowerPhotoBytes = bytes;
       } else {
         _itemPhoto = picked;
+        _itemPhotoBytes = bytes;
       }
     });
   }
@@ -96,8 +101,8 @@ class _EvidenceCaptureScreenState extends ConsumerState<EvidenceCaptureScreen> {
     setState(() => _busy = true);
     try {
       final repo = ref.read(approvalsRepositoryProvider);
-      final Uint8List borrowerBytes = await _borrowerPhoto!.readAsBytes();
-      final Uint8List itemBytes = await _itemPhoto!.readAsBytes();
+      final borrowerBytes = _borrowerPhotoBytes!;
+      final itemBytes = _itemPhotoBytes!;
       final notes = _notesController.text.trim();
       if (isRelease) {
         await repo.captureRelease(
@@ -156,14 +161,14 @@ class _EvidenceCaptureScreenState extends ConsumerState<EvidenceCaptureScreen> {
                 _PhotoButton(
                   label: 'Borrower photo',
                   subtitle: 'The person receiving/returning the item',
-                  file: _borrowerPhoto,
+                  photoBytes: _borrowerPhotoBytes,
                   onTap: _busy ? null : () => _pick(true),
                 ),
                 const SizedBox(height: 12),
                 _PhotoButton(
                   label: 'Item photo',
                   subtitle: 'Current condition of the item',
-                  file: _itemPhoto,
+                  photoBytes: _itemPhotoBytes,
                   onTap: _busy ? null : () => _pick(false),
                 ),
                 const SizedBox(height: 16),
@@ -244,28 +249,53 @@ class _PhotoButton extends StatelessWidget {
   const _PhotoButton({
     required this.label,
     required this.subtitle,
-    required this.file,
+    required this.photoBytes,
     required this.onTap,
   });
 
   final String label;
   final String subtitle;
-  final XFile? file;
+  final Uint8List? photoBytes;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    final done = file != null;
-    return Card(
-      child: ListTile(
-        leading: Icon(
-          done ? Icons.check_circle : Icons.add_a_photo_outlined,
-          color: done ? Theme.of(context).colorScheme.primary : null,
+    final done = photoBytes != null;
+    final scheme = Theme.of(context).colorScheme;
+    if (!done) {
+      return Card(
+        margin: EdgeInsets.zero,
+        child: ListTile(
+          leading: const Icon(Icons.add_a_photo_outlined),
+          title: Text(label),
+          subtitle: Text(subtitle),
+          onTap: onTap,
         ),
-        title: Text(label),
-        subtitle: Text(done ? 'Photo captured' : subtitle),
-        trailing: done ? const Icon(Icons.edit) : null,
+      );
+    }
+    return Card(
+      margin: EdgeInsets.zero,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
         onTap: onTap,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Image.memory(
+              photoBytes!,
+              height: 180,
+              width: double.infinity,
+              fit: BoxFit.cover,
+            ),
+            ListTile(
+              leading: Icon(Icons.check_circle, color: scheme.primary),
+              title: Text(label),
+              subtitle: const Text('Photo captured — tap to retake'),
+              trailing: const Icon(Icons.edit),
+              onTap: onTap,
+            ),
+          ],
+        ),
       ),
     );
   }

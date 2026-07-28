@@ -7,11 +7,6 @@ class SettingsRepository {
 
   final SupabaseClient _client;
 
-  Future<Map<String, dynamic>> exportMyData() async {
-    final result = await _client.rpc('export_my_data');
-    return result as Map<String, dynamic>;
-  }
-
   Future<ConsentInfo?> myConsentInfo() async {
     final uid = _client.auth.currentUser?.id;
     if (uid == null) return null;
@@ -73,5 +68,64 @@ class SettingsRepository {
       'id',
       _client.auth.currentUser!.id,
     );
+  }
+
+  Future<MyProfileInfo?> myProfileInfo() async {
+    final uid = _client.auth.currentUser?.id;
+    if (uid == null) return null;
+    final row = await _client
+        .from('citizen_profiles')
+        .select('contact_number, id_type, id_number, address, verified')
+        .eq('id', uid)
+        .maybeSingle();
+    return row == null ? null : MyProfileInfo.fromJson(row);
+  }
+
+  Future<void> updateFullName(String name) async {
+    await _client
+        .from('profiles')
+        .update({'full_name': name.trim()}).eq(
+      'id',
+      _client.auth.currentUser!.id,
+    );
+  }
+
+  Future<void> updateCitizenContactInfo({
+    String? contactNumber,
+    String? address,
+  }) async {
+    final updates = <String, dynamic>{
+      if (contactNumber != null) 'contact_number': contactNumber.trim(),
+      if (address != null) 'address': address.trim(),
+    };
+    if (updates.isEmpty) return;
+    await _client
+        .from('citizen_profiles')
+        .update(updates)
+        .eq('id', _client.auth.currentUser!.id);
+  }
+
+  /// Supabase sends a confirmation link to the new address before the
+  /// change actually takes effect.
+  Future<void> changeEmail(String newEmail) async {
+    await _client.auth.updateUser(UserAttributes(email: newEmail.trim()));
+  }
+
+  /// Re-authenticates with [currentPassword] first — `updateUser` alone
+  /// would let anyone with a still-open session change the password with
+  /// no proof they know the current one.
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    final email = _client.auth.currentUser?.email;
+    if (email == null) {
+      throw StateError('No signed-in user email to re-authenticate with.');
+    }
+    await _client.auth.signInWithPassword(
+      email: email,
+      password: currentPassword,
+    );
+    await _client.auth.updateUser(UserAttributes(password: newPassword));
   }
 }

@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../app/router.dart';
 import '../../../core/widgets/glossy_background.dart';
+import '../../items/data/items_providers.dart';
 import '../data/notifications_models.dart';
 import '../data/notifications_providers.dart';
 
@@ -79,10 +82,19 @@ class _NotificationTile extends ConsumerWidget {
           ? Icon(Icons.circle, size: 10, color: scheme.primary)
           : null,
       isThreeLine: true,
-      onTap: notification.unread
-          ? () =>
-                ref.read(notificationsActionsProvider).markRead(notification.id)
-          : null,
+      onTap: () {
+        if (notification.unread) {
+          ref.read(notificationsActionsProvider).markRead(notification.id);
+        }
+        // Staff overdue alerts point at items they need to chase down;
+        // every other notification is about the borrower's own request.
+        final isStaff = ref.read(isStaffProvider);
+        if (isStaff && notification.type == 'overdue') {
+          context.go(AppRoutes.approvals);
+        } else {
+          context.go(AppRoutes.requests);
+        }
+      },
     );
   }
 }

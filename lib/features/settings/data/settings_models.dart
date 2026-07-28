@@ -34,6 +34,34 @@ class DeletionRequest {
   }
 }
 
+/// The citizen-only fields shown/edited on the Profile Information screen.
+/// id_type/id_number are read-only once set — they're what staff actually
+/// verified, so editing them post-verification would silently invalidate
+/// that check.
+class MyProfileInfo {
+  const MyProfileInfo({
+    required this.contactNumber,
+    required this.idType,
+    required this.idNumber,
+    required this.address,
+    required this.verified,
+  });
+
+  final String contactNumber;
+  final String idType;
+  final String idNumber;
+  final String? address;
+  final bool verified;
+
+  factory MyProfileInfo.fromJson(Map<String, dynamic> json) => MyProfileInfo(
+        contactNumber: json['contact_number'] as String,
+        idType: json['id_type'] as String,
+        idNumber: json['id_number'] as String,
+        address: json['address'] as String?,
+        verified: json['verified'] as bool? ?? false,
+      );
+}
+
 class ConsentInfo {
   const ConsentInfo({required this.consentedAt, required this.verified});
 
