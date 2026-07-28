@@ -96,3 +96,17 @@ jobs:
             > **Web** — https://sbs-lgu-borrowing.web.app (always the latest, no download needed).
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Notify installed users of the new release
+        # Best-effort push via FCM — a failure here shouldn't fail an
+        # otherwise-successful release, so this step never fails the job.
+        if: always() && steps.version.outputs.version != ''
+        env:
+          RELEASE_NOTIFY_SECRET: ${{ secrets.RELEASE_NOTIFY_SECRET }}
+        run: |
+          curl -fsS -X POST \
+            "https://ppbrkgnikipfhppvdwfp.supabase.co/functions/v1/send-app-update-notification" \
+            -H "Authorization: Bearer $RELEASE_NOTIFY_SECRET" \
+            -H "Content-Type: application/json" \
+            -d "{\"version\":\"${{ steps.version.outputs.version }}\",\"releaseUrl\":\"https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }}\"}" \
+            || echo "Release-notify push failed (non-fatal)."

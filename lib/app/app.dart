@@ -5,6 +5,8 @@ import '../core/constants/app_constants.dart';
 import '../core/theme/accent_color_provider.dart';
 import '../core/theme/theme_mode_controller.dart';
 import '../features/notifications/presentation/in_app_notification_listener.dart';
+import '../features/notifications/presentation/push_notification_sync.dart';
+import '../features/settings/presentation/app_update_gate.dart';
 import 'router.dart';
 import 'theme.dart';
 
@@ -23,8 +25,11 @@ class SBSApp extends ConsumerWidget {
       themeMode: themeMode,
       routerConfig: router,
       debugShowCheckedModeBanner: false,
-      builder: (context, child) =>
-          InAppNotificationListener(child: child ?? const SizedBox.shrink()),
+      builder: (context, child) => PushNotificationSync(
+        child: InAppNotificationListener(
+          child: AppUpdateGate(child: child ?? const SizedBox.shrink()),
+        ),
+      ),
     );
   }
 }

@@ -49,3 +49,8 @@ supabase/snippets/
 
 # Firebase CLI local deploy cache (machine-specific, not project config)
 .firebase/
+
+# Firebase Admin SDK service-account keys — server-side credentials, never
+# committed (unlike google-services.json, which is safe: it ships in every
+# APK anyway).
+*firebase-adminsdk*.json

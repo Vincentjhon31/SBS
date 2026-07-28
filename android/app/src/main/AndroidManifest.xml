@@ -1,5 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Required at runtime on Android 13+ before any notification can be shown. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <!-- usesCleartextTraffic allows plain-http access to the LOCAL Supabase
          stack (10.0.2.2:54321) during development. Remove once the app
          targets a hosted (https) Supabase project. -->
@@ -35,6 +37,15 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+        <!-- Routes notifications FCM shows itself (app backgrounded/killed)
+             through the same channel created in push_notification_service.dart,
+             so they get the same importance/sound as foreground ones. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="sbs_notifications" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@mipmap/ic_launcher" />
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and
@@ -45,6 +56,11 @@
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
+        </intent>
+        <!-- Needed by url_launcher to open the update download link externally. -->
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="https"/>
         </intent>
     </queries>
 </manifest>

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "50266487020",
+    "project_id": "sbs-lgu-borrowing",
+    "storage_bucket": "sbs-lgu-borrowing.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:50266487020:android:3da48d576feec76737cdc9",
+        "android_client_info": {
+          "package_name": "com.lgu.sbs"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAxd80dlpKUWaM8R-IfrACBqF1785G9iZA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

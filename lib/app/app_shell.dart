@@ -9,6 +9,7 @@ import '../core/widgets/glossy_background.dart';
 import '../features/auth/data/auth_providers.dart';
 import '../features/items/data/items_providers.dart';
 import '../features/notifications/data/notifications_providers.dart';
+import '../features/settings/data/app_update_providers.dart';
 import 'router.dart';
 
 /// Whether the staff web sidebar is showing full labels (true) or has
@@ -61,19 +62,20 @@ class AppShell extends ConsumerWidget {
 /// stadium hovering above the bottom edge rather than a bar flush against
 /// it, matching the travel-app reference look requested for the mobile
 /// design.
-class _TabBarShell extends StatelessWidget {
+class _TabBarShell extends ConsumerWidget {
   const _TabBarShell({required this.navigationShell, required this.isStaff});
 
   final StatefulNavigationShell navigationShell;
   final bool isStaff;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final destinations = _tabDestinations(isStaff);
     var selectedVisualIndex = destinations.indexWhere(
       (d) => d.branchIndex == navigationShell.currentIndex,
     );
     if (selectedVisualIndex < 0) selectedVisualIndex = 0;
+    final hasPendingUpdate = ref.watch(pendingUpdateProvider) != null;
 
     return Scaffold(
       // NOT extendBody: each branch screen is its own nested Scaffold, and
@@ -87,6 +89,9 @@ class _TabBarShell extends StatelessWidget {
       bottomNavigationBar: _FloatingPillNavBar(
         destinations: destinations,
         selectedIndex: selectedVisualIndex,
+        // Profile is always the last tab (branchIndex 4) — see
+        // _tabDestinations below.
+        updateDotBranchIndex: hasPendingUpdate ? 4 : null,
         onSelect: (i) {
           final branchIndex = destinations[i].branchIndex;
           // Re-tapping the active tab resets it to its root (initialLocation)
@@ -106,11 +111,16 @@ class _FloatingPillNavBar extends StatelessWidget {
     required this.destinations,
     required this.selectedIndex,
     required this.onSelect,
+    this.updateDotBranchIndex,
   });
 
   final List<_TabDestination> destinations;
   final int selectedIndex;
   final ValueChanged<int> onSelect;
+
+  /// Shows a small dot on whichever destination has this branchIndex (the
+  /// Profile tab, when an app update is pending) — null shows no dot.
+  final int? updateDotBranchIndex;
 
   @override
   Widget build(BuildContext context) {
@@ -138,6 +148,7 @@ class _FloatingPillNavBar extends StatelessWidget {
                 icon: i == selectedIndex ? d.selectedIcon : d.icon,
                 label: d.label,
                 selected: i == selectedIndex,
+                showDot: d.branchIndex == updateDotBranchIndex,
                 onTap: () => onSelect(i),
               ),
           ],
@@ -153,11 +164,13 @@ class _PillNavItem extends StatelessWidget {
     required this.label,
     required this.selected,
     required this.onTap,
+    this.showDot = false,
   });
 
   final IconData icon;
   final String label;
   final bool selected;
+  final bool showDot;
   final VoidCallback onTap;
 
   @override
@@ -177,10 +190,14 @@ class _PillNavItem extends StatelessWidget {
             shape: BoxShape.circle,
           ),
           alignment: Alignment.center,
-          child: Icon(
-            icon,
-            size: 22,
-            color: selected ? const Color(0xFF14161D) : Colors.white60,
+          child: Badge(
+            isLabelVisible: showDot,
+            backgroundColor: Colors.redAccent,
+            child: Icon(
+              icon,
+              size: 22,
+              color: selected ? const Color(0xFF14161D) : Colors.white60,
+            ),
           ),
         ),
       ),
