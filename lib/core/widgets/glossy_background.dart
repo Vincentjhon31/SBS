@@ -1,5 +1,6 @@
 import 'dart:ui';
 
+import 'package:blobs/blobs.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -158,10 +159,11 @@ class _Orb extends StatelessWidget {
   }
 }
 
-/// Organic freeform pastel "blob" shapes (à la Blobmaker), flat and
-/// crisp-edged rather than blurred — each blob is filled with its own
-/// radial gradient so it still reads as rich/"radiant" instead of a flat
-/// paint swatch, without the soft haze of the glossy orb look.
+/// Three true organic blobs (the `blobs` package's own irregular-polygon
+/// generator, not a hand-rolled approximation), each gently morphing in
+/// place on a slow loop — a bare minimum of motion, not an active
+/// animation. Positioned upper-right, lower-left, and middle-left,
+/// mirroring the glossy backdrop's three-glow layout.
 class _BlobLayer extends StatelessWidget {
   const _BlobLayer({required this.dark});
 
@@ -174,152 +176,78 @@ class _BlobLayer extends StatelessWidget {
     // backdrop — so the same alpha works for both, no separate dark
     // palette needed.
     final alpha = dark ? 0.55 : 0.75;
-    return CustomPaint(
-      painter: _BlobPainter(alpha: alpha),
-      child: const SizedBox.expand(),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final side = constraints.biggest.shortestSide;
+        final base = (side.isFinite ? side * 0.62 : 320.0).clamp(220.0, 420.0);
+        final height = constraints.biggest.height;
+        return Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Positioned(
+              top: -base * 0.22,
+              right: -base * 0.22,
+              child: _GradientBlob(
+                size: base,
+                colors: const [AppConstants.pastelSky, AppConstants.pastelMint],
+                alpha: alpha,
+              ),
+            ),
+            Positioned(
+              bottom: -base * 0.24,
+              left: -base * 0.26,
+              child: _GradientBlob(
+                size: base * 0.92,
+                colors: const [AppConstants.pastelPeach, AppConstants.pastelCoral],
+                alpha: alpha * 0.9,
+              ),
+            ),
+            Positioned(
+              top: height.isFinite ? height / 2 - base * 0.35 : null,
+              left: -base * 0.32,
+              child: _GradientBlob(
+                size: base * 0.8,
+                colors: const [AppConstants.pastelLavender, AppConstants.pastelPink],
+                alpha: alpha * 0.85,
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }
 
-class _BlobPainter extends CustomPainter {
-  _BlobPainter({required this.alpha});
+class _GradientBlob extends StatelessWidget {
+  const _GradientBlob({
+    required this.size,
+    required this.colors,
+    required this.alpha,
+  });
 
+  final double size;
+  final List<Color> colors;
   final double alpha;
 
-  /// Fractional (0..1) control points, smoothed into a closed loop below —
-  /// irregular hand-placed rings that read as organic blobs once every
-  /// corner is rounded off by [_smoothClosedPath]. Generously overlapping
-  /// and spanning the full canvas, matching the reference art's continuous
-  /// coverage rather than a few corner accents.
-  static const _blobA = [
-    Offset(-0.10, -0.08),
-    Offset(0.34, -0.14),
-    Offset(0.58, 0.02),
-    Offset(0.50, 0.28),
-    Offset(0.20, 0.34),
-    Offset(-0.14, 0.18),
-  ];
-
-  static const _blobB = [
-    Offset(0.46, -0.10),
-    Offset(0.86, -0.04),
-    Offset(1.10, 0.20),
-    Offset(0.92, 0.46),
-    Offset(0.60, 0.40),
-    Offset(0.52, 0.14),
-  ];
-
-  static const _blobC = [
-    Offset(-0.12, 0.42),
-    Offset(0.22, 0.36),
-    Offset(0.40, 0.58),
-    Offset(0.26, 0.86),
-    Offset(-0.06, 0.92),
-    Offset(-0.22, 0.62),
-  ];
-
-  static const _blobD = [
-    Offset(0.34, 0.60),
-    Offset(0.68, 0.54),
-    Offset(1.02, 0.70),
-    Offset(1.08, 1.02),
-    Offset(0.68, 1.12),
-    Offset(0.36, 0.90),
-  ];
-
-  static const _blobE = [
-    Offset(-0.10, 0.78),
-    Offset(0.18, 0.76),
-    Offset(0.30, 1.00),
-    Offset(0.06, 1.14),
-    Offset(-0.20, 1.02),
-  ];
-
   @override
-  void paint(Canvas canvas, Size size) {
-    _paintBlob(canvas, size, _blobA, AppConstants.pastelSky, alpha);
-    _paintBlob(canvas, size, _blobB, AppConstants.pastelMint, alpha);
-    _paintBlob(canvas, size, _blobC, AppConstants.pastelLavender, alpha * 0.9);
-    _paintBlob(canvas, size, _blobD, AppConstants.pastelPeach, alpha * 0.85);
-    _paintBlob(canvas, size, _blobE, AppConstants.pastelCoral, alpha * 0.8);
-
-    // A few small floating "bubbles" for extra depth, echoing the
-    // reference art's scattered circles.
-    _bubble(canvas, size, const Offset(0.84, 0.14), 0.045, AppConstants.pastelMint, alpha);
-    _bubble(canvas, size, const Offset(0.12, 0.60), 0.032, AppConstants.pastelPeach, alpha);
-    _bubble(canvas, size, const Offset(0.72, 0.88), 0.038, AppConstants.pastelSky, alpha * 0.85);
-  }
-
-  void _paintBlob(
-    Canvas canvas,
-    Size size,
-    List<Offset> fractionalPoints,
-    Color color,
-    double alpha,
-  ) {
-    final points = [
-      for (final p in fractionalPoints)
-        Offset(p.dx * size.width, p.dy * size.height),
-    ];
-    final path = _smoothClosedPath(points);
-    final rect = path.getBounds();
-    // Radial gradient from the shape's own centre so each flat blob still
-    // has some internal variation ("radiant") rather than one flat tint,
-    // while keeping the outer edge fully crisp (no blur).
-    final paint = Paint()
-      ..shader = RadialGradient(
-        center: Alignment.center,
-        radius: 0.85,
-        colors: [
-          color.withValues(alpha: alpha),
-          color.withValues(alpha: alpha * 0.72),
-        ],
-      ).createShader(rect);
-    canvas.drawPath(path, paint);
-  }
-
-  void _bubble(
-    Canvas canvas,
-    Size size,
-    Offset centerFraction,
-    double radiusFraction,
-    Color color,
-    double alpha,
-  ) {
-    final center = Offset(
-      centerFraction.dx * size.width,
-      centerFraction.dy * size.height,
+  Widget build(BuildContext context) {
+    final gradientColors = [for (final c in colors) c.withValues(alpha: alpha)];
+    return Blob.animatedRandom(
+      size: size,
+      edgesCount: 9,
+      minGrowth: 4,
+      // Slow morph = "minimum" movement, a gentle wobble rather than an
+      // active reshape.
+      duration: const Duration(seconds: 7),
+      loop: true,
+      styles: BlobStyles(
+        fillType: BlobFillType.fill,
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: gradientColors,
+        ).createShader(Rect.fromLTWH(0, 0, size, size)),
+      ),
     );
-    final radius = radiusFraction * size.shortestSide;
-    final paint = Paint()
-      ..shader = RadialGradient(
-        colors: [
-          color.withValues(alpha: alpha),
-          color.withValues(alpha: alpha * 0.7),
-        ],
-      ).createShader(Rect.fromCircle(center: center, radius: radius));
-    canvas.drawCircle(center, radius, paint);
   }
-
-  /// Turns a handful of corner points into a smooth closed blob: each
-  /// original point becomes a curve *control* point, and the path only
-  /// actually passes through the midpoints between consecutive points —
-  /// a cheap, well-known trick for organic shapes with no extra deps.
-  Path _smoothClosedPath(List<Offset> pts) {
-    final path = Path();
-    final startMid = Offset.lerp(pts.last, pts.first, 0.5)!;
-    path.moveTo(startMid.dx, startMid.dy);
-    for (var i = 0; i < pts.length; i++) {
-      final current = pts[i];
-      final next = pts[(i + 1) % pts.length];
-      final mid = Offset.lerp(current, next, 0.5)!;
-      path.quadraticBezierTo(current.dx, current.dy, mid.dx, mid.dy);
-    }
-    path.close();
-    return path;
-  }
-
-  @override
-  bool shouldRepaint(covariant _BlobPainter oldDelegate) =>
-      oldDelegate.alpha != alpha;
 }
