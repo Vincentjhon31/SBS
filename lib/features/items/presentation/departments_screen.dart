@@ -84,6 +84,9 @@ class DepartmentsScreen extends ConsumerWidget {
       await ref.read(itemsRepositoryProvider).createDepartment(trimmed);
       ref.invalidate(allDepartmentsProvider);
       ref.invalidate(departmentsProvider);
+      // The RPC enrolls the caller as the new department's first approver,
+      // so the item form's (membership-scoped) dropdown needs this too.
+      ref.invalidate(myDepartmentIdsProvider);
     } on PostgrestException catch (e) {
       messenger.showSnackBar(
         SnackBar(

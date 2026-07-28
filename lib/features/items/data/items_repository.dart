@@ -37,8 +37,12 @@ class ItemsRepository {
     return [for (final row in rows) Department.fromJson(row)];
   }
 
+  /// Also enrolls the caller as the new department's first approver (via
+  /// the create_department RPC) — otherwise it'd have zero members and be
+  /// unusable (invisible in the item form's department dropdown, and
+  /// unmanageable) until someone added one through Studio.
   Future<void> createDepartment(String name) async {
-    await _client.from('departments').insert({'name': name.trim()});
+    await _client.rpc('create_department', params: {'dept_name': name.trim()});
   }
 
   Future<void> renameDepartment(String id, String name) async {
