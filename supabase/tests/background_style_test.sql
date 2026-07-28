@@ -13,22 +13,22 @@ do $$
 begin
   if not exists (select 1 from public.profiles
                  where id = '99999999-3333-3333-3333-333333333333'
-                   and background_style = 'glossy') then
-    raise exception 'FAIL: default background_style should be glossy';
+                   and background_style = 'blob') then
+    raise exception 'FAIL: default background_style should be blob';
   end if;
 end $$;
 
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"99999999-3333-3333-3333-333333333333","role":"authenticated"}';
 
-update public.profiles set background_style = 'blob' where id = auth.uid();
+update public.profiles set background_style = 'glossy' where id = auth.uid();
 
 do $$
 begin
   if not exists (select 1 from public.profiles
                  where id = '99999999-3333-3333-3333-333333333333'
-                   and background_style = 'blob') then
-    raise exception 'FAIL: self-update to blob did not persist';
+                   and background_style = 'glossy') then
+    raise exception 'FAIL: self-update to glossy did not persist';
   end if;
 end $$;
 

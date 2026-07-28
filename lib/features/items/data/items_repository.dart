@@ -75,6 +75,7 @@ class ItemsRepository {
     String? distinguishingTag,
     String? category,
     String? owningDepartmentId,
+    int quantity = 1,
   }) async {
     final row = await _client
         .from('items')
@@ -83,6 +84,7 @@ class ItemsRepository {
           'distinguishing_tag': _nullIfBlank(distinguishingTag),
           'category': _nullIfBlank(category),
           'owning_department_id': owningDepartmentId,
+          'quantity': quantity,
           'created_by': _client.auth.currentUser!.id,
         })
         .select('*, departments(name)')
@@ -97,6 +99,7 @@ class ItemsRepository {
     String? category,
     String? owningDepartmentId,
     required bool active,
+    required int quantity,
   }) async {
     await _client.from('items').update({
       'name': name.trim(),
@@ -104,6 +107,7 @@ class ItemsRepository {
       'category': _nullIfBlank(category),
       'owning_department_id': owningDepartmentId,
       'active': active,
+      'quantity': quantity,
     }).eq('id', id);
   }
 

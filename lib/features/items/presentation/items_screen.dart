@@ -378,7 +378,7 @@ class _StatusCell extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        ItemStatusChip(status: status!.status),
+        ItemStatusChip(status: status!.status, quantity: status!.quantity, availableCount: status!.availableCount),
         _statusCaption(context, status!),
       ],
     );
@@ -453,7 +453,7 @@ class _ItemRow extends StatelessWidget {
                                 Theme.of(context).colorScheme.errorContainer,
                           )
                         else if (status != null)
-                          ItemStatusChip(status: status!.status),
+                          ItemStatusChip(status: status!.status, quantity: status!.quantity, availableCount: status!.availableCount),
                         const Spacer(),
                         IconButton(
                           tooltip: 'Reservation calendar',
@@ -592,7 +592,7 @@ class _ItemCardBody extends StatelessWidget {
             backgroundColor: Theme.of(context).colorScheme.errorContainer,
           )
         else if (status != null)
-          ItemStatusChip(status: status!.status),
+          ItemStatusChip(status: status!.status, quantity: status!.quantity, availableCount: status!.availableCount),
       ],
     );
   }
@@ -804,6 +804,7 @@ class _DeleteItemButton extends ConsumerWidget {
         category: item.category,
         owningDepartmentId: item.owningDepartmentId,
         active: false,
+        quantity: item.quantity,
       );
       ref.invalidate(itemsProvider);
       ref.invalidate(itemStatusesProvider);

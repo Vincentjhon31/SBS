@@ -33,6 +33,9 @@ class _ItemFormScreenState extends ConsumerState<ItemFormScreen> {
       : widget.item?.category;
   late String? _departmentId = widget.item?.owningDepartmentId;
   late bool _active = widget.item?.active ?? true;
+  late final _quantityController = TextEditingController(
+    text: '${widget.item?.quantity ?? 1}',
+  );
   XFile? _photo;
   Uint8List? _photoBytes;
   bool _submitting = false;
@@ -54,6 +57,7 @@ class _ItemFormScreenState extends ConsumerState<ItemFormScreen> {
   void dispose() {
     _nameController.dispose();
     _tagController.dispose();
+    _quantityController.dispose();
     super.dispose();
   }
 
@@ -77,6 +81,7 @@ class _ItemFormScreenState extends ConsumerState<ItemFormScreen> {
     setState(() => _submitting = true);
     final repo = ref.read(itemsRepositoryProvider);
     try {
+      final quantity = int.tryParse(_quantityController.text.trim()) ?? 1;
       String itemId;
       if (_isEdit) {
         itemId = widget.item!.id;
@@ -87,6 +92,7 @@ class _ItemFormScreenState extends ConsumerState<ItemFormScreen> {
           category: _category,
           owningDepartmentId: _departmentId,
           active: _active,
+          quantity: quantity,
         );
       } else {
         final created = await repo.createItem(
@@ -94,6 +100,7 @@ class _ItemFormScreenState extends ConsumerState<ItemFormScreen> {
           distinguishingTag: _tagController.text,
           category: _category,
           owningDepartmentId: _departmentId,
+          quantity: quantity,
         );
         itemId = created.id;
       }
@@ -201,6 +208,8 @@ class _ItemFormScreenState extends ConsumerState<ItemFormScreen> {
                       hintText: 'e.g. plate number, room number, unit letter',
                     ),
                   ),
+                  const SizedBox(height: 16),
+                  _QuantityStepper(controller: _quantityController),
                   const SizedBox(height: 16),
                   _CategoryDropdown(
                     value: _category,
@@ -422,6 +431,47 @@ class _CategoryDropdown extends StatelessWidget {
         } else {
           onChanged(v);
         }
+      },
+    );
+  }
+}
+
+/// Total physical units of this item — "5 folding chairs" means up to 5
+/// people can hold one concurrently. Plain +/- stepper since it's always
+/// a small whole number, not free-text.
+class _QuantityStepper extends StatelessWidget {
+  const _QuantityStepper({required this.controller});
+
+  final TextEditingController controller;
+
+  int get _value => int.tryParse(controller.text.trim()) ?? 1;
+
+  void _set(int value) {
+    controller.text = '${value.clamp(1, 999)}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return TextFormField(
+      controller: controller,
+      keyboardType: TextInputType.number,
+      decoration: InputDecoration(
+        labelText: 'Quantity',
+        helperText: 'How many units of this item the LGU owns',
+        prefixIcon: IconButton(
+          tooltip: 'Decrease',
+          icon: const Icon(Icons.remove),
+          onPressed: () => _set(_value - 1),
+        ),
+        suffixIcon: IconButton(
+          tooltip: 'Increase',
+          icon: const Icon(Icons.add),
+          onPressed: () => _set(_value + 1),
+        ),
+      ),
+      validator: (v) {
+        final n = int.tryParse((v ?? '').trim());
+        return (n == null || n < 1) ? 'Enter a number of at least 1' : null;
       },
     );
   }

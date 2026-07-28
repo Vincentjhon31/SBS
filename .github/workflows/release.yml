@@ -1,0 +1,98 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.1'
+          channel: stable
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Clean project
+        run: flutter clean
+
+      - name: Set up Android signing
+        env:
+          KEYSTORE_FILE: ${{ secrets.KEYSTORE_FILE }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE_FILE" ] || [ -z "$KEYSTORE_PASSWORD" ] || [ -z "$KEY_ALIAS" ] || [ -z "$KEY_PASSWORD" ]; then
+            echo "Missing Android signing secrets. Add KEYSTORE_FILE, KEYSTORE_PASSWORD, KEY_ALIAS, and KEY_PASSWORD in repository settings."
+            exit 1
+          fi
+
+          mkdir -p android/app
+          echo "$KEYSTORE_FILE" | base64 --decode > android/app/upload-keystore.jks
+          cat > android/key.properties <<EOF
+          storeFile=upload-keystore.jks
+          storePassword=$KEYSTORE_PASSWORD
+          keyAlias=$KEY_ALIAS
+          keyPassword=$KEY_PASSWORD
+          EOF
+
+      - name: Build release APK
+        # No dart-defines: uses the hosted Supabase project baked in as
+        # the default (see lib/core/config/supabase_config.dart) — same
+        # target as the web build this project deploys.
+        run: flutter build apk --release
+
+      - name: Rename APK to SBS-<version>.apk
+        id: version
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          VERSION="${VERSION%%+*}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          cp build/app/outputs/flutter-apk/app-release.apk "build/app/outputs/flutter-apk/SBS-${VERSION}.apk"
+          ls -lh build/app/outputs/flutter-apk/SBS-*.apk
+
+      - name: Build categorized changelog
+        id: build_changelog
+        uses: mikepenz/release-changelog-builder-action@v4
+        with:
+          configuration: .github/changelog-configuration.json
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            build/app/outputs/flutter-apk/SBS-*.apk
+          body: |
+            Check out the [past releases](https://github.com/${{ github.repository }}/releases) if you're upgrading from an older version.
+
+            ${{ steps.build_changelog.outputs.changelog }}
+
+            > [!TIP]
+            > **Android** — download `SBS-${{ steps.version.outputs.version }}.apk`.
+            > **Web** — https://sbs-lgu-borrowing.web.app (always the latest, no download needed).
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

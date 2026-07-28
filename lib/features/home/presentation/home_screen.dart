@@ -520,6 +520,7 @@ class _HeroItemCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final status = ref.watch(itemStatusesProvider).value?[item.id];
     return SizedBox(
       width: width,
       child: Stack(
@@ -550,6 +551,15 @@ class _HeroItemCard extends ConsumerWidget {
                         ),
                       ),
                     ),
+                    if (status != null && status.hasMultipleUnits)
+                      Positioned(
+                        top: 14,
+                        left: 14,
+                        child: _FrostedLabel(
+                          text:
+                              '${status.availableCount} of ${status.quantity} available',
+                        ),
+                      ),
                     Positioned(
                       top: 14,
                       right: 14,
@@ -664,6 +674,31 @@ class _FrostedIconButton extends StatelessWidget {
         ),
         alignment: Alignment.center,
         child: Icon(icon, size: 18, color: Colors.black87),
+      ),
+    );
+  }
+}
+
+class _FrostedLabel extends StatelessWidget {
+  const _FrostedLabel({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.92),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        text,
+        style: const TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          color: Colors.black87,
+        ),
       ),
     );
   }

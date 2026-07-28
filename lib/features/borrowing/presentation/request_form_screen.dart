@@ -169,11 +169,17 @@ class _RequestFormScreenState extends ConsumerState<RequestFormScreen> {
         ? null
         : ref.watch(reservedWindowsProvider(_selectedItem!.id)).value;
     // Conflict is checked against the availability window (pickup → return),
-    // since that's what actually reserves the item.
+    // since that's what actually reserves the item — and, for a
+    // multi-unit item, only once overlapping reservations would already
+    // fill every unit (the server has the final say either way; this is
+    // just an early warning).
+    final overlappingCount = _pickup == null || _return == null
+        ? 0
+        : windows?.where((w) => w.overlaps(_pickup!, _return!)).length ?? 0;
     final hasConflict =
         _pickup != null &&
         _return != null &&
-        (windows?.any((w) => w.overlaps(_pickup!, _return!)) ?? false);
+        overlappingCount >= (_selectedItem?.quantity ?? 1);
 
     return Scaffold(
       backgroundColor: Colors.transparent,

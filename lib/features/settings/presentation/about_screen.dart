@@ -89,10 +89,11 @@ class AboutScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     const Text(
-                      'A colorful redesign — organic blob backgrounds, '
-                      'category color-coding, department management, an '
-                      'Approvals history log, and a reorganized account '
-                      'section.',
+                      'Inventory support — items can now have more than one '
+                      'unit, so several people can borrow the same kind of '
+                      'item at once. Also: live in-app notifications with a '
+                      'sound for reminders and overdue alerts, and Blob is '
+                      'now the default background.',
                     ),
                   ],
                 ),

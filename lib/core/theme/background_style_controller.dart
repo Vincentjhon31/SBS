@@ -22,14 +22,14 @@ Future<BackgroundStyle> loadSavedBackgroundStyle() async {
   final raw = prefs.getString(_prefsKey);
   return BackgroundStyle.values.firstWhere(
     (style) => style.name == raw,
-    orElse: () => BackgroundStyle.glossy,
+    orElse: () => BackgroundStyle.blob,
   );
 }
 
 class BackgroundStyleController extends Notifier<BackgroundStyle> {
   /// Set from main() (via [loadSavedBackgroundStyle]) before the
   /// ProviderScope is built, since Notifier.build() must be synchronous.
-  static BackgroundStyle initialStyle = BackgroundStyle.glossy;
+  static BackgroundStyle initialStyle = BackgroundStyle.blob;
 
   @override
   BackgroundStyle build() {
@@ -45,7 +45,7 @@ class BackgroundStyleController extends Notifier<BackgroundStyle> {
   Future<void> _adoptFromProfile(String value) async {
     final style = BackgroundStyle.values.firstWhere(
       (s) => s.name == value,
-      orElse: () => BackgroundStyle.glossy,
+      orElse: () => BackgroundStyle.blob,
     );
     if (style == state) return;
     state = style;

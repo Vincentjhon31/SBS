@@ -15,7 +15,10 @@ void main() {
         child: const SBSApp(),
       ),
     );
-    await tester.pumpAndSettle();
+    // Not pumpAndSettle: the default "blob" backdrop animates on an
+    // endless loop, so the tree never goes quiescent and pumpAndSettle
+    // would spin until it times out.
+    await tester.pump(const Duration(seconds: 1));
 
     expect(find.text('Sign in'), findsOneWidget);
     expect(find.text('New citizen borrower? Register here'), findsOneWidget);
@@ -31,10 +34,17 @@ void main() {
         child: const SBSApp(),
       ),
     );
-    await tester.pumpAndSettle();
+    // Not pumpAndSettle: the default "blob" backdrop animates on an
+    // endless loop, so the tree never goes quiescent and pumpAndSettle
+    // would spin until it times out.
+    await tester.pump(const Duration(seconds: 1));
 
     await tester.tap(find.text('New citizen borrower? Register here'));
-    await tester.pumpAndSettle();
+    // Not pumpAndSettle (see above) — one pump to process the tap's
+    // onPressed/navigation, then one to carry the push transition to
+    // completion.
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
 
     expect(find.text('Citizen Registration'), findsOneWidget);
     expect(find.text('Register'), findsOneWidget);
