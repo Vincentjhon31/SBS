@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The resource shrinker only sees references to @raw/notification_sound
+  from Java/Kotlin/XML — it can't see the Dart-side
+  RawResourceAndroidNotificationSound('notification_sound') reference in
+  push_notification_service.dart, so it strips the file from release
+  builds as "unused." This tells it to keep it anyway.
+-->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@raw/notification_sound" />
