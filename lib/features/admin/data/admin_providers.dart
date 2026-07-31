@@ -23,3 +23,17 @@ final allStaffProvider = FutureProvider<List<StaffMember>>(
 final allMembershipsProvider = FutureProvider<List<DepartmentMembership>>(
   (ref) => ref.watch(adminRepositoryProvider).fetchAllMemberships(),
 );
+
+final allUsersProvider = FutureProvider<List<UserAccount>>(
+  (ref) => ref.watch(adminRepositoryProvider).fetchAllUsers(),
+);
+
+final auditLogProvider = FutureProvider<List<AuditLogEntry>>(
+  (ref) => ref.watch(adminRepositoryProvider).fetchAuditLog(),
+);
+
+/// Superadmin-editable policy text (falls back to AppConstants below when
+/// no row exists yet, e.g. before the first `supabase db push`).
+final appSettingsProvider = FutureProvider<Map<String, String>>(
+  (ref) => ref.watch(adminRepositoryProvider).fetchAppSettings(),
+);

@@ -1,3 +1,77 @@
+/// A row in the admin Users management screen — every profile in the
+/// system (citizens + staff), with the fields staff need to act on it.
+class UserAccount {
+  const UserAccount({
+    required this.id,
+    required this.fullName,
+    required this.username,
+    required this.userType,
+    required this.isSuperadmin,
+    required this.active,
+    required this.verified,
+  });
+
+  final String id;
+  final String fullName;
+  final String? username;
+  final String userType;
+  final bool isSuperadmin;
+  final bool active;
+
+  /// Citizen ID-verification status; null for staff (no citizen_profiles
+  /// row).
+  final bool? verified;
+
+  bool get isStaff => userType == 'staff';
+
+  factory UserAccount.fromJson(Map<String, dynamic> json) {
+    final citizenProfile = json['citizen_profiles'] as Map<String, dynamic>?;
+    return UserAccount(
+      id: json['id'] as String,
+      fullName: json['full_name'] as String,
+      username: json['username'] as String?,
+      userType: json['user_type'] as String,
+      isSuperadmin: json['is_superadmin'] as bool? ?? false,
+      active: json['active'] as bool? ?? true,
+      verified: citizenProfile?['verified'] as bool?,
+    );
+  }
+}
+
+/// A single audit-log entry — see the Users screen's "Activity log" view.
+class AuditLogEntry {
+  const AuditLogEntry({
+    required this.id,
+    required this.actorName,
+    required this.action,
+    required this.targetType,
+    required this.targetId,
+    required this.detail,
+    required this.createdAt,
+  });
+
+  final String id;
+  final String? actorName;
+  final String action;
+  final String targetType;
+  final String? targetId;
+  final Map<String, dynamic> detail;
+  final DateTime createdAt;
+
+  factory AuditLogEntry.fromJson(Map<String, dynamic> json) {
+    final actor = json['profiles'] as Map<String, dynamic>?;
+    return AuditLogEntry(
+      id: json['id'] as String,
+      actorName: actor?['full_name'] as String?,
+      action: json['action'] as String,
+      targetType: json['target_type'] as String,
+      targetId: json['target_id'] as String?,
+      detail: (json['detail'] as Map<String, dynamic>?) ?? const {},
+      createdAt: DateTime.parse(json['created_at'] as String).toLocal(),
+    );
+  }
+}
+
 class SuperadminStats {
   const SuperadminStats({
     required this.totalItems,

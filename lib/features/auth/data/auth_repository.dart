@@ -2,22 +2,63 @@ import 'dart:typed_data';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+/// Domain for the synthetic, never-delivered email a citizen's auth
+/// account is registered under — email confirmations are disabled
+/// project-wide, so nothing ever needs to reach this address. Must match
+/// the formula in the `resolve_login_identifier` SQL function exactly.
+const _citizenEmailDomain = 'citizens.sbs.internal';
+
 class AuthRepository {
   AuthRepository(this._client);
 
   final SupabaseClient _client;
 
-  Future<void> signIn({required String email, required String password}) {
-    return _client.auth.signInWithPassword(email: email, password: password);
+  /// Staff sign in with their real email; citizens sign in with their
+  /// username. [identifier] is whichever the user typed — an `@` marks it
+  /// as an email, otherwise it's resolved to the citizen's synthetic email
+  /// via the `resolve_login_identifier` RPC first.
+  Future<void> signIn({
+    required String identifier,
+    required String password,
+  }) async {
+    final trimmed = identifier.trim();
+    if (trimmed.contains('@')) {
+      await _client.auth.signInWithPassword(
+        email: trimmed,
+        password: password,
+      );
+      return;
+    }
+    final email = await _client.rpc(
+      'resolve_login_identifier',
+      params: {'p_username': trimmed},
+    ) as String?;
+    if (email == null) {
+      throw const AuthException('Invalid login credentials');
+    }
+    await _client.auth.signInWithPassword(email: email, password: password);
   }
 
   Future<void> signOut() => _client.auth.signOut();
 
+  /// Checks whether a username is free to register, for live validation
+  /// on the registration form.
+  Future<bool> isUsernameAvailable(String username) async {
+    final available = await _client.rpc(
+      'username_available',
+      params: {'p_username': username},
+    ) as bool;
+    return available;
+  }
+
   /// Citizen self-registration: creates the auth account (the DB trigger
   /// creates the profiles row), uploads the ID photo to the private
-  /// id-photos bucket, then stores the verification details.
+  /// id-photos bucket, then stores the verification details. Citizens have
+  /// no email on file — the account is registered under a synthetic email
+  /// derived from the username purely so Supabase Auth (which requires an
+  /// identifier) has one; the app never uses it directly.
   Future<void> registerCitizen({
-    required String email,
+    required String username,
     required String password,
     required String fullName,
     required String contactNumber,
@@ -26,10 +67,15 @@ class AuthRepository {
     required Uint8List idPhotoBytes,
     String idPhotoContentType = 'image/jpeg',
   }) async {
+    final normalizedUsername = username.trim().toLowerCase();
     final response = await _client.auth.signUp(
-      email: email,
+      email: '$normalizedUsername@$_citizenEmailDomain',
       password: password,
-      data: {'full_name': fullName, 'user_type': 'citizen'},
+      data: {
+        'full_name': fullName,
+        'username': normalizedUsername,
+        'user_type': 'citizen',
+      },
     );
     final user = response.user;
     if (user == null) {

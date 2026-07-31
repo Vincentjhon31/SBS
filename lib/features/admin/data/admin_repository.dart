@@ -47,4 +47,71 @@ class AdminRepository {
   Future<void> removeMembership(String membershipId) async {
     await _client.from('department_members').delete().eq('id', membershipId);
   }
+
+  // ── Users management ──────────────────────────────────────────────
+
+  Future<List<UserAccount>> fetchAllUsers() async {
+    final rows = await _client
+        .from('profiles')
+        .select(
+          'id, full_name, username, user_type, is_superadmin, active, '
+          'citizen_profiles!citizen_profiles_id_fkey(verified)',
+        )
+        .order('full_name');
+    return [for (final row in rows) UserAccount.fromJson(row)];
+  }
+
+  Future<void> setCitizenVerified(String citizenId, bool verified) =>
+      _client.rpc(
+        'set_citizen_verified',
+        params: {'p_citizen_id': citizenId, 'p_verified': verified},
+      );
+
+  Future<void> setUserType(String userId, String userType) => _client.rpc(
+    'set_user_type',
+    params: {'p_user_id': userId, 'p_user_type': userType},
+  );
+
+  Future<void> setSuperadmin(String userId, bool isSuperadmin) => _client.rpc(
+    'set_superadmin',
+    params: {'p_user_id': userId, 'p_is_superadmin': isSuperadmin},
+  );
+
+  Future<void> setAccountActive(String userId, bool active) => _client.rpc(
+    'set_account_active',
+    params: {'p_user_id': userId, 'p_active': active},
+  );
+
+  // ── Audit log ──────────────────────────────────────────────────────
+
+  Future<List<AuditLogEntry>> fetchAuditLog() async {
+    final rows = await _client
+        .from('audit_log')
+        .select('id, action, target_type, target_id, detail, created_at, profiles(full_name)')
+        .order('created_at', ascending: false)
+        .limit(200);
+    return [for (final row in rows) AuditLogEntry.fromJson(row)];
+  }
+
+  // ── Broadcast announcements ───────────────────────────────────────
+
+  Future<void> broadcastAnnouncement({
+    required String title,
+    required String body,
+  }) => _client.rpc(
+    'broadcast_announcement',
+    params: {'p_title': title, 'p_body': body},
+  );
+
+  // ── App settings ───────────────────────────────────────────────────
+
+  Future<Map<String, String>> fetchAppSettings() async {
+    final rows = await _client.from('app_settings').select('key, value');
+    return {for (final row in rows) row['key'] as String: row['value'] as String};
+  }
+
+  Future<void> setAppSetting(String key, String value) => _client.rpc(
+    'set_app_setting',
+    params: {'p_key': key, 'p_value': value},
+  );
 }

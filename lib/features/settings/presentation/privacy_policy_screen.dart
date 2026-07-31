@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/utils/date_format.dart';
 import '../../../core/widgets/glossy_background.dart';
+import '../../admin/data/admin_providers.dart';
 import '../../auth/data/auth_providers.dart';
 import '../../items/data/items_providers.dart';
 import '../data/settings_models.dart';
@@ -21,6 +22,9 @@ class PrivacyPolicyScreen extends ConsumerWidget {
     final profile = ref.watch(myProfileProvider).value;
     final isStaff = ref.watch(isStaffProvider);
     final isCitizen = profile != null && !profile.isStaff;
+    final dataPolicyStatement =
+        ref.watch(appSettingsProvider).value?['data_policy_statement'] ??
+        AppConstants.dataPolicyStatement;
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -35,7 +39,7 @@ class PrivacyPolicyScreen extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(AppConstants.dataPolicyStatement),
+                    Text(dataPolicyStatement),
                     const SizedBox(height: 8),
                     Text(
                       'Photos are retained for up to 12 months and then '

@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../core/constants/app_constants.dart';
 import '../../../core/widgets/glossy_background.dart';
+import '../../admin/data/admin_providers.dart';
 import '../data/approvals_models.dart';
 import '../data/approvals_providers.dart';
 
@@ -112,10 +113,13 @@ class _EvidenceCaptureScreenState extends ConsumerState<EvidenceCaptureScreen> {
       final repo = ref.read(approvalsRepositoryProvider);
       final notes = _notesController.text.trim();
       if (isRelease) {
+        final settings = ref.read(appSettingsProvider).value;
         await repo.captureRelease(
           requestId: req.id,
           photos: _photos,
-          termsVersion: AppConstants.liabilityTermsVersion,
+          termsVersion:
+              settings?['liability_terms_version'] ??
+              AppConstants.liabilityTermsVersion,
           notes: notes.isEmpty ? null : notes,
         );
       } else {
@@ -145,6 +149,11 @@ class _EvidenceCaptureScreenState extends ConsumerState<EvidenceCaptureScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final settings = ref.watch(appSettingsProvider).value;
+    final termsVersion =
+        settings?['liability_terms_version'] ??
+        AppConstants.liabilityTermsVersion;
+    final termsText = settings?['liability_terms'] ?? AppConstants.liabilityTerms;
     return Scaffold(
       backgroundColor: Colors.transparent,
       appBar: AppBar(
@@ -200,13 +209,12 @@ class _EvidenceCaptureScreenState extends ConsumerState<EvidenceCaptureScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Liability terms '
-                            '(${AppConstants.liabilityTermsVersion})',
+                            'Liability terms ($termsVersion)',
                             style: Theme.of(context).textTheme.labelLarge,
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            AppConstants.liabilityTerms,
+                            termsText,
                             style: Theme.of(context).textTheme.bodySmall,
                           ),
                           CheckboxListTile(

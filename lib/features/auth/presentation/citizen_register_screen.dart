@@ -36,7 +36,7 @@ class CitizenRegisterScreen extends ConsumerStatefulWidget {
 class _CitizenRegisterScreenState extends ConsumerState<CitizenRegisterScreen> {
   final _formKey = GlobalKey<FormState>();
   final _fullNameController = TextEditingController();
-  final _emailController = TextEditingController();
+  final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
   final _contactController = TextEditingController();
   final _idNumberController = TextEditingController();
@@ -48,11 +48,21 @@ class _CitizenRegisterScreenState extends ConsumerState<CitizenRegisterScreen> {
   @override
   void dispose() {
     _fullNameController.dispose();
-    _emailController.dispose();
+    _usernameController.dispose();
     _passwordController.dispose();
     _contactController.dispose();
     _idNumberController.dispose();
     super.dispose();
+  }
+
+  static final _usernamePattern = RegExp(r'^[A-Za-z][A-Za-z0-9_]{2,19}$');
+
+  String? _validateUsername(String? v) {
+    final value = v?.trim() ?? '';
+    if (!_usernamePattern.hasMatch(value)) {
+      return '3-20 characters, start with a letter (letters, numbers, _)';
+    }
+    return null;
   }
 
   Future<void> _pickIdPhoto() async {
@@ -102,10 +112,20 @@ class _CitizenRegisterScreenState extends ConsumerState<CitizenRegisterScreen> {
     }
     setState(() => _submitting = true);
     try {
+      final username = _usernameController.text.trim();
+      final available = await ref
+          .read(authRepositoryProvider)
+          .isUsernameAvailable(username);
+      if (!available) {
+        messenger.showSnackBar(
+          const SnackBar(content: Text('That username is already taken.')),
+        );
+        return;
+      }
       await ref
           .read(authRepositoryProvider)
           .registerCitizen(
-            email: _emailController.text.trim(),
+            username: username,
             password: _passwordController.text,
             fullName: _fullNameController.text.trim(),
             contactNumber: _contactController.text.trim(),
@@ -157,12 +177,13 @@ class _CitizenRegisterScreenState extends ConsumerState<CitizenRegisterScreen> {
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
-                    controller: _emailController,
-                    decoration: const InputDecoration(labelText: 'Email'),
-                    keyboardType: TextInputType.emailAddress,
-                    validator: (v) => (v == null || !v.contains('@'))
-                        ? 'Enter a valid email'
-                        : null,
+                    controller: _usernameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Username',
+                      helperText: "You'll use this to log in — no email needed",
+                    ),
+                    autocorrect: false,
+                    validator: _validateUsername,
                   ),
                   const SizedBox(height: 16),
                   TextFormField(

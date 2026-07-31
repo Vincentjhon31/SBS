@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../app/router.dart';
 import '../../items/data/items_providers.dart';
@@ -30,6 +29,8 @@ class _InAppNotificationListenerState
   final _player = AudioPlayer();
   Set<String> _seenIds = {};
   bool _initialized = false;
+  final _pending = <AppNotification>[];
+  bool _dialogShowing = false;
 
   @override
   void dispose() {
@@ -64,53 +65,26 @@ class _InAppNotificationListenerState
       if (newOnes.isEmpty) return;
 
       unawaited(_player.play(AssetSource('conclusive-message-tone.mp3')));
-      for (final n in newOnes) {
-        _showBanner(n);
-      }
+      _pending.addAll(newOnes);
+      _showNextIfIdle();
     });
 
     return widget.child;
   }
 
-  void _showBanner(AppNotification notification) {
-    final messenger = ScaffoldMessenger.maybeOf(context);
-    if (messenger == null) return;
-    final icon = switch (notification.type) {
-      'request_approved' => Icons.check_circle_outline,
-      'request_rejected' => Icons.cancel_outlined,
-      'due_soon' => Icons.schedule,
-      'overdue' => Icons.warning_amber,
-      _ => Icons.notifications_outlined,
-    };
-    messenger.showSnackBar(
-      SnackBar(
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 5),
-        content: Row(
-          children: [
-            Icon(icon, color: Colors.white),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    notification.title,
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  Text(notification.body, maxLines: 2, overflow: TextOverflow.ellipsis),
-                ],
-              ),
-            ),
-          ],
-        ),
-        action: SnackBarAction(
-          label: 'View',
-          onPressed: () => _openNotification(notification),
-        ),
-      ),
-    );
+  void _showNextIfIdle() {
+    if (_dialogShowing || _pending.isEmpty) return;
+    final notification = _pending.removeAt(0);
+    _dialogShowing = true;
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => _NotificationDialog(notification: notification),
+    ).then((_) {
+      _dialogShowing = false;
+      if (!mounted) return;
+      _showNextIfIdle();
+    });
   }
 
   void _openNotification(AppNotification notification) {
@@ -118,12 +92,90 @@ class _InAppNotificationListenerState
       ref.read(notificationsActionsProvider).markRead(notification.id);
     }
     final isStaff = ref.read(isStaffProvider);
-    final router = GoRouter.maybeOf(context);
-    if (router == null) return;
-    if (isStaff && notification.type == 'overdue') {
+    final router = ref.read(routerProvider);
+    if (notification.type == 'announcement') {
+      router.go(AppRoutes.notifications);
+    } else if (isStaff && notification.type == 'overdue') {
       router.go(AppRoutes.approvals);
     } else {
       router.go(AppRoutes.requests);
     }
+  }
+}
+
+IconData _iconFor(String type) => switch (type) {
+  'request_approved' => Icons.check_circle_outline,
+  'request_rejected' => Icons.cancel_outlined,
+  'due_soon' => Icons.schedule,
+  'overdue' => Icons.warning_amber,
+  'announcement' => Icons.campaign_outlined,
+  _ => Icons.notifications_outlined,
+};
+
+/// Centered, non-auto-dismissing modal shown for each new notification —
+/// replaces the old SnackBar "toast" which was easy to miss. Multiple
+/// notifications arriving together are queued by the listener and shown
+/// one at a time rather than stacking.
+class _NotificationDialog extends StatelessWidget {
+  const _NotificationDialog({required this.notification});
+
+  final AppNotification notification;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 64,
+            height: 64,
+            decoration: BoxDecoration(
+              color: scheme.primaryContainer,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              _iconFor(notification.type),
+              size: 32,
+              color: scheme.onPrimaryContainer,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            notification.title,
+            textAlign: TextAlign.center,
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            notification.body,
+            textAlign: TextAlign.center,
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
+          ),
+        ],
+      ),
+      actionsAlignment: MainAxisAlignment.center,
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Dismiss'),
+        ),
+        FilledButton(
+          onPressed: () {
+            Navigator.pop(context);
+            context
+                .findAncestorStateOfType<_InAppNotificationListenerState>()
+                ?._openNotification(notification);
+          },
+          child: const Text('View'),
+        ),
+      ],
+    );
   }
 }

@@ -36,6 +36,7 @@ class Profile {
     required this.themeColor,
     required this.backgroundStyle,
     required this.isSuperadmin,
+    required this.active,
   });
 
   final String id;
@@ -54,6 +55,11 @@ class Profile {
   /// supabase/migrations/*_superadmin.sql.
   final bool isSuperadmin;
 
+  /// Reversible account deactivation (Users management) — false means
+  /// staff have disabled this account; [AccountActiveGate] force-signs
+  /// out and explains when this flips false under a live session.
+  final bool active;
+
   bool get isStaff => userType == 'staff';
 
   factory Profile.fromJson(Map<String, dynamic> json) => Profile(
@@ -63,6 +69,7 @@ class Profile {
         themeColor: json['theme_color'] as String? ?? 'blue',
         backgroundStyle: json['background_style'] as String? ?? 'glossy',
         isSuperadmin: json['is_superadmin'] as bool? ?? false,
+        active: json['active'] as bool? ?? true,
       );
 }
 

@@ -5,6 +5,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../features/admin/presentation/audit_log_screen.dart';
+import '../features/admin/presentation/broadcast_screen.dart';
+import '../features/admin/presentation/reports_screen.dart';
+import '../features/admin/presentation/system_settings_screen.dart';
+import '../features/admin/presentation/users_screen.dart';
 import '../features/approvals/data/approvals_models.dart';
 import '../features/approvals/presentation/approvals_screen.dart';
 import '../features/approvals/presentation/evidence_capture_screen.dart';
@@ -17,6 +22,7 @@ import '../features/borrowing/presentation/request_form_screen.dart';
 import '../features/borrowing/presentation/walkin_request_screen.dart';
 import '../features/home/presentation/home_screen.dart';
 import '../features/items/data/items_models.dart';
+import '../features/landing/presentation/landing_screen.dart';
 import '../features/items/presentation/departments_screen.dart';
 import '../features/items/presentation/item_calendar_screen.dart';
 import '../features/items/presentation/item_form_screen.dart';
@@ -32,6 +38,7 @@ import '../features/splash/presentation/splash_screen.dart';
 import 'app_shell.dart';
 
 abstract final class AppRoutes {
+  static const landing = '/';
   static const splash = '/splash';
   static const login = '/login';
   static const register = '/register';
@@ -43,6 +50,11 @@ abstract final class AppRoutes {
   static const itemEdit = '/items/edit';
   static const itemCalendar = '/items/calendar';
   static const departments = '/items/departments';
+  static const users = '/admin/users';
+  static const auditLog = '/admin/audit-log';
+  static const broadcast = '/admin/broadcast';
+  static const reports = '/admin/reports';
+  static const systemSettings = '/admin/settings';
   static const requests = '/requests';
   static const requestNew = '/requests/new';
   static const walkinNew = '/requests/walkin';
@@ -84,16 +96,27 @@ final routerProvider = Provider<GoRouter>((ref) {
     refreshListenable: refresh,
     redirect: (context, state) {
       final signedIn = session() != null;
+      // The marketing landing page only makes sense on web (native users
+      // already "installed" the app from somewhere and should go straight
+      // to sign-in) and only while signed out.
       final onAuthRoute =
           state.matchedLocation == AppRoutes.login ||
-          state.matchedLocation == AppRoutes.register;
-      if (!signedIn) return onAuthRoute ? null : AppRoutes.login;
+          state.matchedLocation == AppRoutes.register ||
+          (kIsWeb && state.matchedLocation == AppRoutes.landing);
+      if (!signedIn) {
+        if (onAuthRoute) return null;
+        return kIsWeb ? AppRoutes.landing : AppRoutes.login;
+      }
       if (onAuthRoute || state.matchedLocation == AppRoutes.splash) {
         return AppRoutes.home;
       }
       return null;
     },
     routes: [
+      GoRoute(
+        path: AppRoutes.landing,
+        builder: (context, state) => const LandingScreen(),
+      ),
       GoRoute(
         path: AppRoutes.splash,
         builder: (context, state) => const SplashScreen(),
@@ -198,6 +221,26 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.departments,
         builder: (context, state) => const DepartmentsScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.users,
+        builder: (context, state) => const UsersScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.auditLog,
+        builder: (context, state) => const AuditLogScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.broadcast,
+        builder: (context, state) => const BroadcastScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.reports,
+        builder: (context, state) => const ReportsScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.systemSettings,
+        builder: (context, state) => const SystemSettingsScreen(),
       ),
       GoRoute(
         path: AppRoutes.approvalDetail,

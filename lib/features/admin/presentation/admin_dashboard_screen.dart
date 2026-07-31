@@ -252,6 +252,30 @@ class _StaffQuickActions extends StatelessWidget {
         'Log a borrow for someone at the counter',
         AppRoutes.walkinNew,
       ),
+      (
+        Icons.group_outlined,
+        'Users',
+        'Verify citizens, deactivate accounts',
+        AppRoutes.users,
+      ),
+      (
+        Icons.campaign_outlined,
+        'Broadcast announcement',
+        'Notify every citizen at once',
+        AppRoutes.broadcast,
+      ),
+      (
+        Icons.history,
+        'Activity log',
+        'Who did what, and when',
+        AppRoutes.auditLog,
+      ),
+      (
+        Icons.summarize_outlined,
+        'Reports',
+        'Export borrow history, items, citizens',
+        AppRoutes.reports,
+      ),
     ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -273,11 +297,13 @@ class _StaffQuickActions extends StatelessWidget {
                   Card(
                     clipBehavior: Clip.antiAlias,
                     child: InkWell(
-                      // walk-in is a pushed route; the tab paths are shell
-                      // branches — go() handles both correctly.
-                      onTap: () => route == AppRoutes.walkinNew
-                          ? context.push(route)
-                          : context.go(route),
+                      // The tab paths (approvals/items) are shell branches
+                      // — go() switches tabs. Everything else is a pushed
+                      // route, so it needs push() to keep a way back.
+                      onTap: () =>
+                          route == AppRoutes.approvals || route == AppRoutes.items
+                              ? context.go(route)
+                              : context.push(route),
                       child: Padding(
                         padding: const EdgeInsets.all(16),
                         child: Row(
@@ -967,6 +993,46 @@ class _ShortcutsCard extends StatelessWidget {
             subtitle: const Text('In Settings — staff-wide queue'),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => context.push(AppRoutes.settings),
+          ),
+          const Divider(height: 1),
+          ListTile(
+            leading: const Icon(Icons.group_outlined),
+            title: const Text('Users'),
+            subtitle: const Text('Verify, promote, deactivate accounts'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.push(AppRoutes.users),
+          ),
+          const Divider(height: 1),
+          ListTile(
+            leading: const Icon(Icons.campaign_outlined),
+            title: const Text('Broadcast Announcement'),
+            subtitle: const Text('Notify every citizen at once'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.push(AppRoutes.broadcast),
+          ),
+          const Divider(height: 1),
+          ListTile(
+            leading: const Icon(Icons.history),
+            title: const Text('Activity Log'),
+            subtitle: const Text('Accountability trail for admin actions'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.push(AppRoutes.auditLog),
+          ),
+          const Divider(height: 1),
+          ListTile(
+            leading: const Icon(Icons.summarize_outlined),
+            title: const Text('Reports'),
+            subtitle: const Text('Export borrow history, items, citizens'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.push(AppRoutes.reports),
+          ),
+          const Divider(height: 1),
+          ListTile(
+            leading: const Icon(Icons.settings_suggest_outlined),
+            title: const Text('System Settings'),
+            subtitle: const Text('Edit liability terms and data policy text'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.push(AppRoutes.systemSettings),
           ),
         ],
       ),
