@@ -29,7 +29,7 @@ do $$
 begin
   begin
     perform public.release_item('77777777-0000-0000-0000-000000000001',
-      'p/b.jpg', 'p/i.jpg', false, 'v1');
+      array['p/b.jpg'], false, 'v1');
     raise exception 'FAIL: release accepted without liability acknowledgment';
   exception
     when raise_exception then
@@ -42,18 +42,33 @@ do $$
 begin
   begin
     perform public.release_item('77777777-0000-0000-0000-000000000001',
-      '', 'p/i.jpg', true, 'v1');
-    raise exception 'FAIL: release accepted without borrower photo';
+      array[]::text[], true, 'v1');
+    raise exception 'FAIL: release accepted without any photos';
   exception
     when raise_exception then
-      if sqlerrm not like '%photos are required%' then raise; end if;
+      if sqlerrm not like '%between 1 and 5 photos%' then raise; end if;
+  end;
+end $$;
+
+-- Release with more than 5 photos must fail.
+do $$
+begin
+  begin
+    perform public.release_item('77777777-0000-0000-0000-000000000001',
+      array['1.jpg','2.jpg','3.jpg','4.jpg','5.jpg','6.jpg'], true, 'v1');
+    raise exception 'FAIL: release accepted more than 5 photos';
+  exception
+    when raise_exception then
+      if sqlerrm not like '%between 1 and 5 photos%' then raise; end if;
   end;
 end $$;
 
 -- Proper release succeeds: evidence + ack + status flip.
 select public.release_item('77777777-0000-0000-0000-000000000001',
-  '77777777-0000-0000-0000-000000000001/release_borrower.jpg',
-  '77777777-0000-0000-0000-000000000001/release_item.jpg',
+  array[
+    '77777777-0000-0000-0000-000000000001/release_1.jpg',
+    '77777777-0000-0000-0000-000000000001/release_2.jpg'
+  ],
   true, 'v1', 'Minor scratch on left door noted at handoff');
 
 do $$
@@ -80,7 +95,7 @@ do $$
 begin
   begin
     perform public.release_item('77777777-0000-0000-0000-000000000001',
-      'x/b.jpg', 'x/i.jpg', true, 'v1');
+      array['x/b.jpg'], true, 'v1');
     raise exception 'FAIL: released the same request twice';
   exception
     when raise_exception then
@@ -90,8 +105,10 @@ end $$;
 
 -- Return closes the loop.
 select public.return_item('77777777-0000-0000-0000-000000000001',
-  '77777777-0000-0000-0000-000000000001/return_borrower.jpg',
-  '77777777-0000-0000-0000-000000000001/return_item.jpg',
+  array[
+    '77777777-0000-0000-0000-000000000001/return_1.jpg',
+    '77777777-0000-0000-0000-000000000001/return_2.jpg'
+  ],
   'Returned with same scratch, no new damage');
 
 do $$
@@ -109,7 +126,7 @@ end $$;
 
 -- Storage: approver may write into the request's evidence folder...
 insert into storage.objects (bucket_id, name, owner_id)
-values ('evidence-photos', '77777777-0000-0000-0000-000000000001/release_borrower.jpg', auth.uid()::text);
+values ('evidence-photos', '77777777-0000-0000-0000-000000000001/release_1.jpg', auth.uid()::text);
 
 -- ===== Borrower (Citizen G) sees their evidence =====
 set local request.jwt.claims = '{"sub":"99999999-aaaa-aaaa-aaaa-aaaaaaaaaaaa","role":"authenticated"}';
@@ -128,7 +145,7 @@ end $$;
 do $$
 begin
   begin
-    perform public.return_item('77777777-0000-0000-0000-000000000001', 'a', 'b');
+    perform public.return_item('77777777-0000-0000-0000-000000000001', array['a']);
     raise exception 'FAIL: borrower called return_item';
   exception
     when raise_exception then

@@ -10,8 +10,13 @@ import '../../../core/widgets/glossy_background.dart';
 import '../data/approvals_models.dart';
 import '../data/approvals_providers.dart';
 
+const _maxEvidencePhotos = 5;
+
 /// Captures evidence at release (photos + liability acknowledgment) or at
 /// return (photos + condition notes). Used by the Approver at handoff.
+///
+/// One combined set of up to 5 photos — e.g. the borrower photographed
+/// holding/using the item — rather than separate borrower/item shots.
 class EvidenceCaptureScreen extends ConsumerStatefulWidget {
   const EvidenceCaptureScreen({super.key, required this.args});
 
@@ -24,10 +29,7 @@ class EvidenceCaptureScreen extends ConsumerStatefulWidget {
 
 class _EvidenceCaptureScreenState extends ConsumerState<EvidenceCaptureScreen> {
   final _notesController = TextEditingController();
-  XFile? _borrowerPhoto;
-  Uint8List? _borrowerPhotoBytes;
-  XFile? _itemPhoto;
-  Uint8List? _itemPhotoBytes;
+  final List<Uint8List> _photos = [];
   bool _acknowledged = false;
   bool _busy = false;
 
@@ -40,7 +42,9 @@ class _EvidenceCaptureScreenState extends ConsumerState<EvidenceCaptureScreen> {
     super.dispose();
   }
 
-  Future<void> _pick(bool borrower) async {
+  Future<void> _addPhoto() async {
+    final remaining = _maxEvidencePhotos - _photos.length;
+    if (remaining <= 0) return;
     final source = await showModalBottomSheet<ImageSource>(
       context: context,
       builder: (context) => SafeArea(
@@ -62,6 +66,21 @@ class _EvidenceCaptureScreenState extends ConsumerState<EvidenceCaptureScreen> {
       ),
     );
     if (source == null) return;
+
+    if (source == ImageSource.gallery) {
+      final picked = await ImagePicker().pickMultiImage(
+        maxWidth: 1600,
+        imageQuality: 85,
+      );
+      if (picked.isEmpty) return;
+      final capped = picked.take(remaining);
+      final bytesList = await Future.wait(
+        [for (final f in capped) f.readAsBytes()],
+      );
+      setState(() => _photos.addAll(bytesList));
+      return;
+    }
+
     final picked = await ImagePicker().pickImage(
       source: source,
       maxWidth: 1600,
@@ -69,24 +88,14 @@ class _EvidenceCaptureScreenState extends ConsumerState<EvidenceCaptureScreen> {
     );
     if (picked == null) return;
     final bytes = await picked.readAsBytes();
-    setState(() {
-      if (borrower) {
-        _borrowerPhoto = picked;
-        _borrowerPhotoBytes = bytes;
-      } else {
-        _itemPhoto = picked;
-        _itemPhotoBytes = bytes;
-      }
-    });
+    setState(() => _photos.add(bytes));
   }
 
   Future<void> _submit() async {
     final messenger = ScaffoldMessenger.of(context);
-    if (_borrowerPhoto == null || _itemPhoto == null) {
+    if (_photos.isEmpty) {
       messenger.showSnackBar(
-        const SnackBar(
-          content: Text('Both borrower and item photos are required.'),
-        ),
+        const SnackBar(content: Text('At least one photo is required.')),
       );
       return;
     }
@@ -101,22 +110,18 @@ class _EvidenceCaptureScreenState extends ConsumerState<EvidenceCaptureScreen> {
     setState(() => _busy = true);
     try {
       final repo = ref.read(approvalsRepositoryProvider);
-      final borrowerBytes = _borrowerPhotoBytes!;
-      final itemBytes = _itemPhotoBytes!;
       final notes = _notesController.text.trim();
       if (isRelease) {
         await repo.captureRelease(
           requestId: req.id,
-          borrowerPhoto: borrowerBytes,
-          itemPhoto: itemBytes,
+          photos: _photos,
           termsVersion: AppConstants.liabilityTermsVersion,
           notes: notes.isEmpty ? null : notes,
         );
       } else {
         await repo.captureReturn(
           requestId: req.id,
-          borrowerPhoto: borrowerBytes,
-          itemPhoto: itemBytes,
+          photos: _photos,
           notes: notes.isEmpty ? null : notes,
         );
       }
@@ -157,19 +162,21 @@ class _EvidenceCaptureScreenState extends ConsumerState<EvidenceCaptureScreen> {
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
                 Text('Borrower: ${req.borrowerName}'),
-                const SizedBox(height: 24),
-                _PhotoButton(
-                  label: 'Borrower photo',
-                  subtitle: 'The person receiving/returning the item',
-                  photoBytes: _borrowerPhotoBytes,
-                  onTap: _busy ? null : () => _pick(true),
+                const SizedBox(height: 8),
+                Text(
+                  'Photos (${_photos.length}/$_maxEvidencePhotos) — e.g. the '
+                  'borrower holding or using the item',
+                  style: Theme.of(context).textTheme.bodySmall,
                 ),
                 const SizedBox(height: 12),
-                _PhotoButton(
-                  label: 'Item photo',
-                  subtitle: 'Current condition of the item',
-                  photoBytes: _itemPhotoBytes,
-                  onTap: _busy ? null : () => _pick(false),
+                _PhotoGrid(
+                  photos: _photos,
+                  onRemove: _busy
+                      ? null
+                      : (i) => setState(() => _photos.removeAt(i)),
+                  onAdd: _busy || _photos.length >= _maxEvidencePhotos
+                      ? null
+                      : _addPhoto,
                 ),
                 const SizedBox(height: 16),
                 TextField(
@@ -245,57 +252,91 @@ class _EvidenceCaptureScreenState extends ConsumerState<EvidenceCaptureScreen> {
   }
 }
 
-class _PhotoButton extends StatelessWidget {
-  const _PhotoButton({
-    required this.label,
-    required this.subtitle,
-    required this.photoBytes,
-    required this.onTap,
+class _PhotoGrid extends StatelessWidget {
+  const _PhotoGrid({
+    required this.photos,
+    required this.onRemove,
+    required this.onAdd,
   });
 
-  final String label;
-  final String subtitle;
-  final Uint8List? photoBytes;
+  final List<Uint8List> photos;
+  final void Function(int index)? onRemove;
+  final VoidCallback? onAdd;
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      children: [
+        for (final (i, photo) in photos.indexed)
+          _PhotoTile(photo: photo, onRemove: onRemove == null ? null : () => onRemove!(i)),
+        if (onAdd != null) _AddPhotoTile(onTap: onAdd),
+      ],
+    );
+  }
+}
+
+class _PhotoTile extends StatelessWidget {
+  const _PhotoTile({required this.photo, required this.onRemove});
+
+  final Uint8List photo;
+  final VoidCallback? onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 100,
+      height: 100,
+      child: Stack(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: Image.memory(
+              photo,
+              width: 100,
+              height: 100,
+              fit: BoxFit.cover,
+            ),
+          ),
+          if (onRemove != null)
+            Positioned(
+              top: 2,
+              right: 2,
+              child: GestureDetector(
+                onTap: onRemove,
+                child: const CircleAvatar(
+                  radius: 12,
+                  backgroundColor: Colors.black87,
+                  child: Icon(Icons.close, size: 14, color: Colors.white),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AddPhotoTile extends StatelessWidget {
+  const _AddPhotoTile({required this.onTap});
+
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    final done = photoBytes != null;
     final scheme = Theme.of(context).colorScheme;
-    if (!done) {
-      return Card(
-        margin: EdgeInsets.zero,
-        child: ListTile(
-          leading: const Icon(Icons.add_a_photo_outlined),
-          title: Text(label),
-          subtitle: Text(subtitle),
-          onTap: onTap,
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        width: 100,
+        height: 100,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: scheme.outlineVariant),
         ),
-      );
-    }
-    return Card(
-      margin: EdgeInsets.zero,
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Image.memory(
-              photoBytes!,
-              height: 180,
-              width: double.infinity,
-              fit: BoxFit.cover,
-            ),
-            ListTile(
-              leading: Icon(Icons.check_circle, color: scheme.primary),
-              title: Text(label),
-              subtitle: const Text('Photo captured — tap to retake'),
-              trailing: const Icon(Icons.edit),
-              onTap: onTap,
-            ),
-          ],
-        ),
+        child: Icon(Icons.add_a_photo_outlined, color: scheme.primary),
       ),
     );
   }

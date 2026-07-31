@@ -67,6 +67,7 @@ class Item {
     this.referencePhotoPath,
     required this.active,
     required this.quantity,
+    this.needsReview = false,
   });
 
   final String id;
@@ -77,6 +78,11 @@ class Item {
   final String? departmentName;
   final String? referencePhotoPath;
   final bool active;
+
+  /// True for a citizen-typed item that isn't fully catalogued yet (no
+  /// category/department/photo review) — cleared automatically the next
+  /// time staff edit the item.
+  final bool needsReview;
 
   /// Total physical units of this item (e.g. "5 folding chairs"). 1 for a
   /// one-of-a-kind item — the common case, and the only case before
@@ -100,5 +106,6 @@ class Item {
         referencePhotoPath: json['reference_photo_path'] as String?,
         active: json['active'] as bool? ?? true,
         quantity: json['quantity'] as int? ?? 1,
+        needsReview: json['needs_review'] as bool? ?? false,
       );
 }

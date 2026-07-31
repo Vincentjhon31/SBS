@@ -79,15 +79,15 @@ class PendingApproval {
 class EvidenceRecord {
   const EvidenceRecord({
     required this.stage,
-    required this.borrowerPhotoUrl,
-    required this.itemPhotoUrl,
+    required this.photoUrls,
     this.conditionNotes,
     required this.capturedAt,
   });
 
   final String stage;
-  final String borrowerPhotoUrl;
-  final String itemPhotoUrl;
+
+  /// Up to 5 photos, in capture order — no borrower/item distinction.
+  final List<String> photoUrls;
   final String? conditionNotes;
   final DateTime capturedAt;
 }

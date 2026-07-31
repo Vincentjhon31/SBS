@@ -108,13 +108,62 @@ class _RequestFormScreenState extends ConsumerState<RequestFormScreen> {
     setState(() => _return = picked);
   }
 
+  /// Resolves the item to request: the picked suggestion, an existing item
+  /// whose name matches the typed text exactly (case-insensitive — covers
+  /// "didn't click the suggestion but typed the same name"), or a brand
+  /// new item created on the spot (confirmed first, since this permanently
+  /// adds to the shared registry).
+  Future<Item?> _resolveItem(List<Item> activeItems) async {
+    if (_selectedItem != null) return _selectedItem;
+
+    final typed = _itemController.text.trim();
+    if (typed.isEmpty) return null;
+
+    for (final item in activeItems) {
+      if (item.displayName.toLowerCase() == typed.toLowerCase()) {
+        return item;
+      }
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Add a new item?'),
+        content: Text(
+          '"$typed" isn\'t in the catalog yet. Add it and request it — '
+          'staff will review it.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Add & request'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return null;
+
+    return ref.read(itemsRepositoryProvider).createItem(name: typed);
+  }
+
   Future<void> _submit() async {
     final messenger = ScaffoldMessenger.of(context);
     if (!_formKey.currentState!.validate()) return;
-    if (_selectedItem == null) {
-      messenger.showSnackBar(
-        const SnackBar(content: Text('Select an item from the list.')),
-      );
+    final activeItems = [
+      for (final item in ref.read(itemsProvider).value ?? const <Item>[])
+        if (item.active) item,
+    ];
+    final item = await _resolveItem(activeItems);
+    if (item == null) {
+      if (_selectedItem == null && _itemController.text.trim().isEmpty) {
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Enter the item you want to borrow.')),
+        );
+      }
       return;
     }
     if (_useFrom == null || _useTo == null || _return == null) {
@@ -130,7 +179,7 @@ class _RequestFormScreenState extends ConsumerState<RequestFormScreen> {
       await ref
           .read(borrowRepositoryProvider)
           .createRequest(
-            itemId: _selectedItem!.id,
+            itemId: item.id,
             from: _pickup!,
             to: _return!,
             useFrom: _useFrom,
@@ -213,12 +262,15 @@ class _RequestFormScreenState extends ConsumerState<RequestFormScreen> {
                               decoration: InputDecoration(
                                 labelText: 'Item',
                                 hintText: 'Start typing — e.g. Multicab',
+                                helperText: 'Not in the list? Type the '
+                                    'item\'s name — staff will review it.',
+                                helperMaxLines: 2,
                                 suffixIcon: _selectedItem != null
                                     ? const Icon(Icons.check_circle)
                                     : const Icon(Icons.search),
                               ),
-                              validator: (v) => _selectedItem == null
-                                  ? 'Pick an item from the suggestions'
+                              validator: (v) => (v == null || v.trim().isEmpty)
+                                  ? 'Enter the item you want to borrow'
                                   : null,
                               onChanged: (v) {
                                 if (_selectedItem != null &&

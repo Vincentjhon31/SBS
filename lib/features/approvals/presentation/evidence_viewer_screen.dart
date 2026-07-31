@@ -136,21 +136,12 @@ class _StageCard extends StatelessWidget {
                 ),
               )
             else ...[
-              Row(
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
                 children: [
-                  Expanded(
-                    child: _EvidencePhoto(
-                      label: 'Borrower',
-                      url: record!.borrowerPhotoUrl,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _EvidencePhoto(
-                      label: 'Item',
-                      url: record!.itemPhotoUrl,
-                    ),
-                  ),
+                  for (final url in record!.photoUrls)
+                    _EvidencePhoto(url: url),
                 ],
               ),
               const SizedBox(height: 10),
@@ -192,50 +183,43 @@ class _StageCard extends StatelessWidget {
 }
 
 class _EvidencePhoto extends StatelessWidget {
-  const _EvidencePhoto({required this.label, required this.url});
+  const _EvidencePhoto({required this.url});
 
-  final String label;
   final String url;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: Theme.of(context).textTheme.labelMedium),
-        const SizedBox(height: 4),
-        GestureDetector(
-          onTap: () => showFullImage(context, url),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: AspectRatio(
-              aspectRatio: 3 / 4,
-              child: Image.network(
-                url,
-                fit: BoxFit.cover,
-                loadingBuilder: (context, child, progress) => progress == null
-                    ? child
-                    : Container(
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.surfaceContainerHighest,
-                        alignment: Alignment.center,
-                        child: const SizedBox(
-                          width: 22,
-                          height: 22,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
-                      ),
-                errorBuilder: (context, e, s) => Container(
-                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                  alignment: Alignment.center,
-                  child: const Icon(Icons.broken_image_outlined),
-                ),
-              ),
+    return GestureDetector(
+      onTap: () => showFullImage(context, url),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(10),
+        child: SizedBox(
+          width: 100,
+          height: 100,
+          child: Image.network(
+            url,
+            fit: BoxFit.cover,
+            loadingBuilder: (context, child, progress) => progress == null
+                ? child
+                : Container(
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.surfaceContainerHighest,
+                    alignment: Alignment.center,
+                    child: const SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  ),
+            errorBuilder: (context, e, s) => Container(
+              color: Theme.of(context).colorScheme.surfaceContainerHighest,
+              alignment: Alignment.center,
+              child: const Icon(Icons.broken_image_outlined),
             ),
           ),
         ),
-      ],
+      ),
     );
   }
 }

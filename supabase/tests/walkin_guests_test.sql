@@ -113,8 +113,9 @@ begin
     raise exception 'FAIL: indefinite walk-in loan not created/approved correctly';
   end if;
 
-  -- Release it (existing Phase 6 RPC — unmodified, must work unchanged).
-  perform public.release_item(req_id, 'x/b.jpg', 'x/i.jpg', true, 'v1');
+  -- Release it (existing Phase 6 RPC — must still work with the new
+  -- multi-photo signature).
+  perform public.release_item(req_id, array['x/b.jpg'], true, 'v1');
   if not exists (select 1 from public.borrow_requests where id = req_id and status = 'released') then
     raise exception 'FAIL: indefinite walk-in loan did not release';
   end if;

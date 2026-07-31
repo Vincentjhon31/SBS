@@ -314,7 +314,7 @@ class _ItemTable extends StatelessWidget {
           SbsRow(
             onTap: isStaff
                 ? () => context.push(AppRoutes.itemEdit, extra: item)
-                : null,
+                : () => context.push(AppRoutes.requestNew, extra: item),
             cells: [
               Row(
                 mainAxisSize: MainAxisSize.min,
@@ -332,6 +332,10 @@ class _ItemTable extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
+                  if (isStaff && item.needsReview) ...[
+                    const SizedBox(width: 6),
+                    const _NeedsReviewBadge(),
+                  ],
                 ],
               ),
               item.category != null && item.category!.trim().isNotEmpty
@@ -407,7 +411,7 @@ class _ItemRow extends StatelessWidget {
       child: InkWell(
         onTap: isStaff
             ? () => context.push(AppRoutes.itemEdit, extra: item)
-            : null,
+            : () => context.push(AppRoutes.requestNew, extra: item),
         child: Padding(
           padding: const EdgeInsets.all(10),
           child: Row(
@@ -435,6 +439,8 @@ class _ItemRow extends StatelessWidget {
                       spacing: 6,
                       runSpacing: 4,
                       children: [
+                        if (isStaff && item.needsReview)
+                          const _NeedsReviewBadge(),
                         if (item.category != null &&
                             item.category!.trim().isNotEmpty)
                           CategoryBadge(category: item.category),
@@ -503,7 +509,7 @@ class _ItemCard extends StatelessWidget {
       child: InkWell(
         onTap: isStaff
             ? () => context.push(AppRoutes.itemEdit, extra: item)
-            : null,
+            : () => context.push(AppRoutes.requestNew, extra: item),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -531,6 +537,10 @@ class _ItemCard extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
+                      if (isStaff && item.needsReview) ...[
+                        const _NeedsReviewBadge(),
+                        const SizedBox(width: 4),
+                      ],
                       IconButton(
                         tooltip: 'Reservation calendar',
                         icon: const Icon(Icons.calendar_month_outlined),
@@ -594,6 +604,34 @@ class _ItemCardBody extends StatelessWidget {
         else if (status != null)
           ItemStatusChip(status: status!.status, quantity: status!.quantity, availableCount: status!.availableCount),
       ],
+    );
+  }
+}
+
+/// Staff-only marker for a citizen-typed item that hasn't been reviewed
+/// yet (category/department/photo) — clears automatically once staff edit
+/// the item.
+class _NeedsReviewBadge extends StatelessWidget {
+  const _NeedsReviewBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: 'Added by a citizen request — needs a look',
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        decoration: BoxDecoration(
+          color: Colors.amber.withValues(alpha: 0.25),
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Text(
+          'New',
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            color: Colors.amber.shade900,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
     );
   }
 }

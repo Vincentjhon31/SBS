@@ -77,11 +77,11 @@ class ApprovalsRepository {
   Future<String> _uploadEvidencePhoto(
     String requestId,
     String stage,
-    String kind,
+    int index,
     Uint8List bytes,
     String contentType,
   ) async {
-    final path = '$requestId/${stage}_$kind.jpg';
+    final path = '$requestId/${stage}_$index.jpg';
     await _client.storage.from('evidence-photos').uploadBinary(
           path,
           bytes,
@@ -90,24 +90,34 @@ class ApprovalsRepository {
     return path;
   }
 
-  /// Uploads both photos, then atomically records evidence + liability
+  Future<List<String>> _uploadEvidencePhotos(
+    String requestId,
+    String stage,
+    List<Uint8List> photos,
+    String contentType,
+  ) async {
+    final paths = <String>[];
+    for (var i = 0; i < photos.length; i++) {
+      paths.add(await _uploadEvidencePhoto(
+          requestId, stage, i + 1, photos[i], contentType));
+    }
+    return paths;
+  }
+
+  /// Uploads up to 5 photos, then atomically records evidence + liability
   /// acknowledgment + status flip via the release_item RPC.
   Future<void> captureRelease({
     required String requestId,
-    required Uint8List borrowerPhoto,
-    required Uint8List itemPhoto,
+    required List<Uint8List> photos,
     required String termsVersion,
     String? notes,
     String contentType = 'image/jpeg',
   }) async {
-    final borrowerPath = await _uploadEvidencePhoto(
-        requestId, 'release', 'borrower', borrowerPhoto, contentType);
-    final itemPath = await _uploadEvidencePhoto(
-        requestId, 'release', 'item', itemPhoto, contentType);
+    final paths =
+        await _uploadEvidencePhotos(requestId, 'release', photos, contentType);
     await _client.rpc('release_item', params: {
       'req': requestId,
-      'borrower_photo': borrowerPath,
-      'item_photo': itemPath,
+      'photos': paths,
       'acknowledged': true,
       'terms_version': termsVersion,
       'notes': notes,
@@ -116,19 +126,15 @@ class ApprovalsRepository {
 
   Future<void> captureReturn({
     required String requestId,
-    required Uint8List borrowerPhoto,
-    required Uint8List itemPhoto,
+    required List<Uint8List> photos,
     String? notes,
     String contentType = 'image/jpeg',
   }) async {
-    final borrowerPath = await _uploadEvidencePhoto(
-        requestId, 'return', 'borrower', borrowerPhoto, contentType);
-    final itemPath = await _uploadEvidencePhoto(
-        requestId, 'return', 'item', itemPhoto, contentType);
+    final paths =
+        await _uploadEvidencePhotos(requestId, 'return', photos, contentType);
     await _client.rpc('return_item', params: {
       'req': requestId,
-      'borrower_photo': borrowerPath,
-      'item_photo': itemPath,
+      'photos': paths,
       'notes': notes,
     });
   }
@@ -142,12 +148,13 @@ class ApprovalsRepository {
     final storage = _client.storage.from('evidence-photos');
     final records = <EvidenceRecord>[];
     for (final row in rows) {
+      final paths = (row['photo_paths'] as List).cast<String>();
+      final urls = [
+        for (final path in paths) await storage.createSignedUrl(path, 3600),
+      ];
       records.add(EvidenceRecord(
         stage: row['stage'] as String,
-        borrowerPhotoUrl: await storage.createSignedUrl(
-            row['borrower_photo_path'] as String, 3600),
-        itemPhotoUrl: await storage.createSignedUrl(
-            row['item_photo_path'] as String, 3600),
+        photoUrls: urls,
         conditionNotes: row['condition_notes'] as String?,
         capturedAt: DateTime.parse(row['captured_at'] as String).toLocal(),
       ));

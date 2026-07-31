@@ -14,11 +14,11 @@ insert into public.borrow_requests (id, item_id, borrower_id, borrower_type, pur
 select '44444444-a000-0000-0000-000000000001', id, '99999999-eeee-eeee-eeee-eeeeeeeeeeee', 'citizen', 'Old loan', now() - interval '400 days', now() - interval '399 days'
 from public.items where name = 'Multicab';
 
-insert into public.borrow_evidence (borrow_request_id, stage, borrower_photo_path, item_photo_path, captured_by, captured_at)
+insert into public.borrow_evidence (borrow_request_id, stage, photo_paths, captured_by, captured_at)
 values (
   '44444444-a000-0000-0000-000000000001', 'release',
-  '44444444-a000-0000-0000-000000000001/release_borrower.jpg',
-  '44444444-a000-0000-0000-000000000001/release_item.jpg',
+  array['44444444-a000-0000-0000-000000000001/release_borrower.jpg',
+        '44444444-a000-0000-0000-000000000001/release_item.jpg'],
   '11111111-1111-1111-1111-111111111111',
   now() - interval '400 days'
 );
@@ -28,11 +28,11 @@ insert into public.borrow_requests (id, item_id, borrower_id, borrower_type, pur
 select '44444444-a000-0000-0000-000000000002', id, '99999999-eeee-eeee-eeee-eeeeeeeeeeee', 'citizen', 'Recent loan', now() - interval '5 days', now() - interval '4 days'
 from public.items where name = 'Sound System';
 
-insert into public.borrow_evidence (borrow_request_id, stage, borrower_photo_path, item_photo_path, captured_by, captured_at)
+insert into public.borrow_evidence (borrow_request_id, stage, photo_paths, captured_by, captured_at)
 values (
   '44444444-a000-0000-0000-000000000002', 'release',
-  '44444444-a000-0000-0000-000000000002/release_borrower.jpg',
-  '44444444-a000-0000-0000-000000000002/release_item.jpg',
+  array['44444444-a000-0000-0000-000000000002/release_borrower.jpg',
+        '44444444-a000-0000-0000-000000000002/release_item.jpg'],
   '11111111-1111-1111-1111-111111111111',
   now() - interval '5 days'
 );
@@ -52,13 +52,12 @@ do $$
 begin
   if exists (select 1 from borrow_evidence
              where borrow_request_id = '44444444-a000-0000-0000-000000000001'
-               and (borrower_photo_path is not null or item_photo_path is not null
-                    or purged_at is null)) then
+               and (cardinality(photo_paths) > 0 or purged_at is null)) then
     raise exception 'FAIL: old evidence photos were not purged';
   end if;
   if not exists (select 1 from borrow_evidence
                  where borrow_request_id = '44444444-a000-0000-0000-000000000002'
-                   and borrower_photo_path is not null and purged_at is null) then
+                   and cardinality(photo_paths) > 0 and purged_at is null) then
     raise exception 'FAIL: recent evidence was incorrectly purged';
   end if;
   -- ID photo: citizen's most recent activity is the -4-day request, well
