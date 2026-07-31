@@ -10,6 +10,7 @@ import '../../../core/utils/category_color.dart';
 import '../../../core/utils/date_format.dart';
 import '../../../core/widgets/category_badge.dart';
 import '../../../core/widgets/full_image_viewer.dart';
+import '../../../core/widgets/glossy_background.dart';
 import '../../../core/widgets/item_status_chip.dart';
 import '../../../core/widgets/sbs_table.dart';
 import '../data/items_models.dart';
@@ -75,7 +76,23 @@ class _ItemsScreenState extends ConsumerState<ItemsScreen> {
               label: const Text('Add item'),
             )
           : null,
-      body: Column(
+      // Reached as the "Items" tab, this lives inside the shell's own
+      // GlossyBackground already — but the Borrow/Schedule browsing
+      // screens are pushed on top of the shell (not nested in it), so
+      // they need to paint their own backdrop or the shell's shows
+      // through as plain black.
+      body: widget.flowFilter != null
+          ? GlossyBackground(child: _buildBody(items, statuses, isStaff))
+          : _buildBody(items, statuses, isStaff),
+    );
+  }
+
+  Widget _buildBody(
+    AsyncValue<List<Item>> items,
+    Map<String, ItemStatus> statuses,
+    bool isStaff,
+  ) {
+    return Column(
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
@@ -143,8 +160,7 @@ class _ItemsScreenState extends ConsumerState<ItemsScreen> {
             ),
           ),
         ],
-      ),
-    );
+      );
   }
 
   List<Item> _flowScoped(List<Item> all) => [
