@@ -76,6 +76,7 @@ class ItemsRepository {
     String? category,
     String? owningDepartmentId,
     int quantity = 1,
+    ItemFlowType flowType = ItemFlowType.borrow,
   }) async {
     final row = await _client
         .from('items')
@@ -85,6 +86,7 @@ class ItemsRepository {
           'category': _nullIfBlank(category),
           'owning_department_id': owningDepartmentId,
           'quantity': quantity,
+          'flow_type': flowType.toJson(),
           'created_by': _client.auth.currentUser!.id,
         })
         .select('*, departments(name)')
@@ -100,6 +102,7 @@ class ItemsRepository {
     String? owningDepartmentId,
     required bool active,
     required int quantity,
+    required ItemFlowType flowType,
   }) async {
     await _client.from('items').update({
       'name': name.trim(),
@@ -108,6 +111,7 @@ class ItemsRepository {
       'owning_department_id': owningDepartmentId,
       'active': active,
       'quantity': quantity,
+      'flow_type': flowType.toJson(),
     }).eq('id', id);
   }
 

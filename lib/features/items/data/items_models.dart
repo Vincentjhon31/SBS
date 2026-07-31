@@ -56,6 +56,19 @@ class ItemStatus {
       );
 }
 
+/// "Borrow" = equipment/tools taken away and returned; "schedule" =
+/// venues/vehicles reserved for use. Explicit per-item field rather than
+/// inferred from the free-text category (which has no fixed taxonomy).
+enum ItemFlowType {
+  borrow,
+  schedule;
+
+  static ItemFlowType fromJson(String? value) =>
+      value == 'schedule' ? ItemFlowType.schedule : ItemFlowType.borrow;
+
+  String toJson() => name;
+}
+
 class Item {
   const Item({
     required this.id,
@@ -68,6 +81,7 @@ class Item {
     required this.active,
     required this.quantity,
     this.needsReview = false,
+    this.flowType = ItemFlowType.borrow,
   });
 
   final String id;
@@ -89,6 +103,8 @@ class Item {
   /// inventory support existed.
   final int quantity;
 
+  final ItemFlowType flowType;
+
   /// "Multicab (SKA-1234)" — the human identity of the item.
   String get displayName =>
       distinguishingTag == null || distinguishingTag!.isEmpty
@@ -107,5 +123,6 @@ class Item {
         active: json['active'] as bool? ?? true,
         quantity: json['quantity'] as int? ?? 1,
         needsReview: json['needs_review'] as bool? ?? false,
+        flowType: ItemFlowType.fromJson(json['flow_type'] as String?),
       );
 }

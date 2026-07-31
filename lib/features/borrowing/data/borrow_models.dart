@@ -58,16 +58,27 @@ class BorrowRequest {
 }
 
 class ReservedWindow {
-  const ReservedWindow({required this.from, required this.to});
+  const ReservedWindow({
+    required this.from,
+    required this.to,
+    required this.quantityRequested,
+  });
 
   final DateTime from;
-  final DateTime to;
+
+  /// Null for an open-ended walk-in loan (no due date) — never ends, so it
+  /// overlaps everything from [from] onward.
+  final DateTime? to;
+  final int quantityRequested;
 
   bool overlaps(DateTime start, DateTime end) =>
-      start.isBefore(to) && end.isAfter(from);
+      start.isBefore(to ?? DateTime(9999)) && end.isAfter(from);
 
   factory ReservedWindow.fromJson(Map<String, dynamic> json) => ReservedWindow(
         from: DateTime.parse(json['reserved_from'] as String).toLocal(),
-        to: DateTime.parse(json['reserved_to'] as String).toLocal(),
+        to: json['reserved_to'] == null
+            ? null
+            : DateTime.parse(json['reserved_to'] as String).toLocal(),
+        quantityRequested: json['quantity_requested'] as int? ?? 1,
       );
 }

@@ -28,6 +28,7 @@ class BorrowRepository {
     required String purpose,
     DateTime? useFrom,
     DateTime? useTo,
+    int quantityRequested = 1,
   }) async {
     await _client.from('borrow_requests').insert({
       'item_id': itemId,
@@ -39,6 +40,7 @@ class BorrowRepository {
       'requested_to': to.toUtc().toIso8601String(),
       if (useFrom != null) 'use_from': useFrom.toUtc().toIso8601String(),
       if (useTo != null) 'use_to': useTo.toUtc().toIso8601String(),
+      'quantity_requested': quantityRequested,
     });
   }
 

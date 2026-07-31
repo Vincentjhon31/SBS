@@ -32,22 +32,54 @@ class _RequestFormScreenState extends ConsumerState<RequestFormScreen> {
   );
   final _purposeController = TextEditingController();
   late Item? _selectedItem = widget.preselectedItem;
+  int _quantity = 1;
 
   // The event/use window the borrower actually needs the item for.
   DateTime? _useFrom;
   DateTime? _useTo;
-  // Pickup choice (relative to _useFrom) and the return date/time.
+  // Pickup choice (relative to _useFrom), an independently-chosen pickup
+  // time, and the return date/time.
   _PickupWhen _pickupWhen = _PickupWhen.sameDay;
+  TimeOfDay? _pickupTime;
+  // Whether the borrower explicitly chose a pickup time (vs. it just
+  // defaulting to match the use-start time) — controls whether we keep
+  // re-syncing it automatically as other fields change.
+  bool _pickupTimeManuallySet = false;
   DateTime? _return;
   bool _submitting = false;
 
-  /// Derived availability start: pickup is the use-start, or the calendar
-  /// day before it (keeping the same time-of-day).
+  /// Derived pickup moment: the use-start date, or the calendar day
+  /// before it, combined with the independently-chosen pickup time.
   DateTime? get _pickup {
     if (_useFrom == null) return null;
-    return _pickupWhen == _PickupWhen.dayBefore
+    final date = _pickupWhen == _PickupWhen.dayBefore
         ? _useFrom!.subtract(const Duration(days: 1))
         : _useFrom!;
+    final time = _pickupTime ?? TimeOfDay.fromDateTime(_useFrom!);
+    return DateTime(date.year, date.month, date.day, time.hour, time.minute);
+  }
+
+  /// Null when the pickup time is valid for the current day-choice;
+  /// otherwise the reason it isn't — the DB requires pickup ≤ use-start,
+  /// and the gap between them to stay within 1 day.
+  String? get _pickupTimeError {
+    if (_useFrom == null) return null;
+    final useTime = TimeOfDay.fromDateTime(_useFrom!);
+    final time = _pickupTime ?? useTime;
+    final useMinutes = useTime.hour * 60 + useTime.minute;
+    final pickupMinutes = time.hour * 60 + time.minute;
+    if (_pickupWhen == _PickupWhen.sameDay) {
+      if (pickupMinutes > useMinutes) {
+        return 'Pickup time must be at or before '
+            '${_formatTime(useTime)} (when use starts).';
+      }
+    } else {
+      if (pickupMinutes < useMinutes) {
+        return 'Pickup time must be at or after ${_formatTime(useTime)} '
+            'to stay within 1 day of use-start.';
+      }
+    }
+    return null;
   }
 
   @override
@@ -73,12 +105,9 @@ class _RequestFormScreenState extends ConsumerState<RequestFormScreen> {
     return DateTime(date.year, date.month, date.day, time.hour, time.minute);
   }
 
-  /// Booking must be at least one day ahead so staff can review before
-  /// pickup — so the earliest selectable use-start is tomorrow.
-  DateTime get _earliestUse {
-    final t = DateTime.now().add(const Duration(days: 1));
-    return DateTime(t.year, t.month, t.day);
-  }
+  /// Same-day requests are allowed — the earliest selectable use-start is
+  /// right now.
+  DateTime get _earliestUse => DateTime.now();
 
   Future<void> _pickUseFrom() async {
     final picked = await _pickDateTime(_useFrom ?? _earliestUse, _earliestUse);
@@ -88,8 +117,27 @@ class _RequestFormScreenState extends ConsumerState<RequestFormScreen> {
       // Keep use-end and return consistent with the new start.
       if (_useTo == null || _useTo!.isBefore(picked)) _useTo = picked;
       if (_return == null || _return!.isBefore(_useTo!)) _return = _useTo;
+      // Keep the pickup time following use-start unless the borrower has
+      // deliberately chosen a different one.
+      if (!_pickupTimeManuallySet) _pickupTime = TimeOfDay.fromDateTime(picked);
     });
   }
+
+  Future<void> _pickPickupTime() async {
+    if (_useFrom == null) return;
+    final time = await showTimePicker(
+      context: context,
+      initialTime: _pickupTime ?? TimeOfDay.fromDateTime(_useFrom!),
+    );
+    if (time == null) return;
+    setState(() {
+      _pickupTime = time;
+      _pickupTimeManuallySet = true;
+    });
+  }
+
+  static String _formatTime(TimeOfDay time) =>
+      formatTime12h(DateTime(2024, 1, 1, time.hour, time.minute));
 
   Future<void> _pickUseTo() async {
     if (_useFrom == null) return;
@@ -174,6 +222,10 @@ class _RequestFormScreenState extends ConsumerState<RequestFormScreen> {
       );
       return;
     }
+    if (_pickupTimeError != null) {
+      messenger.showSnackBar(SnackBar(content: Text(_pickupTimeError!)));
+      return;
+    }
     setState(() => _submitting = true);
     try {
       await ref
@@ -185,6 +237,7 @@ class _RequestFormScreenState extends ConsumerState<RequestFormScreen> {
             useFrom: _useFrom,
             useTo: _useTo,
             purpose: _purposeController.text,
+            quantityRequested: _quantity,
           );
       ref.invalidate(myRequestsProvider);
       messenger.showSnackBar(
@@ -222,13 +275,16 @@ class _RequestFormScreenState extends ConsumerState<RequestFormScreen> {
     // multi-unit item, only once overlapping reservations would already
     // fill every unit (the server has the final say either way; this is
     // just an early warning).
-    final overlappingCount = _pickup == null || _return == null
+    final overlappingQuantity = _pickup == null || _return == null
         ? 0
-        : windows?.where((w) => w.overlaps(_pickup!, _return!)).length ?? 0;
+        : windows
+                ?.where((w) => w.overlaps(_pickup!, _return!))
+                .fold<int>(0, (sum, w) => sum + w.quantityRequested) ??
+            0;
     final hasConflict =
         _pickup != null &&
         _return != null &&
-        overlappingCount >= (_selectedItem?.quantity ?? 1);
+        overlappingQuantity + _quantity > (_selectedItem?.quantity ?? 1);
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -253,7 +309,10 @@ class _RequestFormScreenState extends ConsumerState<RequestFormScreen> {
                         (item) => item.displayName.toLowerCase().contains(q),
                       );
                     },
-                    onSelected: (item) => setState(() => _selectedItem = item),
+                    onSelected: (item) => setState(() {
+                      _selectedItem = item;
+                      _quantity = _quantity.clamp(1, item.quantity);
+                    }),
                     fieldViewBuilder:
                         (context, controller, focusNode, onSubmit) =>
                             TextFormField(
@@ -275,7 +334,10 @@ class _RequestFormScreenState extends ConsumerState<RequestFormScreen> {
                               onChanged: (v) {
                                 if (_selectedItem != null &&
                                     v != _selectedItem!.displayName) {
-                                  setState(() => _selectedItem = null);
+                                  setState(() {
+                                    _selectedItem = null;
+                                    _quantity = 1;
+                                  });
                                 }
                               },
                             ),
@@ -302,6 +364,14 @@ class _RequestFormScreenState extends ConsumerState<RequestFormScreen> {
                       ),
                     ),
                   ),
+                  if (_selectedItem != null && _selectedItem!.quantity > 1) ...[
+                    const SizedBox(height: 12),
+                    _QuantityStepper(
+                      value: _quantity,
+                      max: _selectedItem!.quantity,
+                      onChanged: (v) => setState(() => _quantity = v),
+                    ),
+                  ],
                   const SizedBox(height: 16),
                   Text(
                     'When will you use it?',
@@ -319,9 +389,6 @@ class _RequestFormScreenState extends ConsumerState<RequestFormScreen> {
                             _useFrom == null
                                 ? 'Use from…'
                                 : 'Use from: ${_format(_useFrom!)}',
-                          ),
-                          subtitle: const Text(
-                            'Bookings must be at least a day ahead',
                           ),
                           onTap: _submitting ? null : _pickUseFrom,
                         ),
@@ -371,13 +438,45 @@ class _RequestFormScreenState extends ConsumerState<RequestFormScreen> {
                             selected: {_pickupWhen},
                             onSelectionChanged: _submitting || _useFrom == null
                                 ? null
-                                : (s) => setState(() => _pickupWhen = s.first),
+                                : (s) => setState(() {
+                                    _pickupWhen = s.first;
+                                    // Reset to a value that's always valid
+                                    // for the new choice — the borrower can
+                                    // still override it again below.
+                                    _pickupTime =
+                                        TimeOfDay.fromDateTime(_useFrom!);
+                                    _pickupTimeManuallySet = false;
+                                  }),
                           ),
+                          if (_useFrom != null) ...[
+                            const SizedBox(height: 4),
+                            ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              dense: true,
+                              leading: const Icon(Icons.schedule, size: 20),
+                              title: Text(
+                                'Pickup time: '
+                                '${_formatTime(_pickupTime ?? TimeOfDay.fromDateTime(_useFrom!))}',
+                              ),
+                              trailing: const Icon(Icons.edit, size: 18),
+                              onTap: _submitting ? null : _pickPickupTime,
+                            ),
+                          ],
                           if (_pickup != null) ...[
-                            const SizedBox(height: 8),
+                            const SizedBox(height: 4),
                             Text(
                               'Pick up on ${_format(_pickup!)}',
                               style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                          ],
+                          if (_pickupTimeError != null) ...[
+                            const SizedBox(height: 8),
+                            Text(
+                              _pickupTimeError!,
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(
+                                    color: Theme.of(context).colorScheme.error,
+                                  ),
                             ),
                           ],
                         ],
@@ -468,4 +567,49 @@ class _RequestFormScreenState extends ConsumerState<RequestFormScreen> {
   }
 
   static String _format(DateTime dt) => formatDateTime(dt);
+}
+
+/// How many units of a multi-unit item to request in this one request —
+/// only shown once an existing item with quantity &gt; 1 is selected.
+class _QuantityStepper extends StatelessWidget {
+  const _QuantityStepper({
+    required this.value,
+    required this.max,
+    required this.onChanged,
+  });
+
+  final int value;
+  final int max;
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Quantity', style: Theme.of(context).textTheme.titleSmall),
+              Text(
+                'Up to $max available',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
+          ),
+        ),
+        IconButton(
+          tooltip: 'Decrease',
+          icon: const Icon(Icons.remove_circle_outline),
+          onPressed: value > 1 ? () => onChanged(value - 1) : null,
+        ),
+        Text('$value', style: Theme.of(context).textTheme.titleMedium),
+        IconButton(
+          tooltip: 'Increase',
+          icon: const Icon(Icons.add_circle_outline),
+          onPressed: value < max ? () => onChanged(value + 1) : null,
+        ),
+      ],
+    );
+  }
 }

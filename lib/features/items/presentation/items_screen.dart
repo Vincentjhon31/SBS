@@ -17,7 +17,12 @@ import '../data/items_providers.dart';
 import '../data/items_repository.dart';
 
 class ItemsScreen extends ConsumerStatefulWidget {
-  const ItemsScreen({super.key});
+  const ItemsScreen({super.key, this.flowFilter});
+
+  /// When set, this is a dedicated Borrow/Schedule browsing screen (pushed
+  /// from the chooser modal) instead of the unified registry tab — the
+  /// item list is pre-scoped to this flow and a back button is shown.
+  final ItemFlowType? flowFilter;
 
   @override
   ConsumerState<ItemsScreen> createState() => _ItemsScreenState();
@@ -49,14 +54,19 @@ class _ItemsScreenState extends ConsumerState<ItemsScreen> {
     }
     // The staff website's shell header already shows the page title.
     final inWebShell = kIsWeb && isStaff;
+    final title = switch (widget.flowFilter) {
+      ItemFlowType.borrow => 'Borrow Items',
+      ItemFlowType.schedule => 'Schedule Items',
+      null => 'Items Registry',
+    };
 
     return Scaffold(
       backgroundColor: Colors.transparent,
       appBar: inWebShell
           ? null
           : AppBar(
-              title: const Text('Items Registry'),
-              automaticallyImplyLeading: false,
+              title: Text(title),
+              automaticallyImplyLeading: widget.flowFilter != null,
             ),
       floatingActionButton: isStaff
           ? FloatingActionButton.extended(
@@ -137,9 +147,15 @@ class _ItemsScreenState extends ConsumerState<ItemsScreen> {
     );
   }
 
+  List<Item> _flowScoped(List<Item> all) => [
+    for (final item in all)
+      if (widget.flowFilter == null || item.flowType == widget.flowFilter)
+        item,
+  ];
+
   List<String> _categories(List<Item> all) {
     final set = {
-      for (final item in all)
+      for (final item in _flowScoped(all))
         if (item.category != null && item.category!.trim().isNotEmpty)
           item.category!,
     };
@@ -150,7 +166,7 @@ class _ItemsScreenState extends ConsumerState<ItemsScreen> {
   List<Item> _filtered(List<Item> all) {
     final query = ref.read(itemsQueryProvider).trim().toLowerCase();
     return [
-      for (final item in all)
+      for (final item in _flowScoped(all))
         if ((_category == null || item.category == _category) &&
             (query.isEmpty ||
                 item.name.toLowerCase().contains(query) ||
@@ -843,6 +859,7 @@ class _DeleteItemButton extends ConsumerWidget {
         owningDepartmentId: item.owningDepartmentId,
         active: false,
         quantity: item.quantity,
+        flowType: item.flowType,
       );
       ref.invalidate(itemsProvider);
       ref.invalidate(itemStatusesProvider);

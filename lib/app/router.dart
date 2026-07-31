@@ -37,6 +37,8 @@ abstract final class AppRoutes {
   static const register = '/register';
   static const home = '/home';
   static const items = '/items';
+  static const borrowItems = '/items/borrow';
+  static const scheduleItems = '/items/schedule';
   static const itemNew = '/items/new';
   static const itemEdit = '/items/edit';
   static const itemCalendar = '/items/calendar';
@@ -165,6 +167,16 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.walkinNew,
         builder: (context, state) => const WalkInRequestScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.borrowItems,
+        builder: (context, state) =>
+            const ItemsScreen(flowFilter: ItemFlowType.borrow),
+      ),
+      GoRoute(
+        path: AppRoutes.scheduleItems,
+        builder: (context, state) =>
+            const ItemsScreen(flowFilter: ItemFlowType.schedule),
       ),
       GoRoute(
         path: AppRoutes.itemNew,

@@ -7,6 +7,7 @@ import '../core/constants/app_constants.dart';
 import '../core/theme/background_style_controller.dart';
 import '../core/widgets/glossy_background.dart';
 import '../features/auth/data/auth_providers.dart';
+import '../features/borrowing/presentation/schedule_or_borrow_chooser.dart';
 import '../features/items/data/items_providers.dart';
 import '../features/notifications/data/notifications_providers.dart';
 import '../features/settings/data/app_update_providers.dart';
@@ -92,6 +93,11 @@ class _TabBarShell extends ConsumerWidget {
         // Profile is always the last tab (branchIndex 4) — see
         // _tabDestinations below.
         updateDotBranchIndex: hasPendingUpdate ? 4 : null,
+        // Citizens only — staff create requests through the walk-in flow,
+        // not this self-service chooser.
+        onCenterAction: isStaff
+            ? null
+            : () => showScheduleOrBorrowChooser(context),
         onSelect: (i) {
           final branchIndex = destinations[i].branchIndex;
           // Re-tapping the active tab resets it to its root (initialLocation)
@@ -112,6 +118,7 @@ class _FloatingPillNavBar extends StatelessWidget {
     required this.selectedIndex,
     required this.onSelect,
     this.updateDotBranchIndex,
+    this.onCenterAction,
   });
 
   final List<_TabDestination> destinations;
@@ -122,36 +129,104 @@ class _FloatingPillNavBar extends StatelessWidget {
   /// Profile tab, when an app update is pending) — null shows no dot.
   final int? updateDotBranchIndex;
 
+  /// When set, a raised circular button pokes above the center of the pill
+  /// bar — the "Schedule or Borrow?" quick-action, flanked symmetrically by
+  /// [destinations] split evenly left/right. Null hides it (staff shell).
+  final VoidCallback? onCenterAction;
+
+  Widget _item(int i) {
+    final d = destinations[i];
+    return _PillNavItem(
+      icon: i == selectedIndex ? d.selectedIcon : d.icon,
+      label: d.label,
+      selected: i == selectedIndex,
+      showDot: d.branchIndex == updateDotBranchIndex,
+      onTap: () => onSelect(i),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final hasCenterAction = onCenterAction != null;
+    final mid = (destinations.length / 2).ceil();
+
     return SafeArea(
       minimum: const EdgeInsets.fromLTRB(28, 0, 28, 14),
-      child: Container(
+      child: SizedBox(
         height: 62,
-        padding: const EdgeInsets.symmetric(horizontal: 6),
-        decoration: BoxDecoration(
-          color: const Color(0xFF14161D),
-          borderRadius: BorderRadius.circular(31),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.28),
-              blurRadius: 22,
-              offset: const Offset(0, 10),
-            ),
-          ],
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
+        child: Stack(
+          clipBehavior: Clip.none,
+          alignment: Alignment.bottomCenter,
           children: [
-            for (final (i, d) in destinations.indexed)
-              _PillNavItem(
-                icon: i == selectedIndex ? d.selectedIcon : d.icon,
-                label: d.label,
-                selected: i == selectedIndex,
-                showDot: d.branchIndex == updateDotBranchIndex,
-                onTap: () => onSelect(i),
+            Container(
+              height: 62,
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xFF14161D),
+                borderRadius: BorderRadius.circular(31),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.28),
+                    blurRadius: 22,
+                    offset: const Offset(0, 10),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: hasCenterAction
+                    ? [
+                        for (var i = 0; i < mid; i++) _item(i),
+                        const SizedBox(width: 48),
+                        for (var i = mid; i < destinations.length; i++)
+                          _item(i),
+                      ]
+                    : [for (var i = 0; i < destinations.length; i++) _item(i)],
+              ),
+            ),
+            if (hasCenterAction)
+              Positioned(
+                top: -16,
+                child: _CenterActionButton(onTap: onCenterAction!),
               ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The raised "Schedule or Borrow?" quick-action button, centered in the
+/// pill nav and poking above its top edge.
+class _CenterActionButton extends StatelessWidget {
+  const _CenterActionButton({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Material(
+      color: scheme.primary,
+      shape: const CircleBorder(),
+      elevation: 6,
+      shadowColor: Colors.black45,
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: onTap,
+        child: Tooltip(
+          message: 'Schedule or borrow',
+          child: SizedBox(
+            width: 58,
+            height: 58,
+            child: Center(
+              child: Icon(
+                Icons.compare_arrows,
+                color: scheme.onPrimary,
+                size: 26,
+              ),
+            ),
+          ),
         ),
       ),
     );

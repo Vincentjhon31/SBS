@@ -14,13 +14,13 @@ class AboutScreen extends ConsumerWidget {
   static const _faqs = <(String, String)>[
     (
       'How far ahead can I request an item?',
-      'Requests must be made at least a day before you plan to use the '
-          'item, and you can book up to a year in advance.',
+      'As soon as right now — same-day requests are fine — up to a year '
+          'in advance.',
     ),
     (
       'When can I pick up my item?',
-      'Either on the day you use it, or one day before — you choose when '
-          'you submit the request.',
+      'Either on the day you use it, or one day before — you choose the '
+          'day and the pickup time when you submit the request.',
     ),
     (
       'Why do I need to verify my identity?',

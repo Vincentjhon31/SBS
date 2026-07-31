@@ -13,11 +13,19 @@ class PendingApproval {
     this.useFrom,
     this.useTo,
     this.rejectedReason,
+    this.quantityRequested = 1,
+    this.itemQuantity = 1,
   });
 
   final String id;
   final String itemLabel;
   final String purpose;
+
+  /// How many units this request claims, out of [itemQuantity] the item
+  /// has in total — "3 of 5 units", shown so staff know how many to
+  /// release/return together.
+  final int quantityRequested;
+  final int itemQuantity;
 
   /// Availability window: [requestedFrom] = pickup, [requestedTo] = return.
   final DateTime requestedFrom;
@@ -48,6 +56,7 @@ class PendingApproval {
     final item = json['items'] as Map<String, dynamic>?;
     final name = item?['name'] as String? ?? 'Unknown item';
     final tag = item?['distinguishing_tag'] as String?;
+    final itemQuantity = item?['quantity'] as int? ?? 1;
     final borrower = json['profiles'] as Map<String, dynamic>?;
     final guest = json['guest_borrowers'] as Map<String, dynamic>?;
     return PendingApproval(
@@ -72,6 +81,8 @@ class PendingApproval {
       status: json['status'] as String,
       createdAt: DateTime.parse(json['created_at'] as String).toLocal(),
       rejectedReason: json['rejected_reason'] as String?,
+      quantityRequested: json['quantity_requested'] as int? ?? 1,
+      itemQuantity: itemQuantity,
     );
   }
 }

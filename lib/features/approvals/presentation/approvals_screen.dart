@@ -159,6 +159,7 @@ class _ApprovalQueue extends ConsumerWidget {
                         child: SbsTable(
                           columns: const [
                             'Item',
+                            'Qty',
                             'Borrower',
                             'Use',
                             'Pickup → Return',
@@ -182,6 +183,11 @@ class _ApprovalQueue extends ConsumerWidget {
                                       const SizedBox(width: 8),
                                       Text(req.itemLabel),
                                     ],
+                                  ),
+                                  Text(
+                                    req.itemQuantity > 1
+                                        ? '${req.quantityRequested} of ${req.itemQuantity}'
+                                        : '—',
                                   ),
                                   Text(
                                     '${req.borrowerName}\n'
@@ -290,6 +296,10 @@ class _ApprovalCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('${request.borrowerName} (${_borrowerTypeLabel(request)})'),
+            if (request.itemQuantity > 1)
+              Text(
+                'Quantity: ${request.quantityRequested} of ${request.itemQuantity}',
+              ),
             if (request.useFrom != null && request.useTo != null)
               Text(
                 'Use: ${formatDateTime(request.useFrom!)} → '
@@ -419,6 +429,14 @@ class _ApprovalDetailScreenState extends ConsumerState<ApprovalDetailScreen> {
                       req.itemLabel,
                       style: Theme.of(context).textTheme.headlineSmall,
                     ),
+                    if (req.itemQuantity > 1) ...[
+                      const SizedBox(height: 4),
+                      _WindowRow(
+                        icon: Icons.pin_outlined,
+                        label: 'Quantity',
+                        value: '${req.quantityRequested} of ${req.itemQuantity} units',
+                      ),
+                    ],
                     const SizedBox(height: 12),
                     if (req.useFrom != null && req.useTo != null) ...[
                       _WindowRow(

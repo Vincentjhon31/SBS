@@ -159,3 +159,11 @@ values
   ('Wheelchair', null, 'Medical/Emergency', null, '44444444-4444-4444-4444-444444444444'),
   ('First Aid Kit', null, 'Medical/Emergency', null, '44444444-4444-4444-4444-444444444444')
 on conflict do nothing;
+
+-- flow_type defaults to 'borrow' on insert; the migration's own
+-- Vehicle/Venue -> 'schedule' backfill only affects rows that already
+-- existed when it ran, which (for the same before/after seed.sql
+-- ordering reason as the comment above) is nothing on a fresh local
+-- reset -- redo it here so local data matches what real hosted data
+-- looks like after that backfill.
+update public.items set flow_type = 'schedule' where category in ('Vehicle', 'Venue');

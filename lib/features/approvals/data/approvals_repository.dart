@@ -21,7 +21,7 @@ class ApprovalsRepository {
   Future<List<PendingApproval>> fetchQueue(String statuses) async {
     final rows = await _client
         .from('borrow_requests')
-        .select('*, items(name, distinguishing_tag), '
+        .select('*, items(name, distinguishing_tag, quantity), '
             'profiles!borrow_requests_borrower_id_fkey(full_name, user_type), '
             'guest_borrowers(full_name)')
         .inFilter('status', statuses.split(','))

@@ -33,6 +33,11 @@ class _ItemFormScreenState extends ConsumerState<ItemFormScreen> {
       : widget.item?.category;
   late String? _departmentId = widget.item?.owningDepartmentId;
   late bool _active = widget.item?.active ?? true;
+  late ItemFlowType _flowType = widget.item?.flowType ?? ItemFlowType.borrow;
+  // When creating a new item, the flow-type toggle auto-follows the typed
+  // category (Vehicle/Venue -> Schedule) until staff explicitly overrides
+  // it; editing an existing item always treats its saved value as explicit.
+  late bool _flowTypeManuallySet = _isEdit;
   late final _quantityController = TextEditingController(
     text: '${widget.item?.quantity ?? 1}',
   );
@@ -93,6 +98,7 @@ class _ItemFormScreenState extends ConsumerState<ItemFormScreen> {
           owningDepartmentId: _departmentId,
           active: _active,
           quantity: quantity,
+          flowType: _flowType,
         );
       } else {
         final created = await repo.createItem(
@@ -101,6 +107,7 @@ class _ItemFormScreenState extends ConsumerState<ItemFormScreen> {
           category: _category,
           owningDepartmentId: _departmentId,
           quantity: quantity,
+          flowType: _flowType,
         );
         itemId = created.id;
       }
@@ -214,7 +221,36 @@ class _ItemFormScreenState extends ConsumerState<ItemFormScreen> {
                   _CategoryDropdown(
                     value: _category,
                     existing: _existingCategories(allItems),
-                    onChanged: (v) => setState(() => _category = v),
+                    onChanged: (v) => setState(() {
+                      _category = v;
+                      if (!_flowTypeManuallySet) {
+                        _flowType = (v == 'Vehicle' || v == 'Venue')
+                            ? ItemFlowType.schedule
+                            : ItemFlowType.borrow;
+                      }
+                    }),
+                  ),
+                  const SizedBox(height: 16),
+                  Text('Borrow or Schedule?', style: Theme.of(context).textTheme.titleSmall),
+                  const SizedBox(height: 8),
+                  SegmentedButton<ItemFlowType>(
+                    segments: const [
+                      ButtonSegment(
+                        value: ItemFlowType.borrow,
+                        icon: Icon(Icons.handshake_outlined),
+                        label: Text('Borrow'),
+                      ),
+                      ButtonSegment(
+                        value: ItemFlowType.schedule,
+                        icon: Icon(Icons.event_outlined),
+                        label: Text('Schedule'),
+                      ),
+                    ],
+                    selected: {_flowType},
+                    onSelectionChanged: (s) => setState(() {
+                      _flowType = s.first;
+                      _flowTypeManuallySet = true;
+                    }),
                   ),
                   const SizedBox(height: 16),
                   DropdownButtonFormField<String?>(

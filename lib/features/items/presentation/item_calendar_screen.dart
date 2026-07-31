@@ -184,7 +184,9 @@ class _UpcomingPanel extends StatelessWidget {
                       child: const Icon(Icons.event, size: 20),
                     ),
                     title: Text(_fmt(w.from)),
-                    subtitle: Text('until ${_fmt(w.to)}'),
+                    subtitle: Text(
+                      w.to == null ? 'open-ended' : 'until ${_fmt(w.to!)}',
+                    ),
                   ),
                 ],
               ],
@@ -255,7 +257,7 @@ class _MonthGrid extends StatelessWidget {
     final dayStart = DateTime(day.year, day.month, day.day);
     final dayEnd = dayStart.add(const Duration(days: 1));
     return windows.any(
-      (w) => w.from.isBefore(dayEnd) && w.to.isAfter(dayStart),
+      (w) => w.from.isBefore(dayEnd) && (w.to ?? DateTime(9999)).isAfter(dayStart),
     );
   }
 
