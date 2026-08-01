@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 abstract final class AppConstants {
   static const appName = 'SBS';
   static const appFullName = 'Schedule Borrowing System';
-  static const appVersion = '1.5.1';
+  static const appVersion = '1.5.2';
 
   /// Base seed color for the whole Material color scheme. Bright blue,
   /// shared with the eBongabong Calendar app so the LGU app family reads

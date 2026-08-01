@@ -419,21 +419,45 @@ class _SideNav extends ConsumerWidget {
                 ],
               ),
             ),
-            _SectionLabel('MENU', expanded: expanded),
-            for (final d in _tabDestinations(true))
-              _NavItem(
-                icon: d.icon,
-                selectedIcon: d.selectedIcon,
-                label: d.label,
-                selected: currentBranch == d.branchIndex,
-                expanded: expanded,
-                onTap: () => onSelect(d.branchIndex),
+            Expanded(
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _SectionLabel('MENU', expanded: expanded),
+                    for (final d in _tabDestinations(true))
+                      _NavItem(
+                        icon: d.icon,
+                        selectedIcon: d.selectedIcon,
+                        label: d.label,
+                        selected: currentBranch == d.branchIndex,
+                        expanded: expanded,
+                        onTap: () => onSelect(d.branchIndex),
+                      ),
+                    _SectionLabel('MANAGE', expanded: expanded),
+                    for (final d in _manageDestinations(
+                      isSuperadmin: profile?.isSuperadmin ?? false,
+                    ))
+                      _NavItem(
+                        icon: d.icon,
+                        selectedIcon: d.icon,
+                        label: d.label,
+                        // These are pushed on top of the shell rather than
+                        // shell branches, so none of them is ever the
+                        // "current" sidebar selection.
+                        selected: false,
+                        expanded: expanded,
+                        onTap: () => context.push(d.route),
+                      ),
+                  ],
+                ),
               ),
-            const Spacer(),
+            ),
             const Divider(color: Colors.white12, height: 1),
             _AccountFooter(
               expanded: expanded,
               fullName: profile?.fullName,
+              isSuperadmin: profile?.isSuperadmin ?? false,
               onTap: () => onSelect(4),
             ),
           ],
@@ -537,11 +561,13 @@ class _AccountFooter extends StatelessWidget {
   const _AccountFooter({
     required this.expanded,
     required this.fullName,
+    required this.isSuperadmin,
     required this.onTap,
   });
 
   final bool expanded;
   final String? fullName;
+  final bool isSuperadmin;
   final VoidCallback onTap;
 
   @override
@@ -592,11 +618,14 @@ class _AccountFooter extends StatelessWidget {
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                  const Text(
-                    'LGU Staff',
+                  Text(
+                    isSuperadmin ? 'Superadmin' : 'LGU Staff',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: Colors.white54, fontSize: 12),
+                    style: const TextStyle(
+                      color: Colors.white54,
+                      fontSize: 12,
+                    ),
                   ),
                 ],
               ),
@@ -906,4 +935,54 @@ class _TabDestination {
   final IconData icon;
   final IconData selectedIcon;
   final String label;
+}
+
+/// Back-office screens that live outside the tab shell — reached by
+/// pushing a route rather than switching a branch, so they open with
+/// their own app bar and a back button. Superadmin-only entries are
+/// filtered out for regular approvers, who cannot use those RPCs anyway.
+List<_ManageDestination> _manageDestinations({required bool isSuperadmin}) => [
+  const _ManageDestination(
+    icon: Icons.group_outlined,
+    label: 'Users',
+    route: AppRoutes.users,
+  ),
+  const _ManageDestination(
+    icon: Icons.apartment_outlined,
+    label: 'Departments',
+    route: AppRoutes.departments,
+  ),
+  const _ManageDestination(
+    icon: Icons.campaign_outlined,
+    label: 'Announcements',
+    route: AppRoutes.broadcast,
+  ),
+  const _ManageDestination(
+    icon: Icons.summarize_outlined,
+    label: 'Reports',
+    route: AppRoutes.reports,
+  ),
+  const _ManageDestination(
+    icon: Icons.history,
+    label: 'Activity Log',
+    route: AppRoutes.auditLog,
+  ),
+  if (isSuperadmin)
+    const _ManageDestination(
+      icon: Icons.settings_suggest_outlined,
+      label: 'System Settings',
+      route: AppRoutes.systemSettings,
+    ),
+];
+
+class _ManageDestination {
+  const _ManageDestination({
+    required this.icon,
+    required this.label,
+    required this.route,
+  });
+
+  final IconData icon;
+  final String label;
+  final String route;
 }

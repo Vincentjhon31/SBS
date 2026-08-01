@@ -52,16 +52,79 @@ class StaffDashboardScreen extends ConsumerWidget {
                   fullName: profile?.fullName,
                   isSuperadmin: isSuperadmin,
                 ),
+                const SizedBox(height: 28),
+                // Superadmins get the cross-department numbers first —
+                // superadmin_stats() is gated to them, so a regular
+                // approver goes straight to the management grid.
+                if (isSuperadmin) ...[
+                  const _SectionTitle(
+                    'Overview',
+                    caption: 'Across every department',
+                  ),
+                  const SizedBox(height: 14),
+                  const _OverviewSection(),
+                  const SizedBox(height: 36),
+                ],
+                const _SectionTitle(
+                  'Manage',
+                  caption: 'Everything you can administer',
+                ),
+                const SizedBox(height: 14),
+                _ManageGrid(isSuperadmin: isSuperadmin),
+                if (isSuperadmin) ...[
+                  const SizedBox(height: 36),
+                  const _SectionTitle(
+                    'Activity',
+                    caption: 'The last 30 days',
+                  ),
+                  const SizedBox(height: 14),
+                  const _ActivitySection(),
+                  const SizedBox(height: 36),
+                  const _SectionTitle(
+                    'Departments & Staff',
+                    caption: 'Who approves what',
+                  ),
+                  const SizedBox(height: 14),
+                  const _DepartmentsPanel(),
+                ],
                 const SizedBox(height: 24),
-                if (isSuperadmin)
-                  const _SuperadminSections()
-                else
-                  const _StaffQuickActions(),
               ],
             ),
           ),
         ),
       ),
+    );
+  }
+}
+
+/// A heading plus a muted one-line caption — gives the dashboard's bands
+/// a consistent rhythm instead of bare bold text.
+class _SectionTitle extends StatelessWidget {
+  const _SectionTitle(this.title, {this.caption});
+
+  final String title;
+  final String? caption;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: Theme.of(
+            context,
+          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+        ),
+        if (caption != null)
+          Text(
+            caption!,
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+          ),
+      ],
     );
   }
 }
@@ -84,9 +147,9 @@ class _Greeting extends StatelessWidget {
         : 'Good evening';
     final first = (fullName ?? '').trim().split(RegExp(r'\s+')).first;
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(22),
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -96,34 +159,111 @@ class _Greeting extends StatelessWidget {
           ],
         ),
       ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final identity = Row(
+            children: [
+              CircleAvatar(
+                radius: 27,
+                backgroundColor: scheme.primary,
+                foregroundColor: scheme.onPrimary,
+                child: const Icon(Icons.space_dashboard_outlined),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      first.isEmpty ? part : '$part, $first',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.3,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        _RoleChip(isSuperadmin: isSuperadmin),
+                        const SizedBox(width: 10),
+                        Flexible(
+                          child: Text(
+                            formatDate(DateTime.now()),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(color: scheme.onSurfaceVariant),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          );
+
+          // The counter is the one thing staff start a task from rather
+          // than navigate to, so it gets a button instead of a grid card.
+          final action = FilledButton.icon(
+            onPressed: () => context.push(AppRoutes.walkinNew),
+            style: FilledButton.styleFrom(
+              minimumSize: Size.zero,
+              padding: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 16,
+              ),
+            ),
+            icon: const Icon(Icons.add, size: 18),
+            label: const Text('New walk-in'),
+          );
+
+          if (constraints.maxWidth < 620) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [identity, const SizedBox(height: 18), action],
+            );
+          }
+          return Row(
+            children: [Expanded(child: identity), const SizedBox(width: 20), action],
+          );
+        },
+      ),
+    );
+  }
+}
+
+/// Superadmin / LGU Staff pill next to the greeting.
+class _RoleChip extends StatelessWidget {
+  const _RoleChip({required this.isSuperadmin});
+
+  final bool isSuperadmin;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final color = isSuperadmin ? scheme.tertiary : scheme.primary;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(999),
+      ),
       child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          CircleAvatar(
-            radius: 26,
-            backgroundColor: scheme.primary,
-            foregroundColor: scheme.onPrimary,
-            child: const Icon(Icons.space_dashboard_outlined),
+          Icon(
+            isSuperadmin ? Icons.shield_outlined : Icons.badge_outlined,
+            size: 13,
+            color: color,
           ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  first.isEmpty ? part : '$part, $first',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '${isSuperadmin ? 'Superadmin' : 'LGU Staff'} · '
-                  '${formatDate(DateTime.now())}',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: scheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
+          const SizedBox(width: 5),
+          Text(
+            isSuperadmin ? 'Superadmin' : 'LGU Staff',
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: color,
+              fontWeight: FontWeight.w700,
             ),
           ),
         ],
@@ -132,226 +272,279 @@ class _Greeting extends StatelessWidget {
   }
 }
 
-/// The full superadmin oversight bundle (stats, activity, departments).
-class _SuperadminSections extends ConsumerWidget {
-  const _SuperadminSections();
+/// Cross-department numbers: the four that need acting on today, then the
+/// steady-state inventory counts. Superadmin only — [superadminStatsProvider]
+/// is gated server-side.
+class _OverviewSection extends ConsumerWidget {
+  const _OverviewSection();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final stats = ref.watch(superadminStatsProvider);
+    return switch (stats) {
+      AsyncData(:final value) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _AttentionBand(stats: value),
+          const SizedBox(height: 20),
+          _InventoryGrid(stats: value),
+        ],
+      ),
+      AsyncError() => const _PanelMessage('Could not load stats.'),
+      _ => const _PanelLoading(),
+    };
+  }
+}
+
+/// The four activity charts, paired two to a row on wide windows.
+class _ActivitySection extends ConsumerWidget {
+  const _ActivitySection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
     final trends = ref.watch(superadminTrendsProvider);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Overview', style: Theme.of(context).textTheme.titleMedium),
-        const SizedBox(height: 12),
-        switch (stats) {
-          AsyncData(:final value) => Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _AttentionBand(stats: value),
-              const SizedBox(height: 20),
-              _InventoryGrid(stats: value),
-            ],
+    return switch (trends) {
+      AsyncData(:final value) => Column(
+        children: [
+          _TwoColumnRow(
+            left: _TrendChartCard(daily: value.dailyRequests),
+            right: _StatusBreakdownCard(byStatus: value.requestsByStatus),
           ),
-          AsyncError() => const Text('Could not load stats.'),
-          _ => const Center(child: CircularProgressIndicator()),
-        },
-        const SizedBox(height: 32),
-        Text('Activity', style: Theme.of(context).textTheme.titleMedium),
-        const SizedBox(height: 12),
-        switch (trends) {
-          AsyncData(:final value) => Column(
-            children: [
-              _TwoColumnRow(
-                left: _TrendChartCard(daily: value.dailyRequests),
-                right: _StatusBreakdownCard(byStatus: value.requestsByStatus),
-              ),
-              const SizedBox(height: 16),
-              _TwoColumnRow(
-                left: _TopCategoriesCard(categories: value.topCategories),
-                right: _RecentActivityCard(activity: value.recentActivity),
-              ),
-            ],
+          const SizedBox(height: 16),
+          _TwoColumnRow(
+            left: _TopCategoriesCard(categories: value.topCategories),
+            right: _RecentActivityCard(activity: value.recentActivity),
           ),
-          AsyncError() => const Text('Could not load activity data.'),
-          _ => const Padding(
-            padding: EdgeInsets.symmetric(vertical: 24),
-            child: Center(child: CircularProgressIndicator()),
-          ),
-        },
-        const SizedBox(height: 32),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final departments = Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Departments & Staff',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const SizedBox(height: 8),
-                const _DepartmentsPanel(),
-              ],
-            );
-            final shortcuts = Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Shortcuts',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const SizedBox(height: 8),
-                const _ShortcutsCard(),
-              ],
-            );
-            if (constraints.maxWidth < 720) {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [departments, const SizedBox(height: 24), shortcuts],
-              );
-            }
-            return Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(flex: 2, child: departments),
-                const SizedBox(width: 24),
-                Expanded(child: shortcuts),
-              ],
-            );
-          },
+        ],
+      ),
+      AsyncError() => const _PanelMessage('Could not load activity data.'),
+      _ => const _PanelLoading(),
+    };
+  }
+}
+
+class _PanelLoading extends StatelessWidget {
+  const _PanelLoading();
+
+  @override
+  Widget build(BuildContext context) => const Padding(
+    padding: EdgeInsets.symmetric(vertical: 28),
+    child: Center(child: CircularProgressIndicator()),
+  );
+}
+
+class _PanelMessage extends StatelessWidget {
+  const _PanelMessage(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 20),
+    child: Text(
+      text,
+      style: TextStyle(color: Theme.of(context).colorScheme.error),
+    ),
+  );
+}
+
+/// Every back-office destination in one place — the dashboard's main
+/// navigation surface, shown to superadmins and regular approvers alike
+/// (entries they cannot use are filtered out). Mirrors the web sidebar's
+/// MANAGE group so both routes to a screen look the same.
+class _ManageGrid extends StatelessWidget {
+  const _ManageGrid({required this.isSuperadmin});
+
+  final bool isSuperadmin;
+
+  @override
+  Widget build(BuildContext context) {
+    final actions = <_ManageAction>[
+      const _ManageAction(
+        icon: Icons.approval_outlined,
+        title: 'Approvals',
+        subtitle: 'Approve, release, and accept returns',
+        route: AppRoutes.approvals,
+        accent: Color(0xFF2B7FFF),
+      ),
+      const _ManageAction(
+        icon: Icons.inventory_2_outlined,
+        title: 'Items registry',
+        subtitle: 'Browse, add, and edit LGU items',
+        route: AppRoutes.items,
+        accent: Color(0xFF1F9D65),
+      ),
+      const _ManageAction(
+        icon: Icons.person_add_alt_outlined,
+        title: 'Walk-in request',
+        subtitle: 'Log a borrow for someone at the counter',
+        route: AppRoutes.walkinNew,
+        accent: Color(0xFFE07A1F),
+      ),
+      const _ManageAction(
+        icon: Icons.group_outlined,
+        title: 'Users',
+        subtitle: 'Verify IDs, change roles, deactivate accounts',
+        route: AppRoutes.users,
+        accent: Color(0xFF6750A4),
+      ),
+      const _ManageAction(
+        icon: Icons.apartment_outlined,
+        title: 'Departments',
+        subtitle: 'Offices that own and approve items',
+        route: AppRoutes.departments,
+        accent: Color(0xFF0E8C8B),
+      ),
+      const _ManageAction(
+        icon: Icons.campaign_outlined,
+        title: 'Announcements',
+        subtitle: 'Notify every citizen at once',
+        route: AppRoutes.broadcast,
+        accent: Color(0xFFC2185B),
+      ),
+      const _ManageAction(
+        icon: Icons.summarize_outlined,
+        title: 'Reports',
+        subtitle: 'Export borrow history, items, citizens',
+        route: AppRoutes.reports,
+        accent: Color(0xFF00696E),
+      ),
+      const _ManageAction(
+        icon: Icons.history,
+        title: 'Activity log',
+        subtitle: 'Who did what, and when',
+        route: AppRoutes.auditLog,
+        accent: Color(0xFF5C6BC0),
+      ),
+      if (isSuperadmin)
+        const _ManageAction(
+          icon: Icons.settings_suggest_outlined,
+          title: 'System settings',
+          subtitle: 'Liability terms and data policy text',
+          route: AppRoutes.systemSettings,
+          accent: Color(0xFF8D6E63),
         ),
-      ],
+    ];
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columns = (constraints.maxWidth / 300).floor().clamp(1, 3);
+        const gap = 14.0;
+        // Row-by-row inside IntrinsicHeight rather than a GridView with a
+        // fixed aspect ratio: subtitles wrap to different line counts, and
+        // a fixed ratio either clips the longest or pads every other card.
+        final rows = <Widget>[];
+        for (var start = 0; start < actions.length; start += columns) {
+          final slice = actions.skip(start).take(columns).toList();
+          rows.add(
+            IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (var i = 0; i < columns; i++) ...[
+                    if (i > 0) const SizedBox(width: gap),
+                    Expanded(
+                      child: i < slice.length
+                          ? _ManageCard(action: slice[i])
+                          : const SizedBox.shrink(),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          );
+          if (start + columns < actions.length) {
+            rows.add(const SizedBox(height: gap));
+          }
+        }
+        return Column(children: rows);
+      },
     );
   }
 }
 
-/// Compact landing for a regular (non-superadmin) staffer — they can't
-/// see the cross-department stats, so give them their day-to-day actions.
-class _StaffQuickActions extends StatelessWidget {
-  const _StaffQuickActions();
+class _ManageAction {
+  const _ManageAction({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.route,
+    required this.accent,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final String route;
+  final Color accent;
+}
+
+class _ManageCard extends StatelessWidget {
+  const _ManageCard({required this.action});
+
+  final _ManageAction action;
 
   @override
   Widget build(BuildContext context) {
-    final actions = [
-      (
-        Icons.approval_outlined,
-        'Review approvals',
-        'Approve, release, and accept returns',
-        AppRoutes.approvals,
-      ),
-      (
-        Icons.inventory_2_outlined,
-        'Items registry',
-        'Browse and manage LGU items',
-        AppRoutes.items,
-      ),
-      (
-        Icons.person_add_alt_outlined,
-        'Walk-in request',
-        'Log a borrow for someone at the counter',
-        AppRoutes.walkinNew,
-      ),
-      (
-        Icons.group_outlined,
-        'Users',
-        'Verify citizens, deactivate accounts',
-        AppRoutes.users,
-      ),
-      (
-        Icons.campaign_outlined,
-        'Broadcast announcement',
-        'Notify every citizen at once',
-        AppRoutes.broadcast,
-      ),
-      (
-        Icons.history,
-        'Activity log',
-        'Who did what, and when',
-        AppRoutes.auditLog,
-      ),
-      (
-        Icons.summarize_outlined,
-        'Reports',
-        'Export borrow history, items, citizens',
-        AppRoutes.reports,
-      ),
-    ];
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Quick actions', style: Theme.of(context).textTheme.titleMedium),
-        const SizedBox(height: 12),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final columns = (constraints.maxWidth / 260).floor().clamp(1, 3);
-            return GridView.count(
-              crossAxisCount: columns,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              mainAxisSpacing: 12,
-              crossAxisSpacing: 12,
-              childAspectRatio: 2.4,
-              children: [
-                for (final (icon, title, subtitle, route) in actions)
-                  Card(
-                    clipBehavior: Clip.antiAlias,
-                    child: InkWell(
-                      // The tab paths (approvals/items) are shell branches
-                      // — go() switches tabs. Everything else is a pushed
-                      // route, so it needs push() to keep a way back.
-                      onTap: () =>
-                          route == AppRoutes.approvals || route == AppRoutes.items
-                              ? context.go(route)
-                              : context.push(route),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Row(
-                          children: [
-                            CircleAvatar(
-                              backgroundColor: Theme.of(
-                                context,
-                              ).colorScheme.primaryContainer,
-                              foregroundColor: Theme.of(
-                                context,
-                              ).colorScheme.onPrimaryContainer,
-                              child: Icon(icon),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                    title,
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .titleSmall
-                                        ?.copyWith(fontWeight: FontWeight.w600),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    subtitle,
-                                    style: Theme.of(
-                                      context,
-                                    ).textTheme.bodySmall,
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
+    final scheme = Theme.of(context).colorScheme;
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      margin: EdgeInsets.zero,
+      child: InkWell(
+        // Approvals and Items are shell branches — go() switches the tab
+        // in place. Everything else is pushed on top, so it needs push()
+        // to leave a way back.
+        onTap: () =>
+            action.route == AppRoutes.approvals ||
+                action.route == AppRoutes.items
+            ? context.go(action.route)
+            : context.push(action.route),
+        child: Padding(
+          padding: const EdgeInsets.all(18),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: action.accent.withValues(alpha: 0.13),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(action.icon, size: 21, color: action.accent),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      action.title,
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
-                  ),
-              ],
-            );
-          },
+                    const SizedBox(height: 3),
+                    Text(
+                      action.subtitle,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                        height: 1.4,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.chevron_right,
+                size: 18,
+                color: scheme.onSurfaceVariant.withValues(alpha: 0.6),
+              ),
+            ],
+          ),
         ),
-      ],
+      ),
     );
   }
 }
@@ -517,14 +710,28 @@ class _InventoryGrid extends StatelessWidget {
     ];
     return LayoutBuilder(
       builder: (context, constraints) {
-        final columns = (constraints.maxWidth / 200).floor().clamp(2, 6);
+        const spacing = 12.0;
+        const tileHeight = 108.0;
+        final fits = (constraints.maxWidth / 170).floor().clamp(2, 6);
+        // Snap down to a column count that divides the tile count evenly,
+        // so the last row is full rather than leaving one tile stranded
+        // beside a gap (5 + 1 at typical desktop widths).
+        var columns = fits;
+        while (columns > 2 && tiles.length % columns != 0) {
+          columns--;
+        }
+        // Derive the ratio from a fixed height: with a constant ratio,
+        // fewer columns mean wider tiles and the height balloons, leaving
+        // a big empty gap between the icon and the number.
+        final tileWidth =
+            (constraints.maxWidth - spacing * (columns - 1)) / columns;
         return GridView.count(
           crossAxisCount: columns,
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          mainAxisSpacing: 12,
-          crossAxisSpacing: 12,
-          childAspectRatio: 1.6,
+          mainAxisSpacing: spacing,
+          crossAxisSpacing: spacing,
+          childAspectRatio: tileWidth / tileHeight,
           children: [
             for (final (label, value, icon) in tiles)
               _StatTile(label, value, icon),
@@ -965,77 +1172,6 @@ class _ActivityRow extends StatelessWidget {
         const SizedBox(width: 8),
         RequestStatusChip(status: item.status),
       ],
-    );
-  }
-}
-
-class _ShortcutsCard extends StatelessWidget {
-  const _ShortcutsCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Column(
-        children: [
-          ListTile(
-            leading: const Icon(Icons.approval_outlined),
-            title: const Text('All Approvals'),
-            subtitle: const Text(
-              'You see every department\'s requests here now',
-            ),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => context.go(AppRoutes.approvals),
-          ),
-          const Divider(height: 1),
-          ListTile(
-            leading: const Icon(Icons.person_remove_outlined),
-            title: const Text('Account Deletion Requests'),
-            subtitle: const Text('In Settings — staff-wide queue'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => context.push(AppRoutes.settings),
-          ),
-          const Divider(height: 1),
-          ListTile(
-            leading: const Icon(Icons.group_outlined),
-            title: const Text('Users'),
-            subtitle: const Text('Verify, promote, deactivate accounts'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => context.push(AppRoutes.users),
-          ),
-          const Divider(height: 1),
-          ListTile(
-            leading: const Icon(Icons.campaign_outlined),
-            title: const Text('Broadcast Announcement'),
-            subtitle: const Text('Notify every citizen at once'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => context.push(AppRoutes.broadcast),
-          ),
-          const Divider(height: 1),
-          ListTile(
-            leading: const Icon(Icons.history),
-            title: const Text('Activity Log'),
-            subtitle: const Text('Accountability trail for admin actions'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => context.push(AppRoutes.auditLog),
-          ),
-          const Divider(height: 1),
-          ListTile(
-            leading: const Icon(Icons.summarize_outlined),
-            title: const Text('Reports'),
-            subtitle: const Text('Export borrow history, items, citizens'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => context.push(AppRoutes.reports),
-          ),
-          const Divider(height: 1),
-          ListTile(
-            leading: const Icon(Icons.settings_suggest_outlined),
-            title: const Text('System Settings'),
-            subtitle: const Text('Edit liability terms and data policy text'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => context.push(AppRoutes.systemSettings),
-          ),
-        ],
-      ),
     );
   }
 }
