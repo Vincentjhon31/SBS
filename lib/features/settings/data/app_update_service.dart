@@ -1,6 +1,4 @@
-import 'dart:convert';
-import 'dart:io';
-
+import 'package:dio/dio.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 /// Checks GitHub Releases for a newer version — SBS isn't distributed
@@ -16,6 +14,12 @@ abstract class AppUpdateService {
   /// — used by the About page's "What's New", which is useful whether
   /// you're current or not.
   Future<AppReleaseInfo> fetchLatestRelease();
+
+  /// Just the published release, with no comparison against what is
+  /// installed — for the web landing page's download button, where the
+  /// visitor has nothing installed to compare against and asking
+  /// package_info for a version would be meaningless.
+  Future<AppReleaseInfo> fetchPublishedRelease();
 }
 
 class GitHubReleaseUpdateService implements AppUpdateService {
@@ -59,51 +63,57 @@ class GitHubReleaseUpdateService implements AppUpdateService {
     );
   }
 
+  @override
+  Future<AppReleaseInfo> fetchPublishedRelease() async {
+    final latestRelease = await _fetchLatestRelease();
+    return AppReleaseInfo(
+      version: _normalizeVersion(latestRelease.tagName),
+      releaseUrl: latestRelease.releaseUrl,
+      downloadUrl: latestRelease.apkDownloadUrl ?? latestRelease.releaseUrl,
+      releaseNotes: latestRelease.body,
+      isNewerThanInstalled: false,
+    );
+  }
+
+  // Dio rather than dart:io's HttpClient: this also runs on the web
+  // landing page's "Download APK" button, and dart:io is unavailable in
+  // the browser (it throws at runtime, so the button could never resolve
+  // a link there).
   Future<_GitHubRelease> _fetchLatestRelease() async {
-    final client = HttpClient()
-      ..connectionTimeout = const Duration(seconds: 10);
-    try {
-      final uri = Uri.https(
-        'api.github.com',
-        '/repos/$repositoryOwner/$repositoryName/releases/latest',
-      );
-      final request = await client.getUrl(uri);
-      request.headers
-        ..set(HttpHeaders.acceptHeader, 'application/vnd.github+json')
-        ..set(HttpHeaders.userAgentHeader, 'sbs-app');
-
-      final response = await request.close();
-      final body = await utf8.decodeStream(response);
-
-      if (response.statusCode != HttpStatus.ok) {
-        throw HttpException(
-          'GitHub release check failed with status ${response.statusCode}',
-          uri: uri,
-        );
-      }
-
-      final json = jsonDecode(body) as Map<String, dynamic>;
-      final assets = (json['assets'] as List<dynamic>? ?? [])
-          .whereType<Map<String, dynamic>>();
-      String? apkUrl;
-      for (final asset in assets) {
-        final name = (asset['name'] as String? ?? '').toLowerCase();
-        final url = asset['browser_download_url'] as String?;
-        if (url != null && name.endsWith('.apk')) {
-          apkUrl = url;
-          break;
-        }
-      }
-
-      return _GitHubRelease(
-        tagName: json['tag_name'] as String? ?? '',
-        releaseUrl: json['html_url'] as String? ?? '',
-        apkDownloadUrl: apkUrl,
-        body: (json['body'] as String? ?? '').trim(),
-      );
-    } finally {
-      client.close();
+    final dio = Dio(
+      BaseOptions(
+        connectTimeout: const Duration(seconds: 10),
+        receiveTimeout: const Duration(seconds: 10),
+        headers: const {'Accept': 'application/vnd.github+json'},
+        responseType: ResponseType.json,
+      ),
+    );
+    final response = await dio.get<Map<String, dynamic>>(
+      'https://api.github.com/repos/$repositoryOwner/$repositoryName/releases/latest',
+    );
+    final json = response.data;
+    if (json == null) {
+      throw StateError('GitHub release check returned an empty body');
     }
+
+    final assets = (json['assets'] as List<dynamic>? ?? [])
+        .whereType<Map<String, dynamic>>();
+    String? apkUrl;
+    for (final asset in assets) {
+      final name = (asset['name'] as String? ?? '').toLowerCase();
+      final url = asset['browser_download_url'] as String?;
+      if (url != null && name.endsWith('.apk')) {
+        apkUrl = url;
+        break;
+      }
+    }
+
+    return _GitHubRelease(
+      tagName: json['tag_name'] as String? ?? '',
+      releaseUrl: json['html_url'] as String? ?? '',
+      apkDownloadUrl: apkUrl,
+      body: (json['body'] as String? ?? '').trim(),
+    );
   }
 }
 

@@ -20,6 +20,14 @@ final latestReleaseProvider = FutureProvider<AppReleaseInfo>(
   (ref) => ref.watch(appUpdateServiceProvider).fetchLatestRelease(),
 );
 
+/// The published release on its own, for the web landing page's download
+/// button — deliberately separate from [latestReleaseProvider] so it never
+/// waits on package_info for an "installed version" that does not exist in
+/// a browser.
+final publishedReleaseProvider = FutureProvider<AppReleaseInfo>(
+  (ref) => ref.watch(appUpdateServiceProvider).fetchPublishedRelease(),
+);
+
 /// Set once at launch and read by the banner/dialog/nav dot. Cleared when
 /// the user dismisses the banner, until the next launch.
 class PendingUpdateController extends Notifier<AppUpdateInfo?> {
