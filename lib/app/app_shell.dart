@@ -10,7 +10,7 @@ import '../core/widgets/glossy_background.dart';
 import '../features/auth/data/auth_providers.dart';
 import '../features/borrowing/presentation/schedule_or_borrow_chooser.dart';
 import '../features/items/data/items_providers.dart';
-import '../features/notifications/data/notifications_providers.dart';
+import '../features/notifications/presentation/notification_bell.dart';
 import '../features/settings/data/app_update_providers.dart';
 import 'router.dart';
 
@@ -672,7 +672,6 @@ class _TopBar extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final scheme = Theme.of(context).colorScheme;
     final profile = ref.watch(myProfileProvider).value;
-    final unread = ref.watch(unreadCountProvider);
 
     return Container(
       height: 62,
@@ -705,15 +704,7 @@ class _TopBar extends ConsumerWidget {
                 ),
                 const SizedBox(width: 8),
               ],
-              IconButton(
-                tooltip: 'Notifications',
-                icon: Badge.count(
-                  count: unread,
-                  isLabelVisible: unread > 0,
-                  child: const Icon(Icons.notifications_outlined),
-                ),
-                onPressed: () => context.push(AppRoutes.notifications),
-              ),
+              const NotificationBell(),
               const SizedBox(width: 4),
               PopupMenuButton<_AccountAction>(
                 tooltip: 'Account',

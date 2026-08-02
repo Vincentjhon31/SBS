@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../../core/widgets/glossy_background.dart';
+import '../../../core/widgets/app_animations.dart';
+import '../../admin/presentation/admin_page.dart';
 import '../data/items_models.dart';
 import '../data/items_providers.dart';
 import '../data/items_repository.dart';
+
+const _accent = Color(0xFF0E8C8B);
 
 /// Staff-only department management: rename, deactivate/reactivate, and
 /// delete (when nothing references it) — everything the item form's
@@ -16,39 +19,55 @@ class DepartmentsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final departments = ref.watch(allDepartmentsProvider);
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      appBar: AppBar(title: const Text('Departments')),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _addDepartment(context, ref),
-        icon: const Icon(Icons.add),
-        label: const Text('Add department'),
-      ),
-      body: GlossyBackground(
-        child: switch (departments) {
-          AsyncData(:final value) => value.isEmpty
-              ? const Center(child: Text('No departments yet.'))
-              : Align(
-                  alignment: Alignment.topCenter,
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 720),
-                    child: ListView.builder(
-                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 96),
-                      itemCount: value.length,
-                      itemBuilder: (context, i) =>
-                          _DepartmentTile(department: value[i]),
-                    ),
-                  ),
-                ),
-          AsyncError(:final error) => Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Text('Could not load departments.\n$error'),
-              ),
-            ),
-          _ => const Center(child: CircularProgressIndicator()),
-        },
-      ),
+    return AdminPage(
+      icon: Icons.apartment_outlined,
+      title: 'Departments',
+      subtitle: 'Offices that own items and approve requests for them.',
+      accent: _accent,
+      maxWidth: 720,
+      actions: [
+        FilledButton.icon(
+          onPressed: () => _addDepartment(context, ref),
+          style: FilledButton.styleFrom(
+            backgroundColor: _accent,
+            minimumSize: Size.zero,
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+          ),
+          icon: const Icon(Icons.add, size: 18),
+          label: const Text('Add'),
+        ),
+      ],
+      child: switch (departments) {
+        AsyncData(:final value) when value.isEmpty => AdminEmptyState(
+          icon: Icons.apartment_outlined,
+          title: 'No departments yet',
+          hint: 'Add the offices that lend items out, then assign staff to '
+              'them from the dashboard.',
+          action: FilledButton.icon(
+            onPressed: () => _addDepartment(context, ref),
+            style: FilledButton.styleFrom(backgroundColor: _accent),
+            icon: const Icon(Icons.add, size: 18),
+            label: const Text('Add department'),
+          ),
+        ),
+        AsyncData(:final value) => RefreshIndicator(
+          onRefresh: () async => ref.invalidate(allDepartmentsProvider),
+          child: ListView.builder(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
+            itemCount: value.length,
+            itemBuilder: (context, i) => Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: _DepartmentTile(department: value[i]),
+            ).fadeUpAt(i),
+          ),
+        ),
+        AsyncError(:final error) => AdminEmptyState(
+          icon: Icons.error_outline,
+          title: 'Could not load departments',
+          hint: '$error',
+        ),
+        _ => const Center(child: CircularProgressIndicator()),
+      },
     );
   }
 
@@ -109,35 +128,84 @@ class _DepartmentTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final scheme = Theme.of(context).colorScheme;
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: ListTile(
-        title: Text(department.name),
-        subtitle: department.active
-            ? null
-            : Text(
-                'Deactivated — hidden from new item assignments',
-                style: TextStyle(color: scheme.error),
+    return AdminCard(
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: department.active
+                  ? _accent.withValues(alpha: 0.13)
+                  : scheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(
+              Icons.apartment_outlined,
+              size: 21,
+              color: department.active ? _accent : scheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  department.name,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  department.active
+                      ? 'Assignable to items'
+                      : 'Deactivated — hidden from new item assignments',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: department.active
+                        ? scheme.onSurfaceVariant
+                        : scheme.error,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Switch(
+            value: department.active,
+            onChanged: (v) => _setActive(context, ref, v),
+          ),
+          PopupMenuButton<String>(
+            tooltip: 'Actions',
+            onSelected: (v) => v == 'rename'
+                ? _rename(context, ref)
+                : _delete(context, ref),
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'rename',
+                child: Row(
+                  children: [
+                    Icon(Icons.edit_outlined, size: 18),
+                    SizedBox(width: 10),
+                    Text('Rename'),
+                  ],
+                ),
               ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            IconButton(
-              tooltip: 'Rename',
-              icon: const Icon(Icons.edit_outlined),
-              onPressed: () => _rename(context, ref),
-            ),
-            Switch(
-              value: department.active,
-              onChanged: (v) => _setActive(context, ref, v),
-            ),
-            IconButton(
-              tooltip: 'Delete',
-              icon: Icon(Icons.delete_outline, color: scheme.error),
-              onPressed: () => _delete(context, ref),
-            ),
-          ],
-        ),
+              const PopupMenuDivider(),
+              PopupMenuItem(
+                value: 'delete',
+                child: Row(
+                  children: [
+                    Icon(Icons.delete_outline, size: 18, color: scheme.error),
+                    const SizedBox(width: 10),
+                    Text('Delete', style: TextStyle(color: scheme.error)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

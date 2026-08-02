@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../app/router.dart';
 import '../data/auth_providers.dart';
 
 /// Wraps the whole app: if the signed-in user's account gets deactivated
@@ -38,9 +39,17 @@ class _AccountActiveGateState extends ConsumerState<AccountActiveGate> {
   Future<void> _forceSignOut() async {
     await ref.read(authRepositoryProvider).signOut();
     if (!mounted) return;
+    // Same reason as the notification modal: this gate sits above the
+    // router's Navigator, so it has to borrow the Navigator's context.
+    final navigatorContext = rootNavigatorKey.currentContext;
+    if (navigatorContext == null || !navigatorContext.mounted) return;
     showDialog<void>(
-      context: context,
+      context: navigatorContext,
       builder: (context) => AlertDialog(
+        icon: Icon(
+          Icons.block,
+          color: Theme.of(context).colorScheme.error,
+        ),
         title: const Text('Account deactivated'),
         content: const Text(
           'Your account has been deactivated. Contact the LGU office for '

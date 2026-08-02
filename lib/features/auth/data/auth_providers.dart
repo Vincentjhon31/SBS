@@ -32,6 +32,7 @@ class Profile {
   const Profile({
     required this.id,
     required this.fullName,
+    required this.username,
     required this.userType,
     required this.themeColor,
     required this.backgroundStyle,
@@ -41,6 +42,11 @@ class Profile {
 
   final String id;
   final String fullName;
+
+  /// The handle citizens sign in with. Null for staff, who sign in with
+  /// an email, and for citizens registered before the username change.
+  final String? username;
+
   final String userType;
 
   /// 'blue' | 'purple' | 'teal' | 'coral' | 'green' — server-synced accent
@@ -65,6 +71,7 @@ class Profile {
   factory Profile.fromJson(Map<String, dynamic> json) => Profile(
         id: json['id'] as String,
         fullName: json['full_name'] as String,
+        username: json['username'] as String?,
         userType: json['user_type'] as String,
         themeColor: json['theme_color'] as String? ?? 'blue',
         backgroundStyle: json['background_style'] as String? ?? 'glossy',

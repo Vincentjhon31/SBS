@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -71,6 +72,15 @@ abstract final class AppRoutes {
   static const about = '/profile/about';
 }
 
+/// The router's Navigator.
+///
+/// App-wide listeners (the in-app notification modal, the deactivated-
+/// account gate) live in MaterialApp.router's `builder`, which sits
+/// *above* this Navigator — so their own BuildContext has no Navigator
+/// ancestor and showDialog() throws. They reach the Navigator through
+/// this key instead.
+final rootNavigatorKey = GlobalKey<NavigatorState>();
+
 /// Re-runs the router redirect whenever the auth state changes.
 class _StreamRefresh extends ChangeNotifier {
   _StreamRefresh(Stream<AuthState> stream) {
@@ -92,6 +102,7 @@ final routerProvider = Provider<GoRouter>((ref) {
   final session = ref.watch(sessionGetterProvider);
 
   return GoRouter(
+    navigatorKey: rootNavigatorKey,
     initialLocation: AppRoutes.splash,
     refreshListenable: refresh,
     redirect: (context, state) {
