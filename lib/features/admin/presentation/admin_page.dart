@@ -51,11 +51,11 @@ class AdminPage extends StatelessWidget {
       // Titleless: the header below already names the screen, and showing
       // it twice wastes the only vertical space these tools have. The bar
       // stays for the back button.
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        surfaceTintColor: Colors.transparent,
-        toolbarHeight: 48,
-      ),
+      //
+      // The bar keeps the theme's surface colour deliberately — the
+      // backdrop is painted inside the body, below the app bar, so a
+      // transparent bar has nothing behind it and renders black.
+      appBar: AppBar(toolbarHeight: 48),
       body: GlossyBackground(
         child: SafeArea(
           child: Align(

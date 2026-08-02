@@ -25,10 +25,10 @@ class NotificationsScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: Colors.transparent,
+      // No transparent override: the backdrop is painted inside the body,
+      // so a see-through app bar has nothing behind it and renders black.
       appBar: AppBar(
         title: const Text('Notifications'),
-        backgroundColor: Colors.transparent,
-        surfaceTintColor: Colors.transparent,
         actions: [
           if (unread > 0)
             TextButton.icon(

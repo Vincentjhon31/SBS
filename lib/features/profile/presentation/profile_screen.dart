@@ -30,8 +30,6 @@ class ProfileScreen extends ConsumerWidget {
           : AppBar(
               title: const Text('Profile'),
               automaticallyImplyLeading: false,
-              backgroundColor: Colors.transparent,
-              surfaceTintColor: Colors.transparent,
             ),
       body: Align(
         alignment: Alignment.topCenter,

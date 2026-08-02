@@ -58,8 +58,31 @@ class _InAppNotificationListenerState
   final _pending = <AppNotification>[];
   bool _dialogShowing = false;
 
+  /// Only notifications sent after this moment are worth interrupting for.
+  ///
+  /// The id baseline below is not enough on its own: the stream's first
+  /// emission can arrive empty or partial (before data loads, or right
+  /// after sign-in), which made every existing row look brand new and
+  /// popped a modal for each — including ones already read weeks ago.
+  /// Anything older than the session belongs in the inbox, not in front
+  /// of the user.
+  final _startedAt = DateTime.now();
+
+  /// Past this many at once, one summary modal replaces the queue — a
+  /// broadcast to a citizen with a backlog should never mean tapping
+  /// "Next" a hundred times.
+  static const _summaryThreshold = 3;
+
+  /// Realtime delivers one emission per inserted row, so a burst arrives
+  /// as N separate callbacks rather than a single list. Without this
+  /// pause the first row would open its own modal before the rest turned
+  /// up, and the summary below could never trigger.
+  Timer? _burstTimer;
+  static const _burstWindow = Duration(milliseconds: 700);
+
   @override
   void dispose() {
+    _burstTimer?.cancel();
     _player.dispose();
     super.dispose();
   }
@@ -85,14 +108,23 @@ class _InAppNotificationListenerState
 
       final newOnes = [
         for (final n in list)
-          if (!_seenIds.contains(n.id)) n,
+          if (!_seenIds.contains(n.id) &&
+              n.unread &&
+              n.sentAt.isAfter(_startedAt))
+            n,
       ];
       _seenIds = {for (final n in list) n.id};
       if (newOnes.isEmpty) return;
 
-      unawaited(_player.play(AssetSource('conclusive-message-tone.mp3')));
       _pending.addAll(newOnes);
-      _showNextIfIdle();
+      // Let the rest of the burst land before deciding how to present it,
+      // and chime once for the batch rather than once per row.
+      _burstTimer?.cancel();
+      _burstTimer = Timer(_burstWindow, () {
+        if (!mounted) return;
+        unawaited(_player.play(AssetSource('conclusive-message-tone.mp3')));
+        _showNextIfIdle();
+      });
     });
 
     return widget.child;
@@ -106,8 +138,26 @@ class _InAppNotificationListenerState
     final navigatorContext = rootNavigatorKey.currentContext;
     if (navigatorContext == null) return;
 
-    final notification = _pending.removeAt(0);
     _dialogShowing = true;
+
+    // A burst collapses into one summary rather than a queue to tap
+    // through. The individual modal below also offers "Dismiss all", so
+    // even a queue of three is never a trap.
+    if (_pending.length > _summaryThreshold) {
+      final count = _pending.length;
+      _pending.clear();
+      showDialog<void>(
+        context: navigatorContext,
+        barrierDismissible: false,
+        builder: (context) => _NotificationSummaryModal(
+          count: count,
+          onView: _openInbox,
+        ),
+      ).then(_onDialogClosed);
+      return;
+    }
+
+    final notification = _pending.removeAt(0);
     showDialog<void>(
       context: navigatorContext,
       barrierDismissible: false,
@@ -115,13 +165,18 @@ class _InAppNotificationListenerState
         notification: notification,
         queuedBehind: _pending.length,
         onView: () => _openNotification(notification),
+        onDismissAll: _pending.isEmpty ? null : _pending.clear,
       ),
-    ).then((_) {
-      _dialogShowing = false;
-      if (!mounted) return;
-      _showNextIfIdle();
-    });
+    ).then(_onDialogClosed);
   }
+
+  void _onDialogClosed(void _) {
+    _dialogShowing = false;
+    if (!mounted) return;
+    _showNextIfIdle();
+  }
+
+  void _openInbox() => ref.read(routerProvider).go(AppRoutes.notifications);
 
   void _openNotification(AppNotification notification) {
     if (notification.unread) {
@@ -151,6 +206,7 @@ class NotificationModal extends StatelessWidget {
     required this.notification,
     required this.onView,
     this.queuedBehind = 0,
+    this.onDismissAll,
   });
 
   final AppNotification notification;
@@ -158,6 +214,10 @@ class NotificationModal extends StatelessWidget {
 
   /// How many more are waiting behind this one.
   final int queuedBehind;
+
+  /// Drops the rest of the queue instead of stepping through it. Null
+  /// when this is the last one.
+  final VoidCallback? onDismissAll;
 
   @override
   Widget build(BuildContext context) {
@@ -239,6 +299,14 @@ class NotificationModal extends StatelessWidget {
       ),
       actionsAlignment: MainAxisAlignment.center,
       actions: [
+        if (onDismissAll != null)
+          TextButton(
+            onPressed: () {
+              onDismissAll!();
+              Navigator.pop(context);
+            },
+            child: const Text('Dismiss all'),
+          ),
         TextButton(
           onPressed: () => Navigator.pop(context),
           child: Text(queuedBehind > 0 ? 'Next' : 'Dismiss'),
@@ -253,6 +321,90 @@ class NotificationModal extends StatelessWidget {
             onView();
           },
           child: const Text('View'),
+        ),
+      ],
+    );
+  }
+}
+
+/// Shown instead of a queue when several notifications land at once —
+/// one acknowledgement for the batch, with the inbox one tap away.
+class _NotificationSummaryModal extends StatelessWidget {
+  const _NotificationSummaryModal({
+    required this.count,
+    required this.onView,
+  });
+
+  final int count;
+  final VoidCallback onView;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
+      contentPadding: const EdgeInsets.fromLTRB(24, 28, 24, 16),
+      content: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 340),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 84,
+              height: 84,
+              decoration: BoxDecoration(
+                color: scheme.primary.withValues(alpha: 0.08),
+                shape: BoxShape.circle,
+              ),
+              child: Center(
+                child: Container(
+                  width: 62,
+                  height: 62,
+                  decoration: BoxDecoration(
+                    color: scheme.primary.withValues(alpha: 0.16),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.notifications_active_outlined,
+                    size: 30,
+                    color: scheme.primary,
+                  ),
+                ),
+              ),
+            ).popIn(),
+            const SizedBox(height: 18),
+            Text(
+              '$count new notifications',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.2,
+              ),
+            ).fadeUp(delay: const Duration(milliseconds: 70)),
+            const SizedBox(height: 8),
+            Text(
+              'Open your notifications to read them.',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: scheme.onSurfaceVariant,
+                height: 1.5,
+              ),
+            ).fadeUp(delay: const Duration(milliseconds: 110)),
+          ],
+        ),
+      ),
+      actionsAlignment: MainAxisAlignment.center,
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Later'),
+        ),
+        FilledButton(
+          onPressed: () {
+            Navigator.pop(context);
+            onView();
+          },
+          child: const Text('View all'),
         ),
       ],
     );
