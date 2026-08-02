@@ -7,7 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/widgets/full_image_viewer.dart';
-import '../../../core/widgets/glossy_background.dart';
+import '../../../core/widgets/workbench_scaffold.dart';
 import '../data/items_models.dart';
 import '../data/items_providers.dart';
 
@@ -160,15 +160,18 @@ class _ItemFormScreenState extends ConsumerState<ItemFormScreen> {
                 item,
           ].take(3).toList();
 
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      appBar: AppBar(title: Text(_isEdit ? 'Edit Item' : 'New Item')),
-      body: GlossyBackground(
-        child: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: Form(
-              key: _formKey,
+    final scheme = Theme.of(context).colorScheme;
+    return Form(
+      key: _formKey,
+      child: WorkbenchScaffold(
+        title: _isEdit ? 'Edit Item' : 'New Item',
+        subtitle: _isEdit ? widget.item!.displayName : null,
+        main: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            WorkbenchCard(
+              title: 'Identity',
+              icon: Icons.label_outline,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -186,24 +189,46 @@ class _ItemFormScreenState extends ConsumerState<ItemFormScreen> {
                         : null,
                   ),
                   if (similar.isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    Card(
-                      color: Theme.of(
-                        context,
-                      ).colorScheme.surfaceContainerHighest,
-                      child: Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Similar existing items — avoid duplicates:',
-                              style: Theme.of(context).textTheme.labelMedium,
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE07A1F).withValues(alpha: 0.10),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(
+                            Icons.copy_all_outlined,
+                            size: 17,
+                            color: Color(0xFFE07A1F),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Similar items already exist',
+                                  style: Theme.of(context).textTheme.bodySmall
+                                      ?.copyWith(fontWeight: FontWeight.w700),
+                                ),
+                                const SizedBox(height: 4),
+                                for (final item in similar)
+                                  Text(
+                                    '• ${item.displayName}',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodySmall
+                                        ?.copyWith(
+                                          color: scheme.onSurfaceVariant,
+                                        ),
+                                  ),
+                              ],
                             ),
-                            for (final item in similar)
-                              Text('• ${item.displayName}'),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
@@ -213,11 +238,20 @@ class _ItemFormScreenState extends ConsumerState<ItemFormScreen> {
                     decoration: const InputDecoration(
                       labelText: 'Distinguishing tag (optional)',
                       hintText: 'e.g. plate number, room number, unit letter',
+                      helperText:
+                          'Tells identical items apart in lists and records',
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  _QuantityStepper(controller: _quantityController),
-                  const SizedBox(height: 16),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            WorkbenchCard(
+              title: 'Classification',
+              icon: Icons.category_outlined,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
                   _CategoryDropdown(
                     value: _category,
                     existing: _existingCategories(allItems),
@@ -230,9 +264,23 @@ class _ItemFormScreenState extends ConsumerState<ItemFormScreen> {
                       }
                     }),
                   ),
-                  const SizedBox(height: 16),
-                  Text('Borrow or Schedule?', style: Theme.of(context).textTheme.titleSmall),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 18),
+                  Text(
+                    'How is it taken?',
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _flowType == ItemFlowType.schedule
+                        ? 'Reserved for a date and used in place.'
+                        : 'Taken away by the borrower and returned.',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
                   SegmentedButton<ItemFlowType>(
                     segments: const [
                       ButtonSegment(
@@ -252,7 +300,7 @@ class _ItemFormScreenState extends ConsumerState<ItemFormScreen> {
                       _flowTypeManuallySet = true;
                     }),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 18),
                   DropdownButtonFormField<String?>(
                     initialValue: _departmentId,
                     decoration: const InputDecoration(
@@ -273,60 +321,92 @@ class _ItemFormScreenState extends ConsumerState<ItemFormScreen> {
                     ],
                     onChanged: (v) => setState(() => _departmentId = v),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 18),
+                  _QuantityStepper(controller: _quantityController),
+                ],
+              ),
+            ),
+          ],
+        ),
+        side: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            WorkbenchCard(
+              title: 'Reference photo',
+              icon: Icons.image_outlined,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
                   _PhotoPreview(
                     photoBytes: _photoBytes,
                     existingPath: widget.item?.referencePhotoPath,
                   ),
-                  if (_photoBytes != null || widget.item?.referencePhotoPath != null)
-                    const SizedBox(height: 8),
+                  if (_photoBytes != null ||
+                      widget.item?.referencePhotoPath != null)
+                    const SizedBox(height: 10),
                   OutlinedButton.icon(
                     onPressed: _submitting ? null : _pickPhoto,
                     icon: Icon(
                       _photo == null
                           ? Icons.add_photo_alternate_outlined
                           : Icons.check_circle,
+                      size: 18,
                     ),
                     label: Text(
                       _photo == null
                           ? (widget.item?.referencePhotoPath == null
-                                ? 'Add reference photo (optional)'
-                                : 'Replace reference photo')
+                                ? 'Add photo'
+                                : 'Replace photo')
                           : 'Photo selected',
                     ),
                   ),
-                  if (_isEdit) ...[
-                    const SizedBox(height: 8),
-                    Card(
-                      margin: EdgeInsets.zero,
-                      clipBehavior: Clip.antiAlias,
-                      child: SwitchListTile(
-                        value: _active,
-                        onChanged: _submitting
-                            ? null
-                            : (v) => setState(() => _active = v),
-                        title: const Text('Active'),
-                        subtitle: const Text(
-                          'Inactive items stay in history but cannot be borrowed',
-                        ),
-                      ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Helps borrowers recognise the right item in the '
+                    'registry.',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                      height: 1.4,
                     ),
-                  ],
-                  const SizedBox(height: 24),
-                  FilledButton(
-                    onPressed: _submitting ? null : _save,
-                    child: _submitting
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : Text(_isEdit ? 'Save changes' : 'Create item'),
                   ),
                 ],
               ),
             ),
-          ),
+            if (_isEdit) ...[
+              const SizedBox(height: 16),
+              WorkbenchCard(
+                title: 'Availability',
+                icon: Icons.toggle_on_outlined,
+                child: SwitchListTile(
+                  value: _active,
+                  onChanged: _submitting
+                      ? null
+                      : (v) => setState(() => _active = v),
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(_active ? 'Active' : 'Inactive'),
+                  subtitle: Text(
+                    _active
+                        ? 'Available to request'
+                        : 'Stays in history but cannot be borrowed',
+                  ),
+                ),
+              ),
+            ],
+            const SizedBox(height: 16),
+            FilledButton(
+              onPressed: _submitting ? null : _save,
+              style: FilledButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 18),
+              ),
+              child: _submitting
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Text(_isEdit ? 'Save changes' : 'Create item'),
+            ),
+          ],
         ),
       ),
     );

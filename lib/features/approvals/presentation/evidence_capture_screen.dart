@@ -6,7 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../core/constants/app_constants.dart';
-import '../../../core/widgets/glossy_background.dart';
+import '../../../core/widgets/workbench_scaffold.dart';
 import '../../admin/data/admin_providers.dart';
 import '../data/approvals_models.dart';
 import '../data/approvals_providers.dart';
@@ -154,30 +154,39 @@ class _EvidenceCaptureScreenState extends ConsumerState<EvidenceCaptureScreen> {
         settings?['liability_terms_version'] ??
         AppConstants.liabilityTermsVersion;
     final termsText = settings?['liability_terms'] ?? AppConstants.liabilityTerms;
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      appBar: AppBar(
-        title: Text(isRelease ? 'Release Item' : 'Confirm Return'),
-      ),
-      body: GlossyBackground(
-        child: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
+    final scheme = Theme.of(context).colorScheme;
+    final accent = isRelease
+        ? const Color(0xFF2B7FFF)
+        : const Color(0xFF1F9D65);
+    final canSubmit =
+        _photos.isNotEmpty && (!isRelease || _acknowledged) && !_busy;
+
+    return WorkbenchScaffold(
+      title: isRelease ? 'Release Item' : 'Confirm Return',
+      subtitle: req.itemLabel,
+      main: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          WorkbenchCard(
+            title: 'Photo evidence',
+            icon: Icons.photo_camera_outlined,
+            accent: accent,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Text(
-                  req.itemLabel,
-                  style: Theme.of(context).textTheme.titleLarge,
+                  isRelease
+                      ? 'Photograph the item at handoff — ideally with the '
+                            'borrower holding it — so its condition is on '
+                            'record before it leaves.'
+                      : 'Photograph the item as returned, so any new damage '
+                            'is on record against the handoff photos.',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                    height: 1.45,
+                  ),
                 ),
-                Text('Borrower: ${req.borrowerName}'),
-                const SizedBox(height: 8),
-                Text(
-                  'Photos (${_photos.length}/$_maxEvidencePhotos) — e.g. the '
-                  'borrower holding or using the item',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 14),
                 _PhotoGrid(
                   photos: _photos,
                   onRemove: _busy
@@ -187,47 +196,153 @@ class _EvidenceCaptureScreenState extends ConsumerState<EvidenceCaptureScreen> {
                       ? null
                       : _addPhoto,
                 ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: _notesController,
-                  decoration: InputDecoration(
-                    labelText: isRelease
-                        ? 'Condition notes at handoff (optional)'
-                        : 'Condition notes at return',
-                    hintText: isRelease
-                        ? 'e.g. existing scratch on left door'
-                        : 'e.g. returned complete, no new damage',
-                  ),
-                  maxLines: 3,
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Icon(
+                      _photos.isEmpty
+                          ? Icons.info_outline
+                          : Icons.check_circle_outline,
+                      size: 15,
+                      color: _photos.isEmpty ? scheme.error : accent,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      _photos.isEmpty
+                          ? 'At least one photo is required'
+                          : '${_photos.length} of $_maxEvidencePhotos photos added',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: _photos.isEmpty
+                            ? scheme.error
+                            : scheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
                 ),
-                if (isRelease) ...[
-                  const SizedBox(height: 16),
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          WorkbenchCard(
+            title: 'Condition notes',
+            icon: Icons.notes_outlined,
+            accent: accent,
+            child: TextField(
+              controller: _notesController,
+              decoration: InputDecoration(
+                labelText: isRelease
+                    ? 'Notes at handoff (optional)'
+                    : 'Notes at return',
+                hintText: isRelease
+                    ? 'e.g. existing scratch on left door'
+                    : 'e.g. returned complete, no new damage',
+                alignLabelWithHint: true,
+              ),
+              maxLines: 4,
+            ),
+          ),
+        ],
+      ),
+      side: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          WorkbenchCard(
+            title: 'Handoff',
+            icon: Icons.swap_horiz,
+            accent: accent,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                WorkbenchField(
+                  icon: Icons.inventory_2_outlined,
+                  label: 'ITEM',
+                  value: req.itemLabel,
+                ),
+                WorkbenchField(
+                  icon: Icons.person_outline,
+                  label: 'BORROWER',
+                  value: req.borrowerName,
+                ),
+                if (req.itemQuantity > 1)
+                  WorkbenchField(
+                    icon: Icons.pin_outlined,
+                    label: 'QUANTITY',
+                    value:
+                        '${req.quantityRequested} of ${req.itemQuantity} units',
+                  ),
+              ],
+            ),
+          ),
+          if (isRelease) ...[
+            const SizedBox(height: 16),
+            WorkbenchCard(
+              title: 'Liability terms',
+              icon: Icons.gavel_outlined,
+              accent: accent,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'Version $termsVersion',
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  // Scroll-capped rather than free-flowing: the terms are
+                  // long enough to push the confirm button off a laptop
+                  // screen entirely.
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 150),
+                    child: SingleChildScrollView(
+                      child: Text(
+                        termsText,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          height: 1.5,
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  InkWell(
+                    onTap: _busy
+                        ? null
+                        : () => setState(() => _acknowledged = !_acknowledged),
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: _acknowledged
+                            ? accent.withValues(alpha: 0.12)
+                            : scheme.surfaceContainerHighest.withValues(
+                                alpha: 0.5,
+                              ),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: _acknowledged
+                              ? accent.withValues(alpha: 0.5)
+                              : scheme.outlineVariant,
+                        ),
+                      ),
+                      child: Row(
                         children: [
-                          Text(
-                            'Liability terms ($termsVersion)',
-                            style: Theme.of(context).textTheme.labelLarge,
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            termsText,
-                            style: Theme.of(context).textTheme.bodySmall,
-                          ),
-                          CheckboxListTile(
+                          Checkbox(
                             value: _acknowledged,
                             onChanged: _busy
                                 ? null
                                 : (v) => setState(
                                     () => _acknowledged = v ?? false,
                                   ),
-                            contentPadding: EdgeInsets.zero,
-                            controlAffinity: ListTileControlAffinity.leading,
-                            title: const Text(
+                            visualDensity: VisualDensity.compact,
+                          ),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
                               'Borrower acknowledges these terms',
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(fontWeight: FontWeight.w600),
                             ),
                           ),
                         ],
@@ -235,26 +350,42 @@ class _EvidenceCaptureScreenState extends ConsumerState<EvidenceCaptureScreen> {
                     ),
                   ),
                 ],
-                const SizedBox(height: 24),
-                FilledButton.icon(
-                  onPressed: _busy ? null : _submit,
-                  icon: _busy
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : Icon(
-                          isRelease
-                              ? Icons.outbound
-                              : Icons.assignment_turned_in,
-                        ),
-                  label: Text(isRelease ? 'Release item' : 'Confirm return'),
-                ),
-              ],
+              ),
             ),
+          ],
+          const SizedBox(height: 16),
+          FilledButton.icon(
+            onPressed: canSubmit ? _submit : null,
+            style: FilledButton.styleFrom(
+              backgroundColor: accent,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 18),
+            ),
+            icon: _busy
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : Icon(
+                    isRelease ? Icons.outbound : Icons.assignment_turned_in,
+                    size: 19,
+                  ),
+            label: Text(isRelease ? 'Release item' : 'Confirm return'),
           ),
-        ),
+          if (!canSubmit && !_busy) ...[
+            const SizedBox(height: 10),
+            Text(
+              _photos.isEmpty
+                  ? 'Add at least one photo to continue.'
+                  : 'Tick the liability acknowledgement to continue.',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: scheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }

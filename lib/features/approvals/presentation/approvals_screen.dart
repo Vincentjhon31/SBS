@@ -6,9 +6,10 @@ import 'package:go_router/go_router.dart';
 import '../../../app/router.dart';
 import '../../../core/theme/view_mode_controller.dart';
 import '../../../core/utils/date_format.dart';
-import '../../../core/widgets/glossy_background.dart';
+import '../../../core/widgets/app_animations.dart';
 import '../../../core/widgets/request_status_chip.dart';
 import '../../../core/widgets/sbs_table.dart';
+import '../../../core/widgets/workbench_scaffold.dart';
 import '../../items/data/items_providers.dart';
 import '../data/approvals_models.dart';
 import '../data/approvals_providers.dart';
@@ -140,8 +141,9 @@ class _ApprovalQueue extends ConsumerWidget {
     final queue = ref.watch(approvalQueueProvider(status));
     final pref = ref.watch(viewModeProvider);
     return switch (queue) {
-      AsyncData(:final value) when value.isEmpty => Center(
-        child: Text(emptyText),
+      AsyncData(:final value) when value.isEmpty => _QueueEmptyState(
+        text: emptyText,
+        status: status,
       ),
       AsyncData(:final value) => Align(
         alignment: Alignment.topCenter,
@@ -229,7 +231,7 @@ class _ApprovalQueue extends ConsumerWidget {
                           request: value[index],
                           onTap: () => onTap(context, value[index]),
                           showStatusChip: showStatusChip,
-                        ),
+                        ).fadeUpAt(index),
                       ),
               );
             },
@@ -406,163 +408,278 @@ class _ApprovalDetailScreenState extends ConsumerState<ApprovalDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     final verification = req.isCitizenBorrower
         ? ref.watch(citizenVerificationProvider(req.borrowerId!))
         : null;
     final citizenVerified = verification?.value?.verified ?? false;
     final canApprove = !req.isCitizenBorrower || citizenVerified;
 
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      appBar: AppBar(title: const Text('Review Request')),
-      body: GlossyBackground(
-        child: SafeArea(
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 640),
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
+    return WorkbenchScaffold(
+      title: 'Review Request',
+      subtitle: req.itemLabel,
+      main: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          WorkbenchCard(
+            title: 'Request',
+            icon: Icons.inventory_2_outlined,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  req.itemLabel,
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.3,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                if (req.itemQuantity > 1)
+                  WorkbenchField(
+                    icon: Icons.pin_outlined,
+                    label: 'QUANTITY',
+                    value:
+                        '${req.quantityRequested} of ${req.itemQuantity} units',
+                  ),
+                if (req.useFrom != null && req.useTo != null)
+                  WorkbenchField(
+                    icon: Icons.event,
+                    label: 'USED FROM → TO',
+                    value: '${_fmt(req.useFrom!)}  →  ${_fmt(req.useTo!)}',
+                  ),
+                WorkbenchField(
+                  icon: Icons.local_shipping_outlined,
+                  label: 'PICKUP → RETURN',
+                  value:
+                      '${_fmt(req.requestedFrom)}  →  '
+                      '${req.requestedTo == null ? "not yet known" : _fmt(req.requestedTo!)}',
+                ),
+                WorkbenchField(
+                  icon: Icons.notes_outlined,
+                  label: 'PURPOSE',
+                  value: req.purpose,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          WorkbenchCard(
+            title: 'Borrower',
+            icon: Icons.person_outline,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
                   children: [
-                    Text(
-                      req.itemLabel,
-                      style: Theme.of(context).textTheme.headlineSmall,
-                    ),
-                    if (req.itemQuantity > 1) ...[
-                      const SizedBox(height: 4),
-                      _WindowRow(
-                        icon: Icons.pin_outlined,
-                        label: 'Quantity',
-                        value: '${req.quantityRequested} of ${req.itemQuantity} units',
-                      ),
-                    ],
-                    const SizedBox(height: 12),
-                    if (req.useFrom != null && req.useTo != null) ...[
-                      _WindowRow(
-                        icon: Icons.event,
-                        label: 'Use',
-                        value: '${_fmt(req.useFrom!)}  →  ${_fmt(req.useTo!)}',
-                      ),
-                      const SizedBox(height: 4),
-                    ],
-                    _WindowRow(
-                      icon: Icons.local_shipping_outlined,
-                      label: 'Pickup → Return',
-                      value:
-                          '${_fmt(req.requestedFrom)}  →  '
-                          '${req.requestedTo == null ? "not yet known" : _fmt(req.requestedTo!)}',
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Purpose',
-                      style: Theme.of(context).textTheme.labelLarge,
-                    ),
-                    Text(req.purpose),
-                    const Divider(height: 32),
-                    Text(
-                      'Borrower',
-                      style: Theme.of(context).textTheme.labelLarge,
-                    ),
-                    Text(
-                      '${req.borrowerName} (${switch (req.borrowerType) {
-                        'citizen' => 'Citizen',
-                        'guest' => 'Walk-in guest',
-                        _ => 'LGU Staff',
-                      }})',
-                    ),
-                    if (req.isCitizenBorrower) ...[
-                      const SizedBox(height: 12),
-                      switch (verification!) {
-                        AsyncData(:final value) => _VerificationCard(
-                          verification: value,
-                          busy: _busy,
-                          onVerify: () => _run(() async {
-                            await ref
-                                .read(approvalsRepositoryProvider)
-                                .verifyCitizen(req.borrowerId!);
-                            ref.invalidate(
-                              citizenVerificationProvider(req.borrowerId!),
-                            );
-                          }, 'Identity verified.'),
+                    CircleAvatar(
+                      radius: 21,
+                      backgroundColor: scheme.primaryContainer,
+                      foregroundColor: scheme.onPrimaryContainer,
+                      child: Text(
+                        _initials(req.borrowerName),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
                         ),
-                        AsyncError() => const Text(
-                          'Could not load verification data.',
-                        ),
-                        _ => const Center(child: CircularProgressIndicator()),
-                      },
-                    ],
-                    const SizedBox(height: 32),
-                    FilledButton.icon(
-                      onPressed: _busy || !canApprove
-                          ? null
-                          : () => _run(
-                              () => ref
-                                  .read(approvalsRepositoryProvider)
-                                  .approve(req.id),
-                              'Request approved.',
-                            ),
-                      icon: const Icon(Icons.check),
-                      label: Text(
-                        canApprove
-                            ? 'Approve'
-                            : 'Approve (verify identity first)',
                       ),
                     ),
-                    const SizedBox(height: 12),
-                    OutlinedButton.icon(
-                      onPressed: _busy ? null : _reject,
-                      icon: const Icon(Icons.close),
-                      label: const Text('Reject…'),
+                    const SizedBox(width: 13),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            req.borrowerName,
+                            style: Theme.of(context).textTheme.titleSmall
+                                ?.copyWith(fontWeight: FontWeight.w700),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            switch (req.borrowerType) {
+                              'citizen' => 'Citizen',
+                              'guest' => 'Walk-in guest',
+                              _ => 'LGU Staff',
+                            },
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(color: scheme.onSurfaceVariant),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                if (req.isCitizenBorrower) ...[
+                  const SizedBox(height: 16),
+                  switch (verification!) {
+                    AsyncData(:final value) => _VerificationCard(
+                      verification: value,
+                      busy: _busy,
+                      onVerify: () => _run(() async {
+                        await ref
+                            .read(approvalsRepositoryProvider)
+                            .verifyCitizen(req.borrowerId!);
+                        ref.invalidate(
+                          citizenVerificationProvider(req.borrowerId!),
+                        );
+                      }, 'Identity verified.'),
+                    ),
+                    AsyncError() => const Text(
+                      'Could not load verification data.',
+                    ),
+                    _ => const Center(child: CircularProgressIndicator()),
+                  },
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+      side: WorkbenchCard(
+        title: 'Decision',
+        icon: Icons.gavel_outlined,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Spelling out why Approve is locked, next to the button
+            // itself — previously this was only implied by the label.
+            if (!canApprove)
+              Container(
+                margin: const EdgeInsets.only(bottom: 14),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE07A1F).withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(
+                      Icons.gpp_maybe_outlined,
+                      size: 17,
+                      color: Color(0xFFE07A1F),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Verify this citizen\'s ID above before approving.',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          height: 1.4,
+                        ),
+                      ),
                     ),
                   ],
                 ),
               ),
+            FilledButton.icon(
+              onPressed: _busy || !canApprove
+                  ? null
+                  : () => _run(
+                      () => ref
+                          .read(approvalsRepositoryProvider)
+                          .approve(req.id),
+                      'Request approved.',
+                    ),
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFF1F9D65),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 18),
+              ),
+              icon: _busy
+                  ? const SizedBox(
+                      width: 17,
+                      height: 17,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.check, size: 19),
+              label: const Text('Approve request'),
             ),
-          ),
+            const SizedBox(height: 10),
+            OutlinedButton.icon(
+              onPressed: _busy ? null : _reject,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: scheme.error,
+                side: BorderSide(color: scheme.error.withValues(alpha: 0.5)),
+                padding: const EdgeInsets.symmetric(vertical: 18),
+              ),
+              icon: const Icon(Icons.close, size: 19),
+              label: const Text('Reject…'),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              'Approving reserves the item for this window. The borrower is '
+              'notified either way.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: scheme.onSurfaceVariant,
+                height: 1.45,
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 
   static String _fmt(DateTime dt) => formatDateTime(dt);
+
+  static String _initials(String name) {
+    final parts = name
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((p) => p.isNotEmpty)
+        .toList();
+    if (parts.isEmpty) return '?';
+    if (parts.length == 1) return parts.first[0].toUpperCase();
+    return (parts.first[0] + parts.last[0]).toUpperCase();
+  }
 }
 
-/// A labelled date-window row on the review screen (Use, Pickup → Return).
-class _WindowRow extends StatelessWidget {
-  const _WindowRow({
-    required this.icon,
-    required this.label,
-    required this.value,
-  });
 
-  final IconData icon;
-  final String label;
-  final String value;
+/// "Nothing here" for an approvals tab. Each tab means something
+/// different when empty — an empty Pending queue is good news, an empty
+/// History just means nothing has completed yet — so the icon follows
+/// the status rather than being one generic glyph.
+class _QueueEmptyState extends StatelessWidget {
+  const _QueueEmptyState({required this.text, required this.status});
+
+  final String text;
+  final String status;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, size: 18, color: scheme.onSurfaceVariant),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: scheme.onSurfaceVariant,
-                ),
+    final (icon, tint) = switch (status) {
+      'pending' => (Icons.task_alt, const Color(0xFF1F9D65)),
+      'approved' => (Icons.outbox_outlined, scheme.primary),
+      'released,overdue' => (Icons.inventory_2_outlined, scheme.primary),
+      _ => (Icons.history_toggle_off, scheme.onSurfaceVariant),
+    };
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 74,
+              height: 74,
+              decoration: BoxDecoration(
+                color: tint.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
               ),
-              Text(value, style: Theme.of(context).textTheme.bodyMedium),
-            ],
-          ),
+              child: Icon(icon, size: 33, color: tint),
+            ).popIn(),
+            const SizedBox(height: 18),
+            Text(
+              text,
+              textAlign: TextAlign.center,
+              style: Theme.of(
+                context,
+              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+            ).fadeUp(delay: const Duration(milliseconds: 80)),
+          ],
         ),
-      ],
+      ),
     );
   }
 }
