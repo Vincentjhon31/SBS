@@ -8,6 +8,7 @@ import '../../../app/router.dart';
 import '../../../core/theme/view_mode_controller.dart';
 import '../../../core/utils/category_color.dart';
 import '../../../core/utils/date_format.dart';
+import '../../../core/widgets/app_animations.dart';
 import '../../../core/widgets/category_badge.dart';
 import '../../../core/widgets/full_image_viewer.dart';
 import '../../../core/widgets/glossy_background.dart';
@@ -266,7 +267,7 @@ class _ItemsList extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     if (items.isEmpty) {
-      return const Center(child: Text('No items found.'));
+      return const _ItemsEmptyState();
     }
     final pref = ref.watch(viewModeProvider);
     return LayoutBuilder(
@@ -294,7 +295,7 @@ class _ItemsList extends ConsumerWidget {
                 item: items[index],
                 status: statuses[items[index].id],
                 isStaff: isStaff,
-              ),
+              ).fadeUpAt(index),
             ),
           );
         }
@@ -317,7 +318,7 @@ class _ItemsList extends ConsumerWidget {
               item: items[index],
               status: statuses[items[index].id],
               isStaff: isStaff,
-            ),
+            ).fadeUpAt(index),
           ),
         );
       },
@@ -424,6 +425,69 @@ class _StatusCell extends StatelessWidget {
 /// Mobile/narrow layout: one item per row, matching the original list — a
 /// large photo (not a tiny avatar) so the item is actually recognizable at
 /// a glance, matching the Home hero cards' treatment.
+/// Empty registry / no search matches. Distinguishes the two cases in
+/// wording, since "no items found" after typing a query means something
+/// different from an empty catalogue.
+class _ItemsEmptyState extends ConsumerWidget {
+  const _ItemsEmptyState();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final scheme = Theme.of(context).colorScheme;
+    final searching = ref.watch(itemsQueryProvider).trim().isNotEmpty;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 72,
+              height: 72,
+              decoration: BoxDecoration(
+                color: scheme.surfaceContainerHighest.withValues(alpha: 0.7),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                searching ? Icons.search_off : Icons.inventory_2_outlined,
+                size: 32,
+                color: scheme.onSurfaceVariant,
+              ),
+            ).popIn(),
+            const SizedBox(height: 18),
+            Text(
+              searching ? 'No items match your search' : 'No items yet',
+              textAlign: TextAlign.center,
+              style: Theme.of(
+                context,
+              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+            ).fadeUp(delay: const Duration(milliseconds: 80)),
+            const SizedBox(height: 6),
+            Text(
+              searching
+                  ? 'Try a different word, or clear the category filter.'
+                  : 'Items the LGU lends out will appear here once staff '
+                        'add them.',
+              textAlign: TextAlign.center,
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+            ).fadeUp(delay: const Duration(milliseconds: 130)),
+            if (searching) ...[
+              const SizedBox(height: 18),
+              OutlinedButton.icon(
+                onPressed: () => ref.read(itemsQueryProvider.notifier).set(''),
+                icon: const Icon(Icons.clear, size: 17),
+                label: const Text('Clear search'),
+              ).fadeUp(delay: const Duration(milliseconds: 180)),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _ItemRow extends StatelessWidget {
   const _ItemRow({
     required this.item,

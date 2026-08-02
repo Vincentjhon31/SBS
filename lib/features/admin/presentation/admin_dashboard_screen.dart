@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/router.dart';
 import '../../../core/utils/date_format.dart';
+import '../../../core/widgets/app_animations.dart';
 import '../../../core/widgets/request_status_chip.dart';
 import '../../auth/data/auth_providers.dart';
 import '../../items/data/items_providers.dart';
@@ -51,7 +52,7 @@ class StaffDashboardScreen extends ConsumerWidget {
                 _Greeting(
                   fullName: profile?.fullName,
                   isSuperadmin: isSuperadmin,
-                ),
+                ).fadeUp(),
                 const SizedBox(height: 28),
                 // Superadmins get the cross-department numbers first —
                 // superadmin_stats() is gated to them, so a regular
@@ -445,7 +446,7 @@ class _ManageGrid extends StatelessWidget {
                     if (i > 0) const SizedBox(width: gap),
                     Expanded(
                       child: i < slice.length
-                          ? _ManageCard(action: slice[i])
+                          ? _ManageCard(action: slice[i]).fadeUpAt(start + i)
                           : const SizedBox.shrink(),
                     ),
                   ],

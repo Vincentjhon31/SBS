@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../core/constants/app_constants.dart';
 import '../core/theme/background_style_controller.dart';
+import '../core/widgets/app_animations.dart';
 import '../core/widgets/glossy_background.dart';
 import '../features/auth/data/auth_providers.dart';
 import '../features/borrowing/presentation/schedule_or_borrow_chooser.dart';
@@ -425,7 +426,7 @@ class _SideNav extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     _SectionLabel('MENU', expanded: expanded),
-                    for (final d in _tabDestinations(true))
+                    for (final (i, d) in _tabDestinations(true).indexed)
                       _NavItem(
                         icon: d.icon,
                         selectedIcon: d.selectedIcon,
@@ -433,11 +434,12 @@ class _SideNav extends ConsumerWidget {
                         selected: currentBranch == d.branchIndex,
                         expanded: expanded,
                         onTap: () => onSelect(d.branchIndex),
-                      ),
+                      ).slideInLeft(delay: AppMotion.staggerFor(i)),
                     _SectionLabel('MANAGE', expanded: expanded),
-                    for (final d in _manageDestinations(
-                      isSuperadmin: profile?.isSuperadmin ?? false,
-                    ))
+                    for (final (i, d)
+                        in _manageDestinations(
+                          isSuperadmin: profile?.isSuperadmin ?? false,
+                        ).indexed)
                       _NavItem(
                         icon: d.icon,
                         selectedIcon: d.icon,
@@ -448,7 +450,7 @@ class _SideNav extends ConsumerWidget {
                         selected: false,
                         expanded: expanded,
                         onTap: () => context.push(d.route),
-                      ),
+                      ).slideInLeft(delay: AppMotion.staggerFor(i + 4)),
                   ],
                 ),
               ),

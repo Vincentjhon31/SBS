@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../app/router.dart';
 import '../../../core/constants/app_constants.dart';
+import '../../../core/widgets/app_animations.dart';
 import '../../../core/widgets/glossy_background.dart';
 import '../../settings/data/app_update_providers.dart';
 
@@ -334,7 +335,10 @@ class _Hero extends StatelessWidget {
             builder: (context, constraints) {
               final wide = constraints.maxWidth >= _wide;
               final copy = _HeroCopy(center: !wide);
-              const art = _AppPreview();
+              final art = const _AppPreview().fadeUp(
+                delay: const Duration(milliseconds: 260),
+                distance: 0.1,
+              );
               if (!wide) {
                 return Column(
                   children: [copy, const SizedBox(height: 56), art],
@@ -345,7 +349,7 @@ class _Hero extends StatelessWidget {
                 children: [
                   Expanded(flex: 6, child: copy),
                   const SizedBox(width: 48),
-                  const Expanded(flex: 5, child: Center(child: art)),
+                  Expanded(flex: 5, child: Center(child: art)),
                 ],
               );
             },
@@ -389,7 +393,7 @@ class _HeroCopy extends StatelessWidget {
               ),
             ],
           ),
-        ),
+        ).fadeUp(),
         const SizedBox(height: 24),
         Text(
           'Borrow LGU equipment\nwithout the paperwork.',
@@ -399,7 +403,7 @@ class _HeroCopy extends StatelessWidget {
             letterSpacing: -1.4,
             height: 1.08,
           ),
-        ),
+        ).fadeUp(delay: const Duration(milliseconds: 60)),
         const SizedBox(height: 20),
         ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 480),
@@ -413,7 +417,7 @@ class _HeroCopy extends StatelessWidget {
               height: 1.6,
             ),
           ),
-        ),
+        ).fadeUp(delay: const Duration(milliseconds: 120)),
         const SizedBox(height: 32),
         Wrap(
           spacing: 12,
@@ -450,7 +454,7 @@ class _HeroCopy extends StatelessWidget {
               child: const Text('Sign in'),
             ),
           ],
-        ),
+        ).fadeUp(delay: const Duration(milliseconds: 180)),
         const SizedBox(height: 24),
         Row(
           mainAxisSize: MainAxisSize.min,
@@ -917,7 +921,7 @@ class _FeaturesSection extends StatelessWidget {
                                     icon: slice[i].$1,
                                     title: slice[i].$2,
                                     body: slice[i].$3,
-                                  )
+                                  ).fadeUpAt(start + i)
                                 : const SizedBox.shrink(),
                           ),
                         ],

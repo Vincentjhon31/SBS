@@ -6,6 +6,7 @@ import '../../../app/router.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/utils/category_color.dart';
 import '../../../core/utils/date_format.dart';
+import '../../../core/widgets/app_animations.dart';
 import '../../../core/widgets/request_status_chip.dart';
 import '../../admin/presentation/admin_dashboard_screen.dart';
 import '../../auth/data/auth_providers.dart';
@@ -56,6 +57,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final profile = ref.watch(myProfileProvider);
     final verified = ref.watch(myCitizenVerifiedProvider);
     final activeRequests = ref.watch(activeRequestsProvider);
+    final allRequests = ref.watch(myRequestsProvider).value ?? const [];
     final items = ref.watch(itemsProvider).value ?? const <Item>[];
     final statuses = ref.watch(itemStatusesProvider).value ?? const {};
     final query = ref.watch(itemsQueryProvider);
@@ -95,7 +97,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 AsyncData(:final value) when value != null => _HomeHeader(
                   fullName: value.fullName,
                   unread: ref.watch(unreadCountProvider),
-                ),
+                ).fadeUp(),
                 AsyncError() => const Text('Could not load your profile.'),
                 _ => const SizedBox(
                   height: 48,
@@ -104,43 +106,59 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               },
               if (verified case AsyncData(value: false)) ...[
                 const SizedBox(height: 14),
-                const _VerificationBanner(),
+                const _VerificationBanner().fadeUp(
+                  delay: const Duration(milliseconds: 60),
+                ),
               ],
               const SizedBox(height: 20),
               _SearchBar(
                 controller: _searchController,
                 onChanged: (v) => ref.read(itemsQueryProvider.notifier).set(v),
                 onFilterTap: () => context.go(AppRoutes.items),
+              ).fadeUp(delay: const Duration(milliseconds: 100)),
+              const SizedBox(height: 18),
+              _StatusStrip(requests: allRequests).fadeUp(
+                delay: const Duration(milliseconds: 150),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 26),
               _SectionHeader(
                 title: 'Available to Borrow',
                 onSeeAll: () => context.go(AppRoutes.items),
-              ),
+              ).fadeUp(delay: const Duration(milliseconds: 200)),
               if (categories.isNotEmpty) ...[
                 const SizedBox(height: 12),
                 _CategoryPills(
                   categories: categories,
                   selected: _category,
                   onSelected: (c) => setState(() => _category = c),
-                ),
+                ).fadeUp(delay: const Duration(milliseconds: 240)),
               ],
               const SizedBox(height: 16),
               if (filtered.isEmpty)
-                const _EmptyHint(text: 'Nothing available right now.')
+                const _EmptyHint(
+                  icon: Icons.inventory_2_outlined,
+                  text: 'Nothing available right now.',
+                  hint: 'Check back later, or browse the full registry.',
+                ).fadeUp(delay: const Duration(milliseconds: 280))
               else
-                _HeroCarousel(items: filtered),
+                _HeroCarousel(
+                  items: filtered,
+                ).fadeUp(delay: const Duration(milliseconds: 280)),
               const SizedBox(height: 28),
               _SectionHeader(
                 title: 'My Borrowed Items',
                 onSeeAll: () => context.go(AppRoutes.requests),
-              ),
+              ).fadeUp(delay: const Duration(milliseconds: 320)),
               const SizedBox(height: 12),
               if (activeRequests.isEmpty)
-                const _EmptyHint(text: 'Nothing borrowed right now.')
+                const _EmptyHint(
+                  icon: Icons.check_circle_outline,
+                  text: 'Nothing borrowed right now.',
+                  hint: 'Anything you request will show up here.',
+                ).fadeUp(delay: const Duration(milliseconds: 360))
               else
-                for (final request in activeRequests.take(3))
-                  _BorrowedItemTile(request: request),
+                for (final (i, request) in activeRequests.take(3).indexed)
+                  _BorrowedItemTile(request: request).fadeUpAt(i + 6),
             ],
           ),
         ),
@@ -454,22 +472,140 @@ class _Pill extends StatelessWidget {
 }
 
 class _EmptyHint extends StatelessWidget {
-  const _EmptyHint({required this.text});
+  const _EmptyHint({required this.text, required this.icon, this.hint});
 
   final String text;
+  final IconData icon;
+
+  /// Optional second line telling the reader what to do about it — an
+  /// empty state that only says "nothing here" leaves them stuck.
+  final String? hint;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.symmetric(vertical: 26, horizontal: 18),
       decoration: BoxDecoration(
         color: scheme.surface,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: scheme.outlineVariant),
       ),
-      child: Text(text, style: Theme.of(context).textTheme.bodyMedium),
+      child: Column(
+        children: [
+          Container(
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(
+              color: scheme.surfaceContainerHighest.withValues(alpha: 0.7),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, size: 22, color: scheme.onSurfaceVariant),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            text,
+            textAlign: TextAlign.center,
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+          ),
+          if (hint != null) ...[
+            const SizedBox(height: 4),
+            Text(
+              hint!,
+              textAlign: TextAlign.center,
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Three counts a borrower actually cares about, sitting between the
+/// search bar and the catalogue: what is waiting on staff, what they
+/// currently hold, and anything late. Taps jump to My Requests.
+class _StatusStrip extends StatelessWidget {
+  const _StatusStrip({required this.requests});
+
+  final List<BorrowRequest> requests;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    var pending = 0;
+    var active = 0;
+    var overdue = 0;
+    for (final r in requests) {
+      switch (r.status) {
+        case 'pending':
+          pending++;
+        case 'approved' || 'released':
+          active++;
+        case 'overdue':
+          overdue++;
+      }
+    }
+    final cards = <(IconData, String, int, Color)>[
+      (Icons.hourglass_empty, 'Pending', pending, scheme.tertiary),
+      (Icons.inventory_2_outlined, 'With you', active, scheme.primary),
+      (Icons.warning_amber_rounded, 'Overdue', overdue, scheme.error),
+    ];
+    return Row(
+      children: [
+        for (var i = 0; i < cards.length; i++) ...[
+          if (i > 0) const SizedBox(width: 10),
+          Expanded(
+            child: InkWell(
+              borderRadius: BorderRadius.circular(16),
+              onTap: () => context.go(AppRoutes.requests),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  vertical: 14,
+                  horizontal: 12,
+                ),
+                decoration: BoxDecoration(
+                  color: scheme.surface,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: cards[i].$3 > 0 && i == 2
+                        ? scheme.error.withValues(alpha: 0.45)
+                        : scheme.outlineVariant,
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(cards[i].$1, size: 18, color: cards[i].$4),
+                    const SizedBox(height: 8),
+                    Text(
+                      '${cards[i].$3}',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        height: 1,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      cards[i].$2,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ],
     );
   }
 }

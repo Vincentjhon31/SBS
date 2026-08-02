@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../../app/router.dart';
 import '../../../core/theme/view_mode_controller.dart';
 import '../../../core/utils/date_format.dart';
+import '../../../core/widgets/app_animations.dart';
 import '../../../core/widgets/request_status_chip.dart';
 import '../../../core/widgets/sbs_table.dart';
 import '../../approvals/data/approvals_models.dart';
@@ -113,7 +114,7 @@ class _RequestsList extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     if (requests.isEmpty) {
-      return Center(child: Text(emptyText));
+      return _RequestsEmptyState(text: emptyText);
     }
     final pref = ref.watch(viewModeProvider);
     return Align(
@@ -165,7 +166,7 @@ class _RequestsList extends ConsumerWidget {
                   padding: const EdgeInsets.only(bottom: 88),
                   itemCount: requests.length,
                   itemBuilder: (context, index) =>
-                      _RequestTile(request: requests[index]),
+                      _RequestTile(request: requests[index]).fadeUpAt(index),
                 ),
               );
             }
@@ -182,10 +183,78 @@ class _RequestsList extends ConsumerWidget {
                 ),
                 itemCount: requests.length,
                 itemBuilder: (context, index) =>
-                    _RequestTile(request: requests[index]),
+                    _RequestTile(request: requests[index]).fadeUpAt(index),
               ),
             );
           },
+        ),
+      ),
+    );
+  }
+}
+
+/// Shown when a tab has nothing in it — an illustration-ish icon plus a
+/// route out, rather than a bare line of centred text.
+class _RequestsEmptyState extends StatelessWidget {
+  const _RequestsEmptyState({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 72,
+              height: 72,
+              decoration: BoxDecoration(
+                color: scheme.surfaceContainerHighest.withValues(alpha: 0.7),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.receipt_long_outlined,
+                size: 32,
+                color: scheme.onSurfaceVariant,
+              ),
+            ).popIn(),
+            const SizedBox(height: 18),
+            Text(
+              text,
+              textAlign: TextAlign.center,
+              style: Theme.of(
+                context,
+              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+            ).fadeUp(delay: const Duration(milliseconds: 80)),
+            const SizedBox(height: 6),
+            Text(
+              'Browse the registry and send a request — it will appear here '
+              'while staff review it.',
+              textAlign: TextAlign.center,
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+            ).fadeUp(delay: const Duration(milliseconds: 130)),
+            const SizedBox(height: 20),
+            FilledButton.icon(
+              onPressed: () => context.go(AppRoutes.items),
+              // Size.zero clears the theme's full-width minimum; the
+              // explicit padding puts a comfortable tap target back.
+              style: FilledButton.styleFrom(
+                minimumSize: Size.zero,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 22,
+                  vertical: 16,
+                ),
+              ),
+              icon: const Icon(Icons.search, size: 18),
+              label: const Text('Browse items'),
+            ).fadeUp(delay: const Duration(milliseconds: 180)),
+          ],
         ),
       ),
     );
