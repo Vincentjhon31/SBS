@@ -68,6 +68,7 @@ class BorrowRepository {
     required DateTime from,
     DateTime? to,
     required bool consented,
+    int quantity = 1,
   }) async {
     final result = await _client.rpc('create_guest_borrow_request', params: {
       'item': itemId,
@@ -79,6 +80,7 @@ class BorrowRepository {
       'requested_from': from.toUtc().toIso8601String(),
       'requested_to': to?.toUtc().toIso8601String(),
       'consented': consented,
+      'quantity': quantity,
     });
     return result as String;
   }
