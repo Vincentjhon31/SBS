@@ -70,6 +70,15 @@ class SettingsRepository {
     );
   }
 
+  /// 'light' | 'dark' | 'system' — server-synced like the other two, so
+  /// signing in on a new device brings the chosen mode rather than
+  /// falling back to whatever the OS is set to.
+  Future<void> updateThemeMode(String value) async {
+    await _client
+        .from('profiles')
+        .update({'theme_mode': value}).eq('id', _client.auth.currentUser!.id);
+  }
+
   Future<MyProfileInfo?> myProfileInfo() async {
     final uid = _client.auth.currentUser?.id;
     if (uid == null) return null;

@@ -35,6 +35,7 @@ class Profile {
     required this.username,
     required this.userType,
     required this.themeColor,
+    required this.themeMode,
     required this.backgroundStyle,
     required this.isSuperadmin,
     required this.active,
@@ -52,6 +53,10 @@ class Profile {
   /// 'blue' | 'purple' | 'teal' | 'coral' | 'green' — server-synced accent
   /// color preference.
   final String themeColor;
+
+  /// 'light' | 'dark' | 'system' — server-synced so the chosen mode
+  /// follows the account instead of each device falling back to its OS.
+  final String themeMode;
 
   /// 'glossy' | 'blob' | 'solid' — server-synced background style
   /// preference (mirrors [themeColor]'s sync pattern).
@@ -74,6 +79,7 @@ class Profile {
         username: json['username'] as String?,
         userType: json['user_type'] as String,
         themeColor: json['theme_color'] as String? ?? 'blue',
+        themeMode: json['theme_mode'] as String? ?? 'light',
         backgroundStyle: json['background_style'] as String? ?? 'glossy',
         isSuperadmin: json['is_superadmin'] as bool? ?? false,
         active: json['active'] as bool? ?? true,
