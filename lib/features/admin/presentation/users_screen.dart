@@ -3,11 +3,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/widgets/app_animations.dart';
+import '../../../core/widgets/sbs_table.dart';
+import '../../approvals/data/approvals_models.dart';
+import '../../approvals/data/approvals_providers.dart';
 import '../../auth/data/auth_providers.dart';
 import '../../items/data/items_providers.dart';
 import '../data/admin_models.dart';
 import '../data/admin_providers.dart';
 import 'admin_page.dart';
+
+/// Below this the table doesn't have room for its columns; the screen
+/// drops back to a card-per-user list instead.
+const _tableBreakpoint = 760.0;
 
 enum _UserFilter { all, citizens, staff, unverified, deactivated }
 
@@ -86,6 +93,7 @@ class _UsersScreenState extends ConsumerState<UsersScreen> {
             icon: const Icon(Icons.refresh),
           ),
       ],
+      maxWidth: 1080,
       toolbar: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -146,20 +154,26 @@ class _UsersScreenState extends ConsumerState<UsersScreen> {
         ),
         _ => RefreshIndicator(
           onRefresh: () async => ref.invalidate(allUsersProvider),
-          child: ListView.builder(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
-            itemCount: filtered.length,
-            itemBuilder: (context, i) =>
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: _UserTile(user: filtered[i]),
-                ).fadeUpAt(i),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              if (constraints.maxWidth >= _tableBreakpoint) {
+                return _UsersTable(users: filtered);
+              }
+              return ListView.builder(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
+                itemCount: filtered.length,
+                itemBuilder: (context, i) =>
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: _UserTile(user: filtered[i]),
+                    ).fadeUpAt(i),
+              );
+            },
           ),
         ),
       },
     );
   }
-
 }
 
 class _CountChip extends StatelessWidget {
@@ -224,6 +238,111 @@ class _CountChip extends StatelessWidget {
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────
+// Table view (wide screens)
+// ─────────────────────────────────────────────────────────────────────
+
+class _UsersTable extends ConsumerWidget {
+  const _UsersTable({required this.users});
+
+  final List<UserAccount> users;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isSuperadmin = ref.watch(isSuperadminProvider);
+    final myId = ref.watch(myProfileProvider).value?.id;
+    return SbsTable(
+      columns: const ['User', 'Type', 'Verification', 'Status', ''],
+      rows: [
+        for (final user in users)
+          SbsRow(
+            cells: [
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _Avatar(user: user, radius: 17),
+                  const SizedBox(width: 10),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 220),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          user.fullName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        Text(
+                          user.username != null ? '@${user.username}' : 'No username',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  _Tag(
+                    label: user.isStaff ? 'Staff' : 'Citizen',
+                    color: user.isStaff
+                        ? Theme.of(context).colorScheme.tertiary
+                        : Theme.of(context).colorScheme.primary,
+                  ),
+                  if (user.isSuperadmin)
+                    _Tag(label: 'Superadmin', color: Theme.of(context).colorScheme.tertiary),
+                ],
+              ),
+              user.isStaff
+                  ? const Text('—')
+                  : InkWell(
+                      borderRadius: BorderRadius.circular(999),
+                      onTap: () => _openReviewDialog(context, ref, user),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _Tag(
+                            label: user.verified == true ? 'ID verified' : 'Unverified',
+                            color: user.verified == true
+                                ? const Color(0xFF1F9D65)
+                                : const Color(0xFFE07A1F),
+                          ),
+                          const SizedBox(width: 6),
+                          Icon(
+                            Icons.visibility_outlined,
+                            size: 16,
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                        ],
+                      ),
+                    ),
+              user.active
+                  ? const _Tag(label: 'Active', color: Color(0xFF1F9D65))
+                  : _Tag(label: 'Deactivated', color: Theme.of(context).colorScheme.error),
+              _UserActions(
+                user: user,
+                isSelf: myId == user.id,
+                viewerIsSuperadmin: isSuperadmin,
+              ),
+            ],
+          ),
+      ],
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Card view (narrow screens)
+// ─────────────────────────────────────────────────────────────────────
+
 class _UserTile extends ConsumerWidget {
   const _UserTile({required this.user});
 
@@ -284,13 +403,17 @@ class _UserTile extends ConsumerWidget {
                     if (user.isSuperadmin)
                       _Tag(label: 'Superadmin', color: scheme.tertiary),
                     if (!user.isStaff)
-                      _Tag(
-                        label: user.verified == true
-                            ? 'ID verified'
-                            : 'Unverified',
-                        color: user.verified == true
-                            ? const Color(0xFF1F9D65)
-                            : const Color(0xFFE07A1F),
+                      InkWell(
+                        borderRadius: BorderRadius.circular(999),
+                        onTap: () => _openReviewDialog(context, ref, user),
+                        child: _Tag(
+                          label: user.verified == true
+                              ? 'ID verified'
+                              : 'Unverified',
+                          color: user.verified == true
+                              ? const Color(0xFF1F9D65)
+                              : const Color(0xFFE07A1F),
+                        ),
                       ),
                     if (!user.active)
                       _Tag(label: 'Deactivated', color: scheme.error),
@@ -311,9 +434,10 @@ class _UserTile extends ConsumerWidget {
 }
 
 class _Avatar extends StatelessWidget {
-  const _Avatar({required this.user});
+  const _Avatar({required this.user, this.radius = 23});
 
   final UserAccount user;
+  final double radius;
 
   @override
   Widget build(BuildContext context) {
@@ -335,7 +459,7 @@ class _Avatar extends StatelessWidget {
     return Stack(
       children: [
         CircleAvatar(
-          radius: 23,
+          radius: radius,
           backgroundColor: user.active ? bg : scheme.surfaceContainerHighest,
           foregroundColor: user.active ? fg : scheme.onSurfaceVariant,
           child: Text(
@@ -386,6 +510,10 @@ class _Tag extends StatelessWidget {
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────
+// Actions menu
+// ─────────────────────────────────────────────────────────────────────
+
 class _UserActions extends ConsumerWidget {
   const _UserActions({
     required this.user,
@@ -402,12 +530,10 @@ class _UserActions extends ConsumerWidget {
     final items = <PopupMenuEntry<String>>[
       if (!user.isStaff)
         PopupMenuItem(
-          value: 'verify',
+          value: 'reviewId',
           child: _MenuRow(
-            icon: user.verified == true
-                ? Icons.gpp_maybe_outlined
-                : Icons.verified_user_outlined,
-            label: user.verified == true ? 'Un-verify ID' : 'Verify ID',
+            icon: Icons.badge_outlined,
+            label: user.verified == true ? 'View ID' : 'Review ID',
           ),
         ),
       if (viewerIsSuperadmin && !isSelf) ...[
@@ -463,8 +589,9 @@ class _UserActions extends ConsumerWidget {
     final repo = ref.read(adminRepositoryProvider);
     try {
       switch (action) {
-        case 'verify':
-          await repo.setCitizenVerified(user.id, user.verified != true);
+        case 'reviewId':
+          await _openReviewDialog(context, ref, user);
+          return;
         case 'toggleType':
           await repo.setUserType(user.id, user.isStaff ? 'citizen' : 'staff');
         case 'toggleSuperadmin':
@@ -534,6 +661,269 @@ class _MenuRow extends StatelessWidget {
         const SizedBox(width: 10),
         Text(label, style: TextStyle(color: color)),
       ],
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// ID review dialog — the actual point of this round: verifying used to be
+// a single blind tap; this shows the citizen's submitted ID type/number,
+// contact number, and photo before staff decide.
+// ─────────────────────────────────────────────────────────────────────
+
+Future<void> _openReviewDialog(
+  BuildContext context,
+  WidgetRef ref,
+  UserAccount user,
+) {
+  return showDialog<void>(
+    context: context,
+    builder: (context) => _ReviewIdDialog(user: user),
+  );
+}
+
+class _ReviewIdDialog extends ConsumerStatefulWidget {
+  const _ReviewIdDialog({required this.user});
+
+  final UserAccount user;
+
+  @override
+  ConsumerState<_ReviewIdDialog> createState() => _ReviewIdDialogState();
+}
+
+class _ReviewIdDialogState extends ConsumerState<_ReviewIdDialog> {
+  bool _busy = false;
+
+  Future<void> _setVerified(bool verified) async {
+    setState(() => _busy = true);
+    try {
+      await ref
+          .read(adminRepositoryProvider)
+          .setCitizenVerified(widget.user.id, verified);
+      ref.invalidate(allUsersProvider);
+      ref.invalidate(citizenVerificationProvider(widget.user.id));
+      if (mounted) Navigator.pop(context);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not update verification.')),
+        );
+        setState(() => _busy = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final verification = ref.watch(citizenVerificationProvider(widget.user.id));
+
+    return AlertDialog(
+      title: Row(
+        children: [
+          Icon(Icons.badge_outlined, color: scheme.primary),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              widget.user.fullName,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+      content: SizedBox(
+        width: 380,
+        child: switch (verification) {
+          AsyncData(:final value) => _ReviewIdContent(
+            user: widget.user,
+            verification: value,
+          ),
+          AsyncError() => const Text('Could not load this citizen\'s ID details.'),
+          _ => const Padding(
+            padding: EdgeInsets.symmetric(vertical: 24),
+            child: Center(
+              child: SizedBox(
+                width: 28,
+                height: 28,
+                child: CircularProgressIndicator(strokeWidth: 2.5),
+              ),
+            ),
+          ),
+        },
+      ),
+      actions: [
+        TextButton(
+          onPressed: _busy ? null : () => Navigator.pop(context),
+          child: const Text('Close'),
+        ),
+        if (verification case AsyncData(:final value))
+          value.verified
+              ? OutlinedButton(
+                  onPressed: _busy ? null : () => _setVerified(false),
+                  style: OutlinedButton.styleFrom(foregroundColor: scheme.error),
+                  child: _busy
+                      ? const _ButtonSpinner()
+                      : const Text('Un-verify'),
+                )
+              : FilledButton(
+                  onPressed: _busy ? null : () => _setVerified(true),
+                  child: _busy
+                      ? const _ButtonSpinner()
+                      : const Text('Verify identity'),
+                ),
+      ],
+    );
+  }
+}
+
+class _ButtonSpinner extends StatelessWidget {
+  const _ButtonSpinner();
+
+  @override
+  Widget build(BuildContext context) {
+    return const SizedBox(
+      width: 16,
+      height: 16,
+      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+    );
+  }
+}
+
+class _ReviewIdContent extends StatelessWidget {
+  const _ReviewIdContent({required this.user, required this.verification});
+
+  final UserAccount user;
+  final CitizenVerification verification;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: verification.verified
+                ? const Color(0xFF1F9D65).withValues(alpha: 0.13)
+                : const Color(0xFFE07A1F).withValues(alpha: 0.13),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                verification.verified ? Icons.verified_user : Icons.gpp_maybe,
+                size: 16,
+                color: verification.verified
+                    ? const Color(0xFF1F9D65)
+                    : const Color(0xFFE07A1F),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                verification.verified ? 'Identity verified' : 'Not yet verified',
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  color: verification.verified
+                      ? const Color(0xFF1F9D65)
+                      : const Color(0xFFE07A1F),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        _DetailRow(label: 'Username', value: user.username != null ? '@${user.username}' : '—'),
+        _DetailRow(label: 'Contact number', value: verification.contactNumber),
+        _DetailRow(label: 'ID type', value: verification.idType),
+        _DetailRow(label: 'ID number', value: verification.idNumber),
+        const SizedBox(height: 12),
+        Text(
+          'ID photo',
+          style: Theme.of(context).textTheme.labelMedium?.copyWith(
+            color: scheme.onSurfaceVariant,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 8),
+        if (verification.idPhotoUrl != null)
+          ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: Image.network(
+              verification.idPhotoUrl!,
+              height: 200,
+              width: double.infinity,
+              fit: BoxFit.cover,
+              loadingBuilder: (context, child, progress) => progress == null
+                  ? child
+                  : const SizedBox(
+                      height: 200,
+                      child: Center(
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    ),
+              errorBuilder: (context, error, stack) => Container(
+                height: 200,
+                alignment: Alignment.center,
+                color: scheme.surfaceContainerHighest,
+                child: Text(
+                  'Could not load ID photo.',
+                  style: TextStyle(color: scheme.onSurfaceVariant),
+                ),
+              ),
+            ),
+          )
+        else
+          Container(
+            height: 80,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: scheme.surfaceContainerHighest.withValues(alpha: 0.6),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Text(
+              'No ID photo on file.',
+              style: TextStyle(color: scheme.onSurfaceVariant),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _DetailRow extends StatelessWidget {
+  const _DetailRow({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 118,
+            child: Text(
+              label,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: scheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
