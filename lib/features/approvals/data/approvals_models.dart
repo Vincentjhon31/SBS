@@ -87,6 +87,23 @@ class PendingApproval {
   }
 }
 
+/// One approvals tab's worth of requests, plus where they came from.
+///
+/// The queue is the one screen an approver may well be looking at with no
+/// signal — a stockroom, a barangay hall, the back of a truck — so a
+/// failed fetch falls back to the last copy on disk rather than an error.
+/// [cachedAt] is what lets the UI be honest about that: null means these
+/// rows came from the server just now, non-null means they're a snapshot
+/// from that moment.
+class ApprovalQueue {
+  const ApprovalQueue({required this.requests, this.cachedAt});
+
+  final List<PendingApproval> requests;
+  final DateTime? cachedAt;
+
+  bool get isStale => cachedAt != null;
+}
+
 class EvidenceRecord {
   const EvidenceRecord({
     required this.stage,

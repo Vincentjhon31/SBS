@@ -1,12 +1,13 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/constants/app_constants.dart';
+import '../core/realtime/live_sync.dart';
 import '../core/theme/background_style_controller.dart';
 import '../core/widgets/app_animations.dart';
 import '../core/widgets/glossy_background.dart';
+import '../features/approvals/data/evidence_sync_queue.dart';
 import '../features/auth/data/auth_providers.dart';
 import '../features/borrowing/presentation/schedule_or_borrow_chooser.dart';
 import '../features/items/data/items_providers.dart';
@@ -33,31 +34,66 @@ final sidebarExpandedProvider = NotifierProvider<SidebarExpanded, bool>(
 /// page-transition rebuild, and each tab keeps its own navigation stack
 /// and scroll position.
 ///
-/// Staff/superadmin accounts are management/back-office work and belong
-/// on the website, not the installed mobile app:
-/// - Native platforms + staff → blocked, told to use the website.
-/// - Web + staff → a desktop admin layout (sidebar navigation rail).
-/// - Everyone else (citizens, any platform) → the original bottom tab bar.
-/// This is a client-side UX gate, not a security boundary: RLS already
-/// enforces the real access rules regardless of which surface is used.
+/// Which chrome wraps them depends on how much room there is, not on who
+/// is signed in:
+/// - Wide viewport + staff → the desktop admin layout (sidebar rail).
+/// - Narrow viewport + staff → the bottom tab bar, with the back-office
+///   screens behind a "Manage" sheet instead of a sidebar.
+/// - Citizens (any platform) → the bottom tab bar.
+///
+/// Staff used to be turned away from the installed app entirely and told
+/// to use the website. That made the one job that genuinely wants a phone
+/// — photographing an item at handoff — the most awkward thing in the
+/// system: the camera was on the laptop the approver had to carry to the
+/// item. Approvers now sign in anywhere; the layout just follows the
+/// width. This is a UX decision, not a security boundary — RLS enforces
+/// the real access rules whichever surface is used.
 class AppShell extends ConsumerWidget {
   const AppShell({super.key, required this.navigationShell});
 
   final StatefulNavigationShell navigationShell;
 
+  /// Below this, the sidebar + top bar stop being a layout and start
+  /// being an obstruction: a 248px rail out of 400px leaves no content
+  /// area at all. Also covers a desktop browser dragged narrow, which is
+  /// why it's a width test rather than a `kIsWeb` test.
+  static const staffSidebarBreakpoint = 900.0;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isStaff = ref.watch(isStaffProvider);
 
-    if (!kIsWeb && isStaff) {
-      return const _StaffUseWebScreen();
+    // Both are watched for their side effects, not their values, and
+    // both are mounted here rather than on the screen that uses them so
+    // they cover the whole signed-in session:
+    // - liveSync is what makes one approver's phone capture appear on a
+    //   colleague's dashboard without either of them reloading.
+    // - the evidence queue has to restore and start draining at launch.
+    //   Hanging it off the Approvals screen would mean captures taken
+    //   yesterday sat unsent until someone happened to open that tab.
+    ref.watch(liveSyncProvider);
+    if (isStaff) ref.watch(evidenceSyncQueueProvider);
+
+    if (!isStaff) {
+      return _TabBarShell(navigationShell: navigationShell, isStaff: false);
     }
-    if (kIsWeb && isStaff) {
-      return _SidebarShell(navigationShell: navigationShell);
-    }
-    return _TabBarShell(navigationShell: navigationShell, isStaff: isStaff);
+    final wide = MediaQuery.sizeOf(context).width >= staffSidebarBreakpoint;
+    return wide
+        ? _SidebarShell(navigationShell: navigationShell)
+        : _TabBarShell(navigationShell: navigationShell, isStaff: true);
   }
 }
+
+/// Whether this screen is being drawn inside the staff sidebar shell,
+/// whose header bar already supplies the page title and account menu.
+///
+/// Branch screens use it to drop their own AppBar title so it isn't
+/// stacked under the shell's. It's a width question, not a platform one:
+/// the same staff account gets the sidebar on a laptop and the tab bar on
+/// a phone, and a browser window dragged narrow has to follow.
+bool inStaffSidebarShell(BuildContext context, WidgetRef ref) =>
+    ref.watch(isStaffProvider) &&
+    MediaQuery.sizeOf(context).width >= AppShell.staffSidebarBreakpoint;
 
 /// Mobile-style shell for citizens (any platform): content fills the
 /// screen behind a floating, icon-only "pill" tab bar — a dark rounded
@@ -78,6 +114,7 @@ class _TabBarShell extends ConsumerWidget {
     );
     if (selectedVisualIndex < 0) selectedVisualIndex = 0;
     final hasPendingUpdate = ref.watch(pendingUpdateProvider) != null;
+    final isSuperadmin = isStaff && ref.watch(isSuperadminProvider);
 
     return Scaffold(
       // NOT extendBody: each branch screen is its own nested Scaffold, and
@@ -94,11 +131,16 @@ class _TabBarShell extends ConsumerWidget {
         // Profile is always the last tab (branchIndex 4) — see
         // _tabDestinations below.
         updateDotBranchIndex: hasPendingUpdate ? 4 : null,
-        // Citizens only — staff create requests through the walk-in flow,
-        // not this self-service chooser.
+        // The raised center button means different things to the two
+        // audiences, but serves the same purpose for both: the action
+        // their tabs don't cover. Citizens get the self-service chooser;
+        // staff get the back-office screens that live in the sidebar on
+        // a wide screen and have nowhere else to go on a phone.
         onCenterAction: isStaff
-            ? null
+            ? () => _showManageSheet(context, isSuperadmin: isSuperadmin)
             : () => showScheduleOrBorrowChooser(context),
+        centerIcon: isStaff ? Icons.grid_view_rounded : Icons.compare_arrows,
+        centerTooltip: isStaff ? 'Manage' : 'Schedule or borrow',
         onSelect: (i) {
           final branchIndex = destinations[i].branchIndex;
           // Re-tapping the active tab resets it to its root (initialLocation)
@@ -120,6 +162,8 @@ class _FloatingPillNavBar extends StatelessWidget {
     required this.onSelect,
     this.updateDotBranchIndex,
     this.onCenterAction,
+    this.centerIcon = Icons.compare_arrows,
+    this.centerTooltip = '',
   });
 
   final List<_TabDestination> destinations;
@@ -131,9 +175,11 @@ class _FloatingPillNavBar extends StatelessWidget {
   final int? updateDotBranchIndex;
 
   /// When set, a raised circular button pokes above the center of the pill
-  /// bar — the "Schedule or Borrow?" quick-action, flanked symmetrically by
-  /// [destinations] split evenly left/right. Null hides it (staff shell).
+  /// bar — a quick-action flanked symmetrically by [destinations] split
+  /// evenly left/right. Null hides it.
   final VoidCallback? onCenterAction;
+  final IconData centerIcon;
+  final String centerTooltip;
 
   Widget _item(int i) {
     final d = destinations[i];
@@ -188,7 +234,11 @@ class _FloatingPillNavBar extends StatelessWidget {
             if (hasCenterAction)
               Positioned(
                 top: -16,
-                child: _CenterActionButton(onTap: onCenterAction!),
+                child: _CenterActionButton(
+                  onTap: onCenterAction!,
+                  icon: centerIcon,
+                  tooltip: centerTooltip,
+                ),
               ),
           ],
         ),
@@ -197,12 +247,18 @@ class _FloatingPillNavBar extends StatelessWidget {
   }
 }
 
-/// The raised "Schedule or Borrow?" quick-action button, centered in the
-/// pill nav and poking above its top edge.
+/// The raised quick-action button, centered in the pill nav and poking
+/// above its top edge.
 class _CenterActionButton extends StatelessWidget {
-  const _CenterActionButton({required this.onTap});
+  const _CenterActionButton({
+    required this.onTap,
+    required this.icon,
+    required this.tooltip,
+  });
 
   final VoidCallback onTap;
+  final IconData icon;
+  final String tooltip;
 
   @override
   Widget build(BuildContext context) {
@@ -216,22 +272,72 @@ class _CenterActionButton extends StatelessWidget {
         customBorder: const CircleBorder(),
         onTap: onTap,
         child: Tooltip(
-          message: 'Schedule or borrow',
+          message: tooltip,
           child: SizedBox(
             width: 58,
             height: 58,
             child: Center(
-              child: Icon(
-                Icons.compare_arrows,
-                color: scheme.onPrimary,
-                size: 26,
-              ),
+              child: Icon(icon, color: scheme.onPrimary, size: 26),
             ),
           ),
         ),
       ),
     );
   }
+}
+
+/// The back-office screens, as a sheet.
+///
+/// On a wide screen these are the sidebar's "MANAGE" group. A phone has
+/// no room for a permanent rail, so the same list opens on demand from
+/// the center button — same destinations, same order, same superadmin
+/// filtering, so an approver moving between the two surfaces isn't
+/// learning a second navigation model.
+void _showManageSheet(BuildContext context, {required bool isSuperadmin}) {
+  final destinations = _manageDestinations(isSuperadmin: isSuperadmin);
+  showModalBottomSheet<void>(
+    context: context,
+    showDragHandle: true,
+    builder: (sheetContext) => SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+            child: Text(
+              'Manage',
+              style: Theme.of(
+                sheetContext,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+            ),
+          ),
+          // Logging a walk-in is the one management action an approver
+          // does *while standing at the counter*, so it leads here even
+          // though on the web it lives on the Approvals screen.
+          ListTile(
+            leading: const Icon(Icons.person_add_alt_outlined),
+            title: const Text('Walk-in request'),
+            onTap: () {
+              Navigator.pop(sheetContext);
+              context.push(AppRoutes.walkinNew);
+            },
+          ),
+          const Divider(height: 1),
+          for (final d in destinations)
+            ListTile(
+              leading: Icon(d.icon),
+              title: Text(d.label),
+              onTap: () {
+                Navigator.pop(sheetContext);
+                context.push(d.route);
+              },
+            ),
+          const SizedBox(height: 8),
+        ],
+      ),
+    ),
+  );
 }
 
 class _PillNavItem extends StatelessWidget {
@@ -824,52 +930,6 @@ class _HeaderSearchState extends State<_HeaderSearch> {
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(10),
             borderSide: BorderSide.none,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _StaffUseWebScreen extends ConsumerWidget {
-  const _StaffUseWebScreen();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return Scaffold(
-      body: SafeArea(
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(32),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.laptop_mac_outlined,
-                  size: 64,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-                const SizedBox(height: 24),
-                Text(
-                  'Staff accounts use the ${AppConstants.appName} website',
-                  style: Theme.of(context).textTheme.titleLarge,
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 12),
-                const Text(
-                  'Approvals, item management, and the superadmin dashboard '
-                  'are handled through a web browser now. This mobile app '
-                  'is for citizen borrowers only.',
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 32),
-                FilledButton.icon(
-                  onPressed: () => ref.read(authRepositoryProvider).signOut(),
-                  icon: const Icon(Icons.logout),
-                  label: const Text('Sign out'),
-                ),
-              ],
-            ),
           ),
         ),
       ),

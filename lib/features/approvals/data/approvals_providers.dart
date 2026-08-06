@@ -8,13 +8,13 @@ final approvalsRepositoryProvider = Provider<ApprovalsRepository>(
   (ref) => ApprovalsRepository(ref.watch(supabaseClientProvider)),
 );
 
-final approvalQueueProvider =
-    FutureProvider.family<List<PendingApproval>, String>(
+final approvalQueueProvider = FutureProvider.family<ApprovalQueue, String>(
   (ref, status) => ref.watch(approvalsRepositoryProvider).fetchQueue(status),
 );
 
 final pendingApprovalsProvider = FutureProvider<List<PendingApproval>>(
-  (ref) => ref.watch(approvalQueueProvider('pending').future),
+  (ref) async => (await ref.watch(approvalQueueProvider('pending').future))
+      .requests,
 );
 
 final evidenceProvider = FutureProvider.family<List<EvidenceRecord>, String>(

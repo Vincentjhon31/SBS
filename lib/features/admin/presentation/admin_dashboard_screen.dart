@@ -3,11 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../app/app_shell.dart';
 import '../../../app/router.dart';
 import '../../../core/utils/date_format.dart';
 import '../../../core/widgets/app_animations.dart';
 import '../../../core/widgets/request_status_chip.dart';
 import '../../auth/data/auth_providers.dart';
+import '../../notifications/presentation/notification_bell.dart';
 import '../../items/data/items_providers.dart';
 import '../data/admin_models.dart';
 import '../data/admin_providers.dart';
@@ -47,7 +49,12 @@ class StaffDashboardScreen extends ConsumerWidget {
             constraints: const BoxConstraints(maxWidth: 1200),
             child: ListView(
               physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.all(24),
+              // 24pt gutters on a 390pt phone spend a seventh of the
+              // width on nothing; the desktop inset only earns its keep
+              // once there's width to spare.
+              padding: EdgeInsets.all(
+                MediaQuery.sizeOf(context).width < 600 ? 14 : 24,
+              ),
               children: [
                 _Greeting(
                   fullName: profile?.fullName,
@@ -131,15 +138,19 @@ class _SectionTitle extends StatelessWidget {
 }
 
 /// A friendly, time-of-day greeting header at the top of the dashboard.
-class _Greeting extends StatelessWidget {
+class _Greeting extends ConsumerWidget {
   const _Greeting({required this.fullName, required this.isSuperadmin});
 
   final String? fullName;
   final bool isSuperadmin;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final scheme = Theme.of(context).colorScheme;
+    // The sidebar shell puts the bell in its header bar; the phone shell
+    // has no header at all, so without this staff would have no way to
+    // reach their notifications from the dashboard.
+    final showBell = !inStaffSidebarShell(context, ref);
     final hour = DateTime.now().hour;
     final part = hour < 12
         ? 'Good morning'
@@ -202,6 +213,7 @@ class _Greeting extends StatelessWidget {
                   ],
                 ),
               ),
+              if (showBell) const NotificationBell(),
             ],
           );
 

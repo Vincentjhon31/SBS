@@ -1,29 +1,31 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../app/app_shell.dart';
 import '../../../app/router.dart';
+import '../../../core/offline/connectivity_providers.dart';
 import '../../../core/theme/view_mode_controller.dart';
 import '../../../core/utils/date_format.dart';
 import '../../../core/widgets/app_animations.dart';
 import '../../../core/widgets/request_status_chip.dart';
 import '../../../core/widgets/sbs_table.dart';
 import '../../../core/widgets/workbench_scaffold.dart';
-import '../../items/data/items_providers.dart';
 import '../data/approvals_models.dart';
 import '../data/approvals_providers.dart';
 import '../data/approvals_repository.dart';
+import '../data/evidence_sync_queue.dart';
 
 class ApprovalsScreen extends ConsumerWidget {
   const ApprovalsScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // On the staff website the shell header shows the page title, so the
-    // AppBar collapses to just the tab strip and the walk-in action
-    // becomes a FAB (matching Items' "Add item" / Requests' "New request").
-    final inWebShell = kIsWeb && ref.watch(isStaffProvider);
+    // In the sidebar shell the header shows the page title, so the AppBar
+    // collapses to just the tab strip and the walk-in action becomes a
+    // FAB (matching Items' "Add item" / Requests' "New request"). On a
+    // phone the AppBar comes back, and walk-in lives in the Manage sheet.
+    final inWebShell = inStaffSidebarShell(context, ref);
 
     return DefaultTabController(
       length: 4,
@@ -60,13 +62,20 @@ class ApprovalsScreen extends ConsumerWidget {
         backgroundColor: Colors.transparent,
         body: Column(
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-              child: Align(
-                alignment: Alignment.centerRight,
-                child: ViewModeToggle(width: MediaQuery.sizeOf(context).width),
+            const _SyncBanner(),
+            // On a phone the toggle is dead weight — a table can't be read
+            // at that width anyway, so the row it occupies is better spent
+            // on the queue itself.
+            if (MediaQuery.sizeOf(context).width >= 720)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: ViewModeToggle(
+                    width: MediaQuery.sizeOf(context).width,
+                  ),
+                ),
               ),
-            ),
             Expanded(
               child: TabBarView(
                 children: [
@@ -141,9 +150,10 @@ class _ApprovalQueue extends ConsumerWidget {
     final queue = ref.watch(approvalQueueProvider(status));
     final pref = ref.watch(viewModeProvider);
     return switch (queue) {
-      AsyncData(:final value) when value.isEmpty => _QueueEmptyState(
+      AsyncData(:final value) when value.requests.isEmpty => _QueueEmptyState(
         text: emptyText,
         status: status,
+        cachedAt: value.cachedAt,
       ),
       AsyncData(:final value) => Align(
         alignment: Alignment.topCenter,
@@ -152,93 +162,108 @@ class _ApprovalQueue extends ConsumerWidget {
           child: LayoutBuilder(
             builder: (context, constraints) {
               final mode = effectiveViewMode(pref, constraints.maxWidth);
+              final rows = value.requests;
               return RefreshIndicator(
                 onRefresh: () async =>
                     ref.invalidate(approvalQueueProvider(status)),
-                child: mode == ViewMode.table
-                    ? Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-                        child: SbsTable(
-                          columns: const [
-                            'Item',
-                            'Qty',
-                            'Borrower',
-                            'Use',
-                            'Pickup → Return',
-                            '',
-                          ],
-                          rows: [
-                            for (final req in value)
-                              SbsRow(
-                                onTap: () => onTap(context, req),
-                                cells: [
-                                  Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      CircleAvatar(
-                                        radius: 14,
-                                        child: Icon(
-                                          _borrowerIcon(req),
-                                          size: 15,
+                child: Column(
+                  children: [
+                    if (value.cachedAt != null)
+                      _StaleNotice(cachedAt: value.cachedAt!),
+                    Expanded(
+                      child: mode == ViewMode.table
+                          ? Padding(
+                              padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                              child: SbsTable(
+                                columns: const [
+                                  'Item',
+                                  'Qty',
+                                  'Borrower',
+                                  'Use',
+                                  'Pickup → Return',
+                                  '',
+                                ],
+                                rows: [
+                                  for (final req in rows)
+                                    SbsRow(
+                                      onTap: () => onTap(context, req),
+                                      cells: [
+                                        Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            CircleAvatar(
+                                              radius: 14,
+                                              child: Icon(
+                                                _borrowerIcon(req),
+                                                size: 15,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Text(req.itemLabel),
+                                          ],
                                         ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Text(req.itemLabel),
-                                    ],
-                                  ),
-                                  Text(
-                                    req.itemQuantity > 1
-                                        ? '${req.quantityRequested} of ${req.itemQuantity}'
-                                        : '—',
-                                  ),
-                                  Text(
-                                    '${req.borrowerName}\n'
-                                    '(${_borrowerTypeLabel(req)})',
-                                  ),
-                                  Text(
-                                    req.useFrom != null && req.useTo != null
-                                        ? '${formatDateTime(req.useFrom!)}\n'
-                                              '→ ${formatDateTime(req.useTo!)}'
-                                        : '—',
-                                  ),
-                                  Text(
-                                    '${formatDateTime(req.requestedFrom)}\n'
-                                    '→ ${_dateOrOpenEnded(req.requestedTo)}',
-                                  ),
-                                  if (showStatusChip)
-                                    RequestStatusChip(status: req.status)
-                                  else if (req.isOverdue)
-                                    Chip(
-                                      label: const Text('OVERDUE'),
-                                      visualDensity: VisualDensity.compact,
-                                      backgroundColor: Theme.of(
-                                        context,
-                                      ).colorScheme.errorContainer,
-                                    )
-                                  else
-                                    const Icon(Icons.chevron_right),
+                                        Text(
+                                          req.itemQuantity > 1
+                                              ? '${req.quantityRequested} of ${req.itemQuantity}'
+                                              : '—',
+                                        ),
+                                        Text(
+                                          '${req.borrowerName}\n'
+                                          '(${_borrowerTypeLabel(req)})',
+                                        ),
+                                        Text(
+                                          req.useFrom != null &&
+                                                  req.useTo != null
+                                              ? '${formatDateTime(req.useFrom!)}\n'
+                                                    '→ ${formatDateTime(req.useTo!)}'
+                                              : '—',
+                                        ),
+                                        Text(
+                                          '${formatDateTime(req.requestedFrom)}\n'
+                                          '→ ${_dateOrOpenEnded(req.requestedTo)}',
+                                        ),
+                                        if (showStatusChip)
+                                          RequestStatusChip(status: req.status)
+                                        else if (req.isOverdue)
+                                          Chip(
+                                            label: const Text('OVERDUE'),
+                                            visualDensity: VisualDensity.compact,
+                                            backgroundColor: Theme.of(
+                                              context,
+                                            ).colorScheme.errorContainer,
+                                          )
+                                        else
+                                          const Icon(Icons.chevron_right),
+                                      ],
+                                    ),
                                 ],
                               ),
-                          ],
-                        ),
-                      )
-                    : ListView.separated(
-                        physics: const AlwaysScrollableScrollPhysics(),
-                        itemCount: value.length,
-                        separatorBuilder: (context, index) =>
-                            const SizedBox(height: 6),
-                        itemBuilder: (context, index) => _ApprovalCard(
-                          request: value[index],
-                          onTap: () => onTap(context, value[index]),
-                          showStatusChip: showStatusChip,
-                        ).fadeUpAt(index),
-                      ),
+                            )
+                          : ListView.separated(
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              itemCount: rows.length,
+                              separatorBuilder: (context, index) =>
+                                  const SizedBox(height: 6),
+                              itemBuilder: (context, index) => _ApprovalCard(
+                                request: rows[index],
+                                onTap: () => onTap(context, rows[index]),
+                                showStatusChip: showStatusChip,
+                              ).fadeUpAt(index),
+                            ),
+                    ),
+                  ],
+                ),
               );
             },
           ),
         ),
       ),
-      AsyncError() => const Center(child: Text('Could not load requests.')),
+      // Only reached when the fetch failed *and* nothing was cached — a
+      // first run on this device, essentially.
+      AsyncError() => _QueueErrorState(
+        offline: !ref.watch(isOnlineProvider),
+        onRetry: () => ref.invalidate(approvalQueueProvider(status)),
+      ),
       _ => const Center(child: CircularProgressIndicator()),
     };
   }
@@ -640,10 +665,18 @@ class _ApprovalDetailScreenState extends ConsumerState<ApprovalDetailScreen> {
 /// History just means nothing has completed yet — so the icon follows
 /// the status rather than being one generic glyph.
 class _QueueEmptyState extends StatelessWidget {
-  const _QueueEmptyState({required this.text, required this.status});
+  const _QueueEmptyState({
+    required this.text,
+    required this.status,
+    this.cachedAt,
+  });
 
   final String text;
   final String status;
+
+  /// Set when even this "nothing here" is a cached answer — an empty
+  /// queue you can't trust is not the same news as an empty queue you can.
+  final DateTime? cachedAt;
 
   @override
   Widget build(BuildContext context) {
@@ -677,6 +710,267 @@ class _QueueEmptyState extends StatelessWidget {
                 context,
               ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
             ).fadeUp(delay: const Duration(milliseconds: 80)),
+            if (cachedAt != null) ...[
+              const SizedBox(height: 10),
+              Text(
+                'Offline — last checked ${formatRelative(cachedAt!)}.',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                ),
+              ).fadeUp(delay: const Duration(milliseconds: 120)),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The queue could not be loaded and there was no cached copy to fall
+/// back on. Distinguishes "you're offline" from "something broke",
+/// because only one of those is worth retrying on the spot.
+class _QueueErrorState extends StatelessWidget {
+  const _QueueErrorState({required this.offline, required this.onRetry});
+
+  final bool offline;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              offline ? Icons.cloud_off : Icons.error_outline,
+              size: 40,
+              color: scheme.onSurfaceVariant,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              offline
+                  ? 'You\'re offline and this queue hasn\'t been loaded on '
+                        'this device yet.'
+                  : 'Could not load requests.',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
+            const SizedBox(height: 16),
+            OutlinedButton.icon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh, size: 18),
+              label: const Text('Try again'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Strip above a queue that's being served from the offline cache.
+class _StaleNotice extends StatelessWidget {
+  const _StaleNotice({required this.cachedAt});
+
+  final DateTime cachedAt;
+
+  @override
+  Widget build(BuildContext context) {
+    const amber = Color(0xFFE07A1F);
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: amber.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.cloud_off, size: 17, color: amber),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Offline — showing the queue as of ${formatRelative(cachedAt)}.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Sits above the approvals tabs whenever captures are waiting to reach
+/// the server. Tapping it opens the list, so a capture can never go
+/// missing without the approver being able to see exactly what's stuck.
+class _SyncBanner extends ConsumerWidget {
+  const _SyncBanner();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final queued = ref.watch(evidenceSyncQueueProvider);
+    if (queued.isEmpty) return const SizedBox.shrink();
+
+    final blocked = queued.where((e) => e.isBlocked).length;
+    final scheme = Theme.of(context).colorScheme;
+    final tint = blocked > 0 ? scheme.error : const Color(0xFF2B7FFF);
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      child: Material(
+        color: tint.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () => _showPendingSyncSheet(context),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+            child: Row(
+              children: [
+                Icon(
+                  blocked > 0 ? Icons.error_outline : Icons.cloud_upload_outlined,
+                  size: 18,
+                  color: tint,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    blocked > 0
+                        ? '$blocked capture${blocked == 1 ? "" : "s"} could not '
+                              'be sent — tap to review'
+                        : '${queued.length} capture'
+                              '${queued.length == 1 ? "" : "s"} waiting to sync',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                const Icon(Icons.chevron_right, size: 18),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+void _showPendingSyncSheet(BuildContext context) {
+  showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    showDragHandle: true,
+    builder: (context) => const _PendingSyncSheet(),
+  );
+}
+
+class _PendingSyncSheet extends ConsumerWidget {
+  const _PendingSyncSheet();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final queued = ref.watch(evidenceSyncQueueProvider);
+    final notifier = ref.read(evidenceSyncQueueProvider.notifier);
+    final scheme = Theme.of(context).colorScheme;
+
+    return SafeArea(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.sizeOf(context).height * 0.75,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 4),
+              child: Text(
+                'Waiting to sync',
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+              child: Text(
+                'These handoffs are recorded on this phone and will be sent '
+                'automatically once there is a connection.',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                  height: 1.45,
+                ),
+              ),
+            ),
+            if (queued.isEmpty)
+              const Padding(
+                padding: EdgeInsets.fromLTRB(20, 8, 20, 28),
+                child: Text('Everything is synced. 🎉'),
+              )
+            else
+              Flexible(
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 16),
+                  itemCount: queued.length,
+                  separatorBuilder: (_, _) => const SizedBox(height: 4),
+                  itemBuilder: (context, index) {
+                    final entry = queued[index];
+                    return Card(
+                      margin: EdgeInsets.zero,
+                      child: ListTile(
+                        leading: Icon(
+                          entry.isRelease
+                              ? Icons.outbound
+                              : Icons.assignment_turned_in,
+                          color: entry.isBlocked ? scheme.error : null,
+                        ),
+                        title: Text(entry.itemLabel),
+                        subtitle: Text(
+                          entry.isBlocked
+                              ? 'Rejected: ${entry.lastError}'
+                              : '${entry.isRelease ? "Release" : "Return"} • '
+                                    '${entry.photoPaths.length} photo'
+                                    '${entry.photoPaths.length == 1 ? "" : "s"} • '
+                                    '${formatRelative(entry.queuedAt)}',
+                        ),
+                        isThreeLine: entry.isBlocked,
+                        trailing: entry.isBlocked
+                            ? Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  IconButton(
+                                    tooltip: 'Retry',
+                                    icon: const Icon(Icons.refresh),
+                                    onPressed: () => notifier.retry(entry.id),
+                                  ),
+                                  IconButton(
+                                    tooltip: 'Discard',
+                                    icon: Icon(
+                                      Icons.delete_outline,
+                                      color: scheme.error,
+                                    ),
+                                    onPressed: () => notifier.discard(entry.id),
+                                  ),
+                                ],
+                              )
+                            : const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              ),
+                      ),
+                    );
+                  },
+                ),
+              ),
           ],
         ),
       ),

@@ -2,6 +2,8 @@ import 'dart:typed_data';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/offline/offline_cache.dart';
+
 /// Domain for the synthetic, never-delivered email a citizen's auth
 /// account is registered under — email confirmations are disabled
 /// project-wide, so nothing ever needs to reach this address. Must match
@@ -39,7 +41,13 @@ class AuthRepository {
     await _client.auth.signInWithPassword(email: email, password: password);
   }
 
-  Future<void> signOut() => _client.auth.signOut();
+  /// Signing out drops the offline cache too — these devices get shared
+  /// between approvers, and the next one to sign in must not find the
+  /// previous one's queue sitting on disk.
+  Future<void> signOut() async {
+    await _client.auth.signOut();
+    await OfflineCache.clearAll();
+  }
 
   /// Checks whether a username is free to register, for live validation
   /// on the registration form.

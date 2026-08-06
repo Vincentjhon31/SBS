@@ -34,7 +34,10 @@ String _csvDoc(List<String> header, Iterable<List<Object?>> rows) {
 }
 
 Future<String> buildBorrowHistoryCsv(WidgetRef ref) async {
-  final requests = await ref.read(approvalsRepositoryProvider).fetchQueue(_allStatuses);
+  final requests = (await ref
+          .read(approvalsRepositoryProvider)
+          .fetchQueue(_allStatuses))
+      .requests;
   return _csvDoc(
     [
       'Item',

@@ -1,9 +1,9 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../app/app_shell.dart';
 import '../../../app/router.dart';
 import '../../../core/theme/view_mode_controller.dart';
 import '../../../core/utils/category_color.dart';
@@ -54,8 +54,8 @@ class _ItemsScreenState extends ConsumerState<ItemsScreen> {
     if (_searchController.text != query) {
       _searchController.text = query;
     }
-    // The staff website's shell header already shows the page title.
-    final inWebShell = kIsWeb && isStaff;
+    // The staff sidebar shell's header already shows the page title.
+    final inWebShell = inStaffSidebarShell(context, ref);
     final title = switch (widget.flowFilter) {
       ItemFlowType.borrow => 'Borrow Items',
       ItemFlowType.schedule => 'Schedule Items',

@@ -1,8 +1,8 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../app/app_shell.dart';
 import '../../../app/router.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/widgets/app_animations.dart';
@@ -20,8 +20,8 @@ class ProfileScreen extends ConsumerWidget {
     final verified = ref.watch(myCitizenVerifiedProvider).value;
     final isStaff = profile?.isStaff ?? false;
 
-    // The staff website's shell header already shows the page title.
-    final inWebShell = kIsWeb && isStaff;
+    // The staff sidebar shell's header already shows the page title.
+    final inWebShell = inStaffSidebarShell(context, ref);
 
     return Scaffold(
       backgroundColor: Colors.transparent,

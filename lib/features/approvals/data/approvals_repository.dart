@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/offline/offline_cache.dart';
 import 'approvals_models.dart';
 
 /// Thrown when an approval collides with an existing approved reservation
@@ -18,15 +19,35 @@ class ApprovalsRepository {
 
   /// Requests in the caller's approval scope. [statuses] is a
   /// comma-separated status list (e.g. 'released,overdue').
-  Future<List<PendingApproval>> fetchQueue(String statuses) async {
-    final rows = await _client
-        .from('borrow_requests')
-        .select('*, items(name, distinguishing_tag, quantity), '
-            'profiles!borrow_requests_borrower_id_fkey(full_name, user_type), '
-            'guest_borrowers(full_name)')
-        .inFilter('status', statuses.split(','))
-        .order('created_at', ascending: true);
-    return [for (final row in rows) PendingApproval.fromJson(row)];
+  ///
+  /// Every successful fetch is mirrored to the offline cache, and a failed
+  /// one falls back to it — so losing signal mid-shift degrades the queue
+  /// to "slightly out of date" instead of "gone". If there's no cached
+  /// copy either, the original error surfaces as normal.
+  Future<ApprovalQueue> fetchQueue(String statuses) async {
+    final cacheKey = 'approvals_$statuses';
+    try {
+      final rows = await _client
+          .from('borrow_requests')
+          .select('*, items(name, distinguishing_tag, quantity), '
+              'profiles!borrow_requests_borrower_id_fkey(full_name, user_type), '
+              'guest_borrowers(full_name)')
+          .inFilter('status', statuses.split(','))
+          .order('created_at', ascending: true);
+      await OfflineCache.writeRows(cacheKey, rows);
+      return ApprovalQueue(
+        requests: [for (final row in rows) PendingApproval.fromJson(row)],
+      );
+    } catch (_) {
+      final cached = await OfflineCache.readRows(cacheKey);
+      if (cached == null) rethrow;
+      return ApprovalQueue(
+        requests: [
+          for (final row in cached.value) PendingApproval.fromJson(row),
+        ],
+        cachedAt: cached.cachedAt.toLocal(),
+      );
+    }
   }
 
   Future<CitizenVerification> fetchCitizenVerification(

@@ -1,8 +1,8 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../app/app_shell.dart';
 import '../../../app/router.dart';
 import '../../../core/theme/view_mode_controller.dart';
 import '../../../core/utils/date_format.dart';
@@ -10,7 +10,6 @@ import '../../../core/widgets/app_animations.dart';
 import '../../../core/widgets/request_status_chip.dart';
 import '../../../core/widgets/sbs_table.dart';
 import '../../approvals/data/approvals_models.dart';
-import '../../items/data/items_providers.dart';
 import '../data/borrow_models.dart';
 import '../data/borrow_providers.dart';
 
@@ -22,9 +21,9 @@ class MyRequestsScreen extends ConsumerWidget {
     final requests = ref.watch(myRequestsProvider);
     final active = ref.watch(activeRequestsProvider);
     final history = ref.watch(historyRequestsProvider);
-    // On the staff website the shell header shows the page title — keep
-    // only the tab strip. Citizens (mobile/web) keep the full AppBar.
-    final inWebShell = kIsWeb && ref.watch(isStaffProvider);
+    // In the staff sidebar shell the header shows the page title — keep
+    // only the tab strip. Everyone else keeps the full AppBar.
+    final inWebShell = inStaffSidebarShell(context, ref);
 
     return DefaultTabController(
       length: 2,
